@@ -8,6 +8,8 @@
 #include <cmath>
 #include <map>
 
+#include <cassert>
+
 //#include "MCNPInputDeck.hpp"
 #include "iGeom.h"
 
@@ -65,10 +67,153 @@ protected:
 
 class CellCard : public Card {
 
+public:
+  enum geom_token_t {INTERSECT, UNION, COMPLEMENT, LPAREN, RPAREN, CELLNUM, SURFNUM};
+  typedef std::pair<enum geom_token_t, int> geom_list_entry_t;
+  typedef std::vector<geom_list_entry_t> geom_list_t;
+
 protected:
   int ident;
-  token_list_t geom;
+  geom_list_t geom;
   token_list_t data;
+
+  static geom_list_entry_t make_geom_entry(geom_token_t t, int param = 0){
+    return std::make_pair(t, param);
+  }
+
+  static bool is_num_token( geom_list_entry_t t ){
+    return t.first == CELLNUM || t.first == SURFNUM;
+  }
+
+  static bool is_op_token( geom_list_entry_t t ){
+    return t.first == COMPLEMENT || t.first == UNION || t.first == INTERSECT;
+  }
+
+  static int operator_priority( geom_list_entry_t t ){
+    switch(t.first){
+    case COMPLEMENT: return 3;
+    case INTERSECT:  return 2;
+    case UNION:      return 1;
+    default:
+      throw std::runtime_error("queried operator priority for a non-operator token");
+    }
+  }
+
+  /**
+   * Build the geom list as part of cell construction.
+   * Each item in the list will be a string; either " ", ":", or "#", indicating
+   * operators, or parentheses, or numbers indicating surface or cell identities.
+   *
+   * @param The list of geometry tokens in the input file, as a list of strings that were 
+   *        separated by white space in the original file.
+   */
+  void retokenize_geometry( const token_list_t& tokens ){
+    for(token_list_t::const_iterator i = tokens.begin(); i!=tokens.end(); ++i){
+      const std::string& token = *i;
+      
+      size_t j = 0;
+      while( j < token.length() ){
+
+	char cj = token.at(j);
+
+	switch(cj){
+	  
+	  // the following macro pushes an intersect token onto the geom list
+	  // if the end of that list indicates that one is needed
+#define IMPLICIT_INTERSECT() do{				\
+	    if(geom.size()){					\
+	      geom_list_entry_t &t = geom.at(geom.size()-1);	\
+	      if( is_num_token(t) || t.first == RPAREN ){	\
+		geom.push_back( make_geom_entry( INTERSECT ) );	\
+	      }}} while(0) 
+	  
+	case '(': 
+	  IMPLICIT_INTERSECT();
+	  geom.push_back(make_geom_entry(LPAREN)); j++;
+	  break;
+	  
+	case ')':
+	  geom.push_back(make_geom_entry(RPAREN)); j++;
+	  break;
+	  
+	case '#':
+	  IMPLICIT_INTERSECT();
+	  geom.push_back(make_geom_entry(COMPLEMENT)); j++; 
+	  break;
+	  
+	case ':':		
+	  geom.push_back(make_geom_entry(UNION)); j++; 
+	  break;
+	  
+	default: // a number
+	  // the number refers to a cell if the previous token is a complement
+	  bool is_cell = geom.size() && ((geom.at(geom.size()-1)).first == COMPLEMENT);
+	  IMPLICIT_INTERSECT();
+	  assert(isdigit(cj) || cj == '+' || cj == '-' );
+	  size_t end = token.find_first_not_of("1234567890-+",j);
+	  assert(j != end);
+	  int num = strtol( std::string(token, j, end-j).c_str(), NULL, 10 );
+	  geom.push_back( make_geom_entry( is_cell ? CELLNUM : SURFNUM, num ));
+	  j += (end-j);
+	  break;
+#undef IMPLICIT_INTERSECT
+
+	}
+	
+      } 
+    }
+    
+    std::cout << tokens << " -> " << geom << std::endl;
+    
+  }
+
+
+  /**
+   * The final step of geometry parsing: convert the geometry list to RPN, which
+   * greatly simplifies the process of evaluating the geometry later.  This function
+   * uses the shunting yard algorithm.  For more info consult
+   * http://en.wikipedia.org/wiki/Shunting_yard_algorithm
+   */
+  void shunt_geometry( ){
+    geom_list_t geom_copy( geom );
+    geom.clear();
+
+    geom_list_t stack;
+    for(geom_list_t::iterator i = geom_copy.begin(); i!=geom_copy.end(); ++i){
+      geom_list_entry_t token = *i;
+      if( is_num_token(token) ){
+	geom.push_back(token);
+      }
+      else if( is_op_token(token) ){
+
+	while(stack.size()){
+	  geom_list_entry_t& stack_top = stack.back();
+	  if( is_op_token(stack_top) && operator_priority(stack_top) > operator_priority(token) ){
+	    geom.push_back(stack_top);
+	    stack.pop_back();
+	  }
+	  else{
+	    break;
+	  }
+	}
+	stack.push_back(token);
+      }
+      else if( token.first == LPAREN ){
+	stack.push_back(token);
+      }
+      else if( token.first == RPAREN ){
+	while( stack.back().first != LPAREN ){
+	  geom.push_back( stack.back() );
+	  stack.pop_back();
+	}
+	stack.pop_back(); // remove the LPAREN
+      }
+    }
+    while( stack.size() ){
+      geom.push_back( stack.back() );
+      stack.pop_back();
+    }
+  }
 
 public:
   CellCard( const token_list_t& tokens ):Card()
@@ -85,13 +230,19 @@ public:
 
     material = makeint(tokens.at(idx++));
     if(material != 0){
-      makedouble(tokens.at(idx++)); // material density
+      makedouble(tokens.at(idx++)); // material density, currently ignored.
     }
+
+    token_list_t temp_geom;
     
-    // while the tokens appear in geometry-specification syntax, store them into goem list
+    // while the tokens appear in geometry-specification syntax, store them into temporary list
     while(idx < tokens.size() && tokens.at(idx).find_first_of("1234567890:#-+()") == 0){
-      geom.push_back(tokens[idx++]);
+      temp_geom.push_back(tokens[idx++]);
     }
+
+    // retokenize the geometry list, which follows a specialized syntax.
+    retokenize_geometry( temp_geom );
+    shunt_geometry();
 
     // store the rest of the tokens into the data list
     while(idx < tokens.size()){
@@ -108,10 +259,22 @@ public:
     s << "Cell " << ident << " geom " << geom << std::endl;
   }
 
-  void define( iGeom_Instance& geom, InputDeck& data, double universe_size);
+  iBase_EntityHandle define( iGeom_Instance& geom, InputDeck& data, double universe_size);
 
 };
 
+std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t ){
+  switch(t.first){
+  case CellCard::LPAREN: str << "("; break;
+  case CellCard::RPAREN: str << ")"; break;
+  case CellCard::COMPLEMENT: str << "#"; break;
+  case CellCard::UNION: str << ":"; break;
+  case CellCard::INTERSECT: str << "*"; break;
+  case CellCard::SURFNUM: str << t.second; break;
+  case CellCard::CELLNUM: str << "c" << t.second; break;
+  }
+  return str;
+}
 
 class AbstractSurface{
 
@@ -138,7 +301,7 @@ public:
     size_t idx = 0;
     std::string token1 = tokens.at(idx++);
     if(token1.find_first_of("*+") != token1.npos){
-      std::cerr << "Warning: cannot handle reflecting or white-boundary surfaces" << std::endl;
+      std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
     token1[0] = ' ';
     }
     ident = makeint(token1);
@@ -429,7 +592,8 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
   }
 }
 
-void parseDataCards( LineExtractor& lines ){}
+void parseDataCards( LineExtractor&  ){
+}
 
 InputDeck& InputDeck::build( std::istream& input){
  
@@ -625,36 +789,77 @@ AbstractSurface& SurfaceCard::getSurface() {
 }
 
 
-void CellCard::define( iGeom_Instance& igm, InputDeck& data, double universe_size){
+iBase_EntityHandle CellCard::define( iGeom_Instance& igm, InputDeck& data, double universe_size){
 
-  iBase_EntityHandle last_handle = NULL;
-  for(token_list_t::iterator i = this->geom.begin(); i!=geom.end(); ++i){
+  int igm_result;
 
-    std::string& token = *i;
-    int surface = makeint(token);
-    bool pos = true;
+  std::vector<iBase_EntityHandle> stack;
+  for(geom_list_t::iterator i = this->geom.begin(); i!=geom.end(); ++i){
+    
+    geom_list_entry_t& token = (*i);
+    switch(token.first){
+    case CELLNUM:
+      stack.push_back(data.lookup_cell_card(token.second)->define(igm,data,universe_size));
+      break;
+    case SURFNUM:
+      {      
+	int surface = token.second;
+	bool pos = true;
+	if( surface < 0){
+	  pos = false; surface = -surface;
+	}
+	try{
+	  AbstractSurface& surf = data.lookup_surface_card( surface )->getSurface();
+	  iBase_EntityHandle surf_handle = surf.getHandle( pos, igm, universe_size );
+	  stack.push_back(surf_handle);
+	}
+	catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
+      }
+      break;
+    case INTERSECT:
+      {
+	assert( stack.size() >= 2 );
+	iBase_EntityHandle s1 = stack.back(); stack.pop_back();
+	iBase_EntityHandle s2 = stack.back(); stack.pop_back();
+	iBase_EntityHandle result;
+	iGeom_intersectEnts( igm, s1, s2, &result, &igm_result);
+	CHECK_IGEOM( igm_result, "Intersecting two entities" );
+	stack.push_back(result);
+      }
+      break;
+    case UNION:
+      {	
+	assert( stack.size() >= 2 );
+	iBase_EntityHandle s[2];
+	s[0] = stack.back(); stack.pop_back();
+	s[1] = stack.back(); stack.pop_back();
+	iBase_EntityHandle result;
+	iGeom_uniteEnts( igm, s, 2, &result, &igm_result);
+	CHECK_IGEOM( igm_result, "Uniting two entities" );
+	stack.push_back(result);
+      }
+      break;
+    case COMPLEMENT:
+      {
+	assert (stack.size() >= 1 );
+      	iBase_EntityHandle universe_sphere = makeUniverseSphere(igm, universe_size);
+	iBase_EntityHandle s = stack.back(); stack.pop_back();
+	iBase_EntityHandle result;
 
-    if( surface < 0 ){ 
-      pos = false;
-      surface = -surface;
+	iGeom_subtractEnts( igm, universe_sphere, s, &result, &igm_result);
+	CHECK_IGEOM( igm_result, "Complementing an entity" );
+	stack.push_back(result);
+      }
+      break;
+    default:
+      throw std::runtime_error( "Unexpected token while evaluating cell geometry");
+      break;
     }
-
-    try{
-    SurfaceCard* card = data.lookup_surface_card( surface );
-    AbstractSurface& s = card->getSurface();
-    iBase_EntityHandle surf_handle = s.getHandle( pos, igm, universe_size );
-
-    if(last_handle){
-      int igm_result;
-      iGeom_intersectEnts( igm, last_handle, surf_handle, &last_handle, &igm_result);
-    }
-    else{
-      last_handle = surf_handle;
-    }
-    }
-    catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
-
   }
+
+  assert( stack.size() == 1);
+  return stack[0];
+
 }
 
 

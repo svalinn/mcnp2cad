@@ -7,7 +7,7 @@ LDFLAGS = ${IGEOM_LDFLAGS}
 CXXSOURCES = mcnp2igeom.cpp
 CXXOBJS = mcnp2igeom.o
 
-CXXFLAGS = -g -Wall -Werror
+CXXFLAGS = -g -Wall -Wextra -Werror
 
 mcnp2igeom: ${CXXOBJS} Makefile
 	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} ${IGEOM_LIBS}
