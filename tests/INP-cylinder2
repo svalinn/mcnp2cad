@@ -1,0 +1,7 @@
+test file for cylinder complements
+1 0 #(1:100) 200
+
+1 c/x 0 0 3
+100 cy 3
+200 so 10
+

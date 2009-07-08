@@ -53,6 +53,10 @@ int makeint( const std::string& token ){
   return ret;
 }
 
+bool isblank( const std::string& line ){
+  return (line=="" || line.find_first_not_of(" ") == line.npos );
+}
+
 class CellCard;
 class SurfaceCard;
 class LineExtractor;
@@ -524,7 +528,7 @@ void parseTitle( LineExtractor& lines ){
     do{
       // nothing
     }
-    while( lines.takeLine() != "" );
+    while( !isblank(lines.takeLine()) );
 	  
     topLine = lines.takeLine(lineno);
   }
@@ -543,9 +547,10 @@ void InputDeck::parseCells( LineExtractor& lines ){
   std::string line;
   token_list_t token_buffer;
 
-  while( (line = lines.takeLine()) != "" ){
+  while( !isblank(line = lines.takeLine()) ){
 
     tokenizeLine(line, token_buffer, "=");
+    std::cout << token_buffer << std::endl;
     
     if( lines.peekLine().find("     ") == 0){
       continue;
@@ -570,7 +575,7 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
   std::string line;
   token_list_t token_buffer;
 
-  while( (line = lines.takeLine()) != "" ){
+  while( !isblank(line = lines.takeLine()) ){
 
     tokenizeLine(line, token_buffer );
     
@@ -649,7 +654,7 @@ public:
 static Vector3d origin(0,0,0);
 
 #define CHECK_IGEOM(err, msg) \
-  do{if((err) != iBase_SUCCESS) throw std::runtime_error("iGeom error" + std::string(msg)); }while(0)
+  do{if((err) != iBase_SUCCESS) std::cerr << "iGeom error (" << err << "): " << msg << std::endl; }while(0)
 
 iBase_EntityHandle makeUniverseSphere( iGeom_Instance& igm, double universe_size ){
   iBase_EntityHandle universe_sphere;
@@ -673,7 +678,8 @@ public:
   virtual double getFarthestExtentFromOrigin() const{
     // this is a funny situation, since planes are technically infinte...
     // in order to have a sane answer, we just return the offset from the origin.
-    return std::abs(offset);
+    // (multiplied by root 3, which was done in the old converter, why?)
+    return /*sqrt(3.0) * */ std::abs(offset);
   }
 
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size){
@@ -688,6 +694,71 @@ public:
 
 
   }
+
+};
+
+class CylinderSurface : public AbstractSurface {
+
+public:
+  enum axis{ X=0, Y=1, Z=2 } axis;
+  double radius;
+  Vector3d center;
+  bool onaxis;
+
+  CylinderSurface( enum axis axis_p, double radius_p ):
+    AbstractSurface(), axis(axis_p), radius(radius_p), center(origin), onaxis(true)
+  {}
+
+  CylinderSurface( enum axis axis_p, double radius_p, double trans1, double trans2 ):
+    AbstractSurface(), axis(axis_p), radius(radius_p), center(origin), onaxis(false)
+  {
+    switch(axis){
+    case X: center.v[Y] += trans1; center.v[Z] += trans2; break;
+    case Y: center.v[X] += trans1; center.v[Z] += trans2; break;
+    case Z: center.v[X] += trans1; center.v[Y] += trans2; break;
+    }
+  }
+  
+  virtual double getFarthestExtentFromOrigin( ) const{
+    return radius + center.length();
+  }
+
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ){
+    int igm_result;
+
+    iBase_EntityHandle cylinder;
+    iGeom_createCylinder( igm, 2.0 * universe_size, radius, 0, &cylinder, &igm_result);
+    CHECK_IGEOM( igm_result, "making cylinder" );
+
+    
+    if( axis == X ){
+      iGeom_rotateEnt( igm, &cylinder, 90, 0, 1, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating cylinder (X)" );
+    }
+    else if( axis == Y ){
+      iGeom_rotateEnt( igm, &cylinder, 90, 1, 0, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating cylinder (Y)" );
+    }
+
+    if( onaxis == false ){
+      iGeom_moveEnt( igm, &cylinder, center.v[0], center.v[1], center.v[2], &igm_result);
+      CHECK_IGEOM( igm_result, "moving cylinder" );
+    }
+
+    iBase_EntityHandle universe_sphere = makeUniverseSphere( igm, universe_size );
+    iBase_EntityHandle final_cylinder;
+
+    if( positive ){
+      iGeom_intersectEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
+      CHECK_IGEOM( igm_result, "making clipped cylinder" );
+    }
+    else{
+      iGeom_subtractEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
+      CHECK_IGEOM( igm_result, "making negative cylinder" );
+    }
+
+    return final_cylinder;
+  };
 
 };
 
@@ -765,7 +836,7 @@ AbstractSurface& SurfaceCard::getSurface() {
     else if( mnemonic == "sz"){
       this->surface = new SphereSurface( Vector3d( 0, 0, args.at(0) ), args.at(1) );
     }
-    else if( mnemonic == "s"){
+    else if( mnemonic == "s" || mnemonic == "sph" ){
       this->surface = new SphereSurface( Vector3d( args ), args.at(3) );
     }
     else if( mnemonic == "p"){
@@ -779,6 +850,24 @@ AbstractSurface& SurfaceCard::getSurface() {
     }
     else if( mnemonic == "pz"){
       this->surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+    }
+    else if( mnemonic == "cx" ){
+      this->surface = new CylinderSurface( CylinderSurface::X, args.at(0) );
+    }
+    else if( mnemonic == "cy" ){
+      this->surface = new CylinderSurface( CylinderSurface::Y, args.at(0) );
+    }
+    else if( mnemonic == "cz" ){
+      this->surface = new CylinderSurface( CylinderSurface::Z, args.at(0) );
+    }
+    else if( mnemonic == "c/x"){
+      this->surface = new CylinderSurface( CylinderSurface::X, args.at(2), args.at(0), args.at(1) );
+    }
+    else if( mnemonic == "c/y"){
+      this->surface = new CylinderSurface( CylinderSurface::Y, args.at(2), args.at(0), args.at(1) );
+    }
+    else if( mnemonic == "c/z"){
+      this->surface = new CylinderSurface( CylinderSurface::Z, args.at(2), args.at(0), args.at(1) );
     }
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
@@ -879,6 +968,8 @@ void InputDeck::createGeometry(){
     } catch(std::runtime_error& e){}
   }
   universe_size *= 1.2;
+
+  std::cout << "Universe size: " << universe_size << std::endl;
 	
   for( cell_card_list::iterator i = cells.begin(); i!=cells.end(); ++i){
     (*i)->define( igm, *this, universe_size );
