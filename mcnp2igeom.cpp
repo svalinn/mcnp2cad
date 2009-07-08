@@ -408,6 +408,16 @@ protected:
   bool has_next;
   int next_line_idx;
 
+  /* 
+   * Take note of the following, from mcnp5 manual page 1-3:
+   * Tab characters in the input file are converted to one or more blanks, such that the character
+   * following the tab will be positioned at the next tab stop. Tab stops are set every 8 characters,
+   * i.e., 9, 17, 25, etc. The limit of input lines to 80 columns applies after tabs are expanded into blank
+   * spaces. </snip>
+   * I don't know whether this needs to be addressed to handle corner cases for line continuation, etc.
+   * currently, it is not addressed.
+   */
+
   void get_next(){
 
     do{
@@ -679,7 +689,7 @@ public:
     // this is a funny situation, since planes are technically infinte...
     // in order to have a sane answer, we just return the offset from the origin.
     // (multiplied by root 3, which was done in the old converter, why?)
-    return /*sqrt(3.0) * */ std::abs(offset);
+    return sqrt(3.0) *  std::abs(offset);
   }
 
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size){
@@ -687,6 +697,7 @@ public:
     int igm_result;
     iBase_EntityHandle universe_sphere = makeUniverseSphere(igm, universe_size);
     iBase_EntityHandle hemisphere;
+    // note the reversal of sense in this call; mcnp and igeom define it differently.
     iGeom_sectionEnt( igm, &universe_sphere, 
 		      normal.v[0], normal.v[1], normal.v[2], offset, !positive, &hemisphere, &igm_result);
     CHECK_IGEOM( igm_result, "Sectioning universe for a plane" );
@@ -749,11 +760,11 @@ public:
     iBase_EntityHandle final_cylinder;
 
     if( positive ){
-      iGeom_intersectEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
+      iGeom_subtractEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
       CHECK_IGEOM( igm_result, "making clipped cylinder" );
     }
     else{
-      iGeom_subtractEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
+      iGeom_intersectEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
       CHECK_IGEOM( igm_result, "making negative cylinder" );
     }
 
@@ -768,13 +779,9 @@ public:
   Vector3d center;
   double radius;
 
-  iBase_EntityHandle positiveSense_volume;
-  iBase_EntityHandle negativeSense_volume;
-
 public:
   SphereSurface( const Vector3d& center_p, double radius_p ) :
-    AbstractSurface(), center(center_p), radius(radius_p),
-    positiveSense_volume(NULL), negativeSense_volume(NULL)
+    AbstractSurface(), center(center_p), radius(radius_p)
   {}
 
   virtual ~SphereSurface(){}
@@ -786,35 +793,30 @@ public:
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ){
 
     int igm_result;
+    iBase_EntityHandle sphere;
+
+    iGeom_createSphere( igm, radius, &sphere, &igm_result);
+    CHECK_IGEOM( igm_result, "making sphere" );
+
+    iGeom_moveEnt( igm, &sphere, center.v[0], center.v[1], center.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "moving sphere" );
+
+    // sphere now defines the interior sphere volume, corresponding to mcnp's notion of negative sense.
+    // If positive sense is required, we must return the outside of the surface.
+
     if(positive){
-      //if(!positiveSense_volume){
-	
-	iGeom_createSphere( igm, radius, &positiveSense_volume, &igm_result);
-	CHECK_IGEOM( igm_result, "making sphere" );
-	
-	iGeom_moveEnt( igm, &positiveSense_volume, center.v[0], center.v[1], center.v[2], &igm_result);
-	CHECK_IGEOM( igm_result, "moving sphere" );
-
-	//} 
-      std::cout << "Returning " << positiveSense_volume << std::endl;
-      return positiveSense_volume;
-    }
-    else{ // negative sense 
-
-      //if(!negativeSense_volume){
-
-	// first ensure that positiveSense_volume is set
-	this->getHandle( true, igm, universe_size );
 
 	iBase_EntityHandle universe_sphere = makeUniverseSphere(igm, universe_size);
+	iBase_EntityHandle volume;
 
-	iGeom_subtractEnts( igm, universe_sphere, positiveSense_volume, &negativeSense_volume, &igm_result);
+	iGeom_subtractEnts( igm, universe_sphere, sphere, &volume, &igm_result);
 	CHECK_IGEOM( igm_result, "subtracting sphere" );
-	//}
-
-      return negativeSense_volume;
+	
+	sphere = volume;
 
     }
+    
+    return sphere; 
   }
 
 };
@@ -880,6 +882,7 @@ AbstractSurface& SurfaceCard::getSurface() {
 
 iBase_EntityHandle CellCard::define( iGeom_Instance& igm, InputDeck& data, double universe_size){
 
+  std::cerr << "Defining cell " << this->ident << std::endl;
   int igm_result;
 
   std::vector<iBase_EntityHandle> stack;

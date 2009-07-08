@@ -1,6 +1,6 @@
 Test file for negative cylinders.
-1 0 -1 -2
-2 0 1 2
+1 0 1 -2
+2 0 -1 2
 
 1 c/x 3 5 2
 2 px 0 
