@@ -1,6 +1,5 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <stdexcept>
 #include <cctype>
@@ -12,659 +11,94 @@
 
 //#include "MCNPInputDeck.hpp"
 #include "iGeom.h"
+#include "geometry.hpp"
+#include "MCNPInput.hpp"
 
-std::string& strlower( std::string& str ){
-  // convert to lowercase
-  for(size_t i = 0; i < str.length(); ++i){
-    str[i] = tolower( str.at(i) );
-  }
-  return str;
-}
-
-typedef std::vector< std::string > token_list_t;
-
-template < class T >
-std::ostream& operator<<( std::ostream& out, const std::vector<T>& list ){
-  out << "[";
-  for(typename std::vector<T>::const_iterator i = list.begin(); i!=list.end(); ++i){
-    out << *i << "|";
-  }
-  out << "\b]" << std::endl;
-  return out;
-}
-
-double makedouble( const std::string& token ){
-  const char* str = token.c_str();
-  char* end;
-  double ret = strtod(str, &end);
-  if( end != str+token.length() ){
-    std::cerr << "Warning: string [" << token << "] did not convert to double as expected." << std::endl;
-  }
-  return ret;
-}
-
-int makeint( const std::string& token ){
-  const char* str = token.c_str();
-  char* end;
-  int ret = strtol(str, &end, 10);
-  if( end != str+token.length() ){
-    std::cerr << "Warning: string [" << token << "] did not convert to int as expected." << std::endl;
-  }
-  return ret;
-}
-
-bool isblank( const std::string& line ){
-  return (line=="" || line.find_first_not_of(" ") == line.npos );
-}
 
 class CellCard;
 class SurfaceCard;
+class DataCard;
 class LineExtractor;
 class InputDeck;
 
-class Card{
 
-protected:
-  Card(){}
+
+template <class T> class DataRef {
+
+public:
+  virtual ~DataRef(){}
+  virtual T get() = 0;
 
 };
 
-class CellCard : public Card {
-
-public:
-  enum geom_token_t {INTERSECT, UNION, COMPLEMENT, LPAREN, RPAREN, CELLNUM, SURFNUM};
-  typedef std::pair<enum geom_token_t, int> geom_list_entry_t;
-  typedef std::vector<geom_list_entry_t> geom_list_t;
-
-protected:
-  int ident;
-  geom_list_t geom;
-  token_list_t data;
-
-  static geom_list_entry_t make_geom_entry(geom_token_t t, int param = 0){
-    return std::make_pair(t, param);
-  }
-
-  static bool is_num_token( geom_list_entry_t t ){
-    return t.first == CELLNUM || t.first == SURFNUM;
-  }
-
-  static bool is_op_token( geom_list_entry_t t ){
-    return t.first == COMPLEMENT || t.first == UNION || t.first == INTERSECT;
-  }
-
-  static int operator_priority( geom_list_entry_t t ){
-    switch(t.first){
-    case COMPLEMENT: return 3;
-    case INTERSECT:  return 2;
-    case UNION:      return 1;
-    default:
-      throw std::runtime_error("queried operator priority for a non-operator token");
-    }
-  }
-
-  /**
-   * Build the geom list as part of cell construction.
-   * Each item in the list will be a string; either " ", ":", or "#", indicating
-   * operators, or parentheses, or numbers indicating surface or cell identities.
-   *
-   * @param The list of geometry tokens in the input file, as a list of strings that were 
-   *        separated by white space in the original file.
-   */
-  void retokenize_geometry( const token_list_t& tokens ){
-    for(token_list_t::const_iterator i = tokens.begin(); i!=tokens.end(); ++i){
-      const std::string& token = *i;
-      
-      size_t j = 0;
-      while( j < token.length() ){
-
-	char cj = token.at(j);
-
-	switch(cj){
-	  
-	  // the following macro pushes an intersect token onto the geom list
-	  // if the end of that list indicates that one is needed
-#define IMPLICIT_INTERSECT() do{				\
-	    if(geom.size()){					\
-	      geom_list_entry_t &t = geom.at(geom.size()-1);	\
-	      if( is_num_token(t) || t.first == RPAREN ){	\
-		geom.push_back( make_geom_entry( INTERSECT ) );	\
-	      }}} while(0) 
-	  
-	case '(': 
-	  IMPLICIT_INTERSECT();
-	  geom.push_back(make_geom_entry(LPAREN)); j++;
-	  break;
-	  
-	case ')':
-	  geom.push_back(make_geom_entry(RPAREN)); j++;
-	  break;
-	  
-	case '#':
-	  IMPLICIT_INTERSECT();
-	  geom.push_back(make_geom_entry(COMPLEMENT)); j++; 
-	  break;
-	  
-	case ':':		
-	  geom.push_back(make_geom_entry(UNION)); j++; 
-	  break;
-	  
-	default: // a number
-	  // the number refers to a cell if the previous token is a complement
-	  bool is_cell = geom.size() && ((geom.at(geom.size()-1)).first == COMPLEMENT);
-	  IMPLICIT_INTERSECT();
-	  assert(isdigit(cj) || cj == '+' || cj == '-' );
-	  size_t end = token.find_first_not_of("1234567890-+",j);
-	  assert(j != end);
-	  int num = strtol( std::string(token, j, end-j).c_str(), NULL, 10 );
-	  geom.push_back( make_geom_entry( is_cell ? CELLNUM : SURFNUM, num ));
-	  j += (end-j);
-	  break;
-#undef IMPLICIT_INTERSECT
-
-	}
-	
-      } 
-    }
-    
-    std::cout << tokens << " -> " << geom << std::endl;
-    
-  }
-
-
-  /**
-   * The final step of geometry parsing: convert the geometry list to RPN, which
-   * greatly simplifies the process of evaluating the geometry later.  This function
-   * uses the shunting yard algorithm.  For more info consult
-   * http://en.wikipedia.org/wiki/Shunting_yard_algorithm
-   */
-  void shunt_geometry( ){
-    geom_list_t geom_copy( geom );
-    geom.clear();
-
-    geom_list_t stack;
-    for(geom_list_t::iterator i = geom_copy.begin(); i!=geom_copy.end(); ++i){
-      geom_list_entry_t token = *i;
-      if( is_num_token(token) ){
-	geom.push_back(token);
-      }
-      else if( is_op_token(token) ){
-
-	while(stack.size()){
-	  geom_list_entry_t& stack_top = stack.back();
-	  if( is_op_token(stack_top) && operator_priority(stack_top) > operator_priority(token) ){
-	    geom.push_back(stack_top);
-	    stack.pop_back();
-	  }
-	  else{
-	    break;
-	  }
-	}
-	stack.push_back(token);
-      }
-      else if( token.first == LPAREN ){
-	stack.push_back(token);
-      }
-      else if( token.first == RPAREN ){
-	while( stack.back().first != LPAREN ){
-	  geom.push_back( stack.back() );
-	  stack.pop_back();
-	}
-	stack.pop_back(); // remove the LPAREN
-      }
-    }
-    while( stack.size() ){
-      geom.push_back( stack.back() );
-      stack.pop_back();
-    }
-  }
-
-public:
-  CellCard( const token_list_t& tokens ):Card()
-  {
-    
-    unsigned int idx = 0;
-    int material;
-
-    ident = makeint(tokens.at(idx++));
-    
-    if(tokens.at(1) == "like"){
-      throw std::runtime_error("LIKE/BUT cell card syntax not yet supported.");
-    }
-
-    material = makeint(tokens.at(idx++));
-    if(material != 0){
-      makedouble(tokens.at(idx++)); // material density, currently ignored.
-    }
-
-    token_list_t temp_geom;
-    
-    // while the tokens appear in geometry-specification syntax, store them into temporary list
-    while(idx < tokens.size() && tokens.at(idx).find_first_of("1234567890:#-+()") == 0){
-      temp_geom.push_back(tokens[idx++]);
-    }
-
-    // retokenize the geometry list, which follows a specialized syntax.
-    retokenize_geometry( temp_geom );
-    shunt_geometry();
-
-    // store the rest of the tokens into the data list
-    while(idx < tokens.size()){
-      data.push_back(tokens[idx++]);
-    }
-
-  }
-
-  int getIdent() const { 
-    return ident;
-  }
-
-  void print( std::ostream& s ) const{
-    s << "Cell " << ident << " geom " << geom << std::endl;
-  }
-
-  iBase_EntityHandle define( iGeom_Instance& geom, InputDeck& data, double universe_size);
-
-};
-
-std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t ){
-  switch(t.first){
-  case CellCard::LPAREN: str << "("; break;
-  case CellCard::RPAREN: str << ")"; break;
-  case CellCard::COMPLEMENT: str << "#"; break;
-  case CellCard::UNION: str << ":"; break;
-  case CellCard::INTERSECT: str << "*"; break;
-  case CellCard::SURFNUM: str << t.second; break;
-  case CellCard::CELLNUM: str << "c" << t.second; break;
-  }
-  return str;
-}
+class Transform;
 
 class AbstractSurface{
 
+protected:
+  const Transform* transform;
+
 public:
+  AbstractSurface( const Transform* transform_p = NULL):
+    transform(transform_p)
+  {}
   virtual ~AbstractSurface(){}
+
+  void setTransform( const Transform* transform_p ){ transform = transform_p; }
   
   virtual double getFarthestExtentFromOrigin( ) const = 0;
+  virtual iBase_EntityHandle define( bool positive, iGeom_Instance& igm, double universe_size );
+
+protected:
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ) = 0;
-
 };
 
-class SurfaceCard : public Card {
-
-protected:
-  int ident, coord_xform;
-  std::string mnemonic;
-  std::vector<double> args;
-  AbstractSurface* surface;
-
-public:
-  SurfaceCard( const token_list_t tokens ) : Card(), surface(NULL)
-  {
-
-    size_t idx = 0;
-    std::string token1 = tokens.at(idx++);
-    if(token1.find_first_of("*+") != token1.npos){
-      std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
-    token1[0] = ' ';
-    }
-    ident = makeint(token1);
-
-    std::string token2 = tokens.at(idx++);
-    if(token2.find_first_of("1234567890-") != 0){
-      //token2 is the mnemonic
-      coord_xform = 0;
-      mnemonic = token2;
-    }
-    else{
-      // token2 is a coordinate transform identifier
-      coord_xform = makeint(token2);
-      if(coord_xform < 0){
-	throw std::runtime_error("Cannot handle periodic surfaces");
-      }
-      mnemonic = tokens.at(idx++);
-      
-    }
-
-    while( idx < tokens.size() ){
-      args.push_back( makedouble(tokens[idx++]) );
-    }
-
-  }
-
-  ~SurfaceCard(){
-    if(surface){
-      delete surface;
-    }
-  }
-
-  int getIdent() const { return ident; } 
-					     
-  void print( std::ostream& s ) const {
-    s << "Surface " << ident << " " << mnemonic << args;
-    if( coord_xform != 0 ) s << " TR" << coord_xform;
-    s << std::endl;
-  }
-
-  AbstractSurface& getSurface();
-
-
-};
-
-
-
-class InputDeck{
-
-public:
-  typedef std::vector< CellCard* > cell_card_list;
-  typedef std::vector< SurfaceCard* > surface_card_list;
-
-protected:
-  cell_card_list cells;
-  surface_card_list surfaces;
-
-  std::map<int, CellCard*> cell_map;
-  std::map<int, SurfaceCard*> surface_map;
-
-  void parseCells( LineExtractor& lines );
-  void parseSurfaces( LineExtractor& lines );
-
-public:
-
-  ~InputDeck(){
-    for(cell_card_list::iterator i = cells.begin(); i!=cells.end(); ++i){
-      delete *i;
-    }
-    cells.clear();
-    for(surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
-      delete *i;
-    }
-    surfaces.clear();
-  }
-
-  cell_card_list& getCells() { return cells; }
-  surface_card_list& getSurfaces() { return surfaces; } 
-
-  CellCard* lookup_cell_card(int ident){
-    return (*cell_map.find(ident)).second;
-  }
-
-  SurfaceCard* lookup_surface_card(int ident){
-    return (*surface_map.find(ident)).second;
-  }
-
-  static InputDeck& build( std::istream& input );
-  
-  void createGeometry();
-
-
-};
-
-class LineExtractor{
-
-protected:
-  std::istream& input;
-  std::string next_line;
-  bool has_next;
-  int next_line_idx;
-
-  /* 
-   * Take note of the following, from mcnp5 manual page 1-3:
-   * Tab characters in the input file are converted to one or more blanks, such that the character
-   * following the tab will be positioned at the next tab stop. Tab stops are set every 8 characters,
-   * i.e., 9, 17, 25, etc. The limit of input lines to 80 columns applies after tabs are expanded into blank
-   * spaces. </snip>
-   * I don't know whether this needs to be addressed to handle corner cases for line continuation, etc.
-   * currently, it is not addressed.
-   */
-
-  void get_next(){
-
-    do{
-      if(!std::getline(input, next_line)){
-	has_next = false;
-      }
-      else{
-	
-	next_line_idx++;
-	
-	// strip trailing carriage return, if any
-	if(*(next_line.rbegin()) == '\r')
-	  next_line.resize(next_line.size()-1);
-	
-	// convert to lowercase
-	strlower(next_line);
-	
-      }
-    }
-    while( has_next && (next_line == "c" || next_line.find("c ") < 5)); 
-    // iterate until next_line is not a comment line.
-    // although the one-char line "c" does not technically conform to the spec given in the manual,
-    // ("a C anywhere in columns 1−5 followed by at least one blank"), I have seen
-    // it in practice.
-
-  }
-
-public:
-  LineExtractor( std::istream& input_p ) : 
-    input(input_p), next_line("*NO INPUT*"), has_next(true), next_line_idx(0)
-  {
-    get_next();
-  }
-  
-  const std::string& peekLine() const {
-    if( has_next ) return next_line;
-    else throw std::runtime_error("LineExtractor out of lines, cannot takeLine().");
-  }
-
-  const std::string& peekLine( int& lineno ) const {
-    lineno = next_line_idx;
-    return peekLine();
-  }
-
-  std::string takeLine() { 
-    if( has_next ){
-      std::string ret = next_line;
-      get_next();
-      return ret;
-    }
-    else throw std::runtime_error("LineExtractor out of lines, cannot peekLine().");
-  }
-
-  std::string takeLine( int& lineno ){
-    lineno = next_line_idx;
-    return takeLine();
-  }
-
-  bool hasLine() const{
-    return has_next;
-  }
-
-  /**
-   * @return the file line number of the next line (as will be returned by either
-   * peekLine or takeLine) 
-   */
-  int getLineCount() const{
-    return next_line_idx;
-  }
-
-};
-
-
-void tokenizeLine( std::string line, token_list_t& tokens, const char* extra_separators = "" ){
-  
-  // replace any occurances of the characters in extra_separators with spaces;
-  // they will then act as token separators
-  size_t found;
-   
-  found = line.find_first_of(extra_separators);
-  while (found!= line.npos )
-  {
-    line[found] = ' ';
-    found = line.find_first_of(extra_separators,found+1);
-  }
-  
-  std::stringstream str(line);
-  while(str){
-    std::string t;
-    str >> t;
-
-    // skip over $-style inline comments
-    size_t idx;
-    if((idx = t.find("$")) != t.npos){
-      if(idx > 0){
-	// this token had some data before the $
-	t.resize(idx);
-	tokens.push_back(t);
-      }
-      break;
-    }
-
-    // if the token is nontrivial, save it
-    // necessary because stringstream may return a "" at the end of lines.
-    if(t.length() > 0)  tokens.push_back(t);
-  }
-
-}
-
-void parseTitle( LineExtractor& lines ){
-  
-  // FIXME: will break if the title line looks like a comment card.
-
-  int lineno;
-  std::string topLine = lines.takeLine(lineno);
-  if(topLine.find("message:") == 0){
-    std::clog << "Skipping message block..." << std::endl;
-    do{
-      // nothing
-    }
-    while( !isblank(lines.takeLine()) );
-	  
-    topLine = lines.takeLine(lineno);
-  }
-
-  if(topLine.find("continue") == 0){
-    std::cerr << "Warning: this looks like it might be a `continue-run' input file." << std::endl;
-    std::cerr << "  beware of trouble ahead!" << std::endl;
-  }
-
-  std::clog << "The title card is:" << topLine << std::endl;
-  std::clog << "    and occupies line " << lineno << std::endl;
-}
-
-void InputDeck::parseCells( LineExtractor& lines ){
-
-  std::string line;
-  token_list_t token_buffer;
-
-  while( !isblank(line = lines.takeLine()) ){
-
-    tokenizeLine(line, token_buffer, "=");
-    std::cout << token_buffer << std::endl;
-    
-    if( lines.peekLine().find("     ") == 0){
-      continue;
-    }
-    else if( token_buffer.at(token_buffer.size()-1) == "&" ){
-      token_buffer.pop_back();
-      continue;
-    }
-
-    CellCard* c = new CellCard(token_buffer);
-    c->print(std::cout);
-    this->cells.push_back(c);
-    this->cell_map.insert( std::make_pair(c->getIdent(), c) );
-
-    token_buffer.clear();
-
-  }
-
-}
-
-void InputDeck::parseSurfaces( LineExtractor& lines ){
-  std::string line;
-  token_list_t token_buffer;
-
-  while( !isblank(line = lines.takeLine()) ){
-
-    tokenizeLine(line, token_buffer );
-    
-    if( lines.peekLine().find("     ") == 0){
-      continue;
-    }
-    else if( token_buffer.at(token_buffer.size()-1) == "&" ){
-      token_buffer.pop_back();
-      continue;
-    }
-
-    SurfaceCard* s = new SurfaceCard(token_buffer);
-    s->print(std::cout);
-    this->surfaces.push_back(s);
-    this->surface_map.insert( std::make_pair(s->getIdent(), s) );
-
-    token_buffer.clear();
-
-  }
-}
-
-void parseDataCards( LineExtractor&  ){
-}
-
-InputDeck& InputDeck::build( std::istream& input){
- 
-  LineExtractor lines(input);
-
-  InputDeck* deck = new InputDeck();
-
-  parseTitle(lines);
-  deck->parseCells(lines);
-  deck->parseSurfaces(lines);
-  parseDataCards(lines);
-
-  while(lines.hasLine()){ lines.takeLine(); }
-  std::cout << "(total lines: " << lines.getLineCount() << ")" <<  std::endl;
-
-  return *deck;
-}
-
-
-class Vector3d{
-
-public:
-
-  double v[3];
-  Vector3d(){
-    v[2] = v[1] = v[0] = 0;
-  }
-  
-  Vector3d( const double p[3] ){
-    v[0] = p[0];
-    v[1] = p[1];
-    v[2] = p[2];
-  }
-
-  Vector3d( double x, double y, double z ){
-    v[0] = x; 
-    v[1] = y;
-    v[2] = z;
-  }
-
-  Vector3d( const std::vector<double>& p ){
-    v[0] = p.at(0);
-    v[1] = p.at(1);
-    v[2] = p.at(2);
-  }
-
-  double length() const{
-    return sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2] );
-  }
-
-};
-
-static Vector3d origin(0,0,0);
 
 #define CHECK_IGEOM(err, msg) \
   do{if((err) != iBase_SUCCESS) std::cerr << "iGeom error (" << err << "): " << msg << std::endl; }while(0)
+
+iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e ) {
+  
+  int igm_result;
+  if( t.hasRot() ){
+    iGeom_rotateEnt( igm, &e, t.getRotX(), 1, 0, 0, &igm_result );
+    CHECK_IGEOM( igm_result, "applying x rotation" );
+    
+    iGeom_rotateEnt( igm, &e, t.getRotY(), 0, 1, 0, &igm_result );
+    CHECK_IGEOM( igm_result, "applying y rotation" );
+    
+    iGeom_rotateEnt( igm, &e, t.getRotZ(), 0, 0, 1, &igm_result );
+    CHECK_IGEOM( igm_result, "applying z rotation" );
+  }
+  
+  const Vector3d& translation = t.getTranslation();
+  iGeom_moveEnt( igm, &e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
+  CHECK_IGEOM( igm_result, "applying translation" );
+  
+  return e;
+}
+
+/*template <class T> class CardRef : public DataRef<T> {
+
+protected:
+  InputDeck& parent_deck;
+  DataCard::id_t key;
+  
+public:
+  CardRef( InputDeck& parent_deck_p, DataCard::kind kind_p, int ident_p ) :
+    DataRef<T>(), parent_deck(parent_deck_p), key( std::make_pair(kind_p, ident_p) )
+  {}
+
+  virtual T get(){
+    return parent_deck.lookup_data_card( key )->get();
+  };
+
+  };*/
+
+
+
+static Vector3d origin(0,0,0);
+
 
 iBase_EntityHandle makeUniverseSphere( iGeom_Instance& igm, double universe_size ){
   iBase_EntityHandle universe_sphere;
@@ -672,6 +106,14 @@ iBase_EntityHandle makeUniverseSphere( iGeom_Instance& igm, double universe_size
   iGeom_createSphere( igm, universe_size, &universe_sphere, &igm_result);
   CHECK_IGEOM( igm_result, "making universe sphere" );
   return universe_sphere;
+}
+
+iBase_EntityHandle AbstractSurface::define( bool positive, iGeom_Instance& igm, double universe_size ){
+  iBase_EntityHandle handle = this->getHandle( positive, igm, universe_size );
+  if( transform ){
+    handle = applyTransform( *transform, igm, handle );
+  }
+  return handle;
 }
 
 class PlaneSurface : public AbstractSurface { 
@@ -692,6 +134,7 @@ public:
     return sqrt(3.0) *  std::abs(offset);
   }
 
+protected:
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size){
 
     int igm_result;
@@ -734,6 +177,7 @@ public:
     return radius + center.length();
   }
 
+protected:
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ){
     int igm_result;
 
@@ -790,6 +234,7 @@ public:
     return (center.length() + radius);
   }
 
+protected:
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ){
 
     int igm_result;
@@ -822,9 +267,8 @@ public:
 };
 
 AbstractSurface& SurfaceCard::getSurface() {
-  // SurfaceCard variables: surface, mnemonic, args
+  // SurfaceCard variables: surface, mnemonic, args, coord_xform
   
-
   if(!this->surface){
     if( mnemonic == "so"){
       this->surface = new SphereSurface( origin, args.at(0) );
@@ -842,6 +286,11 @@ AbstractSurface& SurfaceCard::getSurface() {
       this->surface = new SphereSurface( Vector3d( args ), args.at(3) );
     }
     else if( mnemonic == "p"){
+      if( args.size() > 4 ){
+	std::cerr << "Warning: surface of type P with more than 4 parameters." << std::endl;
+	std::cerr << "         This surface type is unsupported; will proceed as if only 4 parameters given,\n";
+	std::cerr << "         but the result will probably be incorrect!" << std::endl;
+      }
       this->surface = new PlaneSurface( Vector3d( args ), args.at(3) );
     }
     else if( mnemonic == "px"){
@@ -874,26 +323,39 @@ AbstractSurface& SurfaceCard::getSurface() {
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
+
+    if( this->coord_xform != 0 ){
+      DataCard* trcard = parent_deck.lookup_data_card( DataCard::TR, coord_xform );
+      const Transform& transform = dynamic_cast<TransformCard*>(trcard)->getTransform();
+      this->surface->setTransform( &transform );
+    }
   }
+
+  
 
   return *(this->surface);
 }
 
 
-iBase_EntityHandle CellCard::define( iGeom_Instance& igm, InputDeck& data, double universe_size){
+//iBase_EntityHandle CellCard::define( iGeom_Instance& igm,  double universe_size){
+iBase_EntityHandle defineCell( iGeom_Instance& igm, CellCard& cell, double universe_size ){
 
-  std::cerr << "Defining cell " << this->ident << std::endl;
+  int ident = cell.getIdent();
+  const CellCard::geom_list_t& geom = cell.getGeom();
+  InputDeck& deck = cell.getDeck();
+
+  std::cerr << "Defining cell " << ident << std::endl;
   int igm_result;
 
   std::vector<iBase_EntityHandle> stack;
-  for(geom_list_t::iterator i = this->geom.begin(); i!=geom.end(); ++i){
+  for(CellCard::geom_list_t::const_iterator i = geom.begin(); i!=geom.end(); ++i){
     
-    geom_list_entry_t& token = (*i);
+    const CellCard::geom_list_entry_t& token = (*i);
     switch(token.first){
-    case CELLNUM:
-      stack.push_back(data.lookup_cell_card(token.second)->define(igm,data,universe_size));
+    case CellCard::CELLNUM:
+      stack.push_back( defineCell( igm, *(deck.lookup_cell_card(token.second)), universe_size) );
       break;
-    case SURFNUM:
+    case CellCard::SURFNUM:
       {      
 	int surface = token.second;
 	bool pos = true;
@@ -901,14 +363,14 @@ iBase_EntityHandle CellCard::define( iGeom_Instance& igm, InputDeck& data, doubl
 	  pos = false; surface = -surface;
 	}
 	try{
-	  AbstractSurface& surf = data.lookup_surface_card( surface )->getSurface();
-	  iBase_EntityHandle surf_handle = surf.getHandle( pos, igm, universe_size );
+	  AbstractSurface& surf = deck.lookup_surface_card( surface )->getSurface();
+	  iBase_EntityHandle surf_handle = surf.define( pos, igm, universe_size );
 	  stack.push_back(surf_handle);
 	}
 	catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
       }
       break;
-    case INTERSECT:
+    case CellCard::INTERSECT:
       {
 	assert( stack.size() >= 2 );
 	iBase_EntityHandle s1 = stack.back(); stack.pop_back();
@@ -919,7 +381,7 @@ iBase_EntityHandle CellCard::define( iGeom_Instance& igm, InputDeck& data, doubl
 	stack.push_back(result);
       }
       break;
-    case UNION:
+    case CellCard::UNION:
       {	
 	assert( stack.size() >= 2 );
 	iBase_EntityHandle s[2];
@@ -931,7 +393,7 @@ iBase_EntityHandle CellCard::define( iGeom_Instance& igm, InputDeck& data, doubl
 	stack.push_back(result);
       }
       break;
-    case COMPLEMENT:
+    case CellCard::COMPLEMENT:
       {
 	assert (stack.size() >= 1 );
       	iBase_EntityHandle universe_sphere = makeUniverseSphere(igm, universe_size);
@@ -970,13 +432,36 @@ void InputDeck::createGeometry(){
     universe_size = std::max( universe_size, (*i)->getSurface().getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
   }
+  double translation_addition = 0;
+  for( data_card_list::iterator i = datacards.begin(); i!=datacards.end(); ++i){
+    DataCard* c = *i;
+    if( c->getKind() == DataCard::TR ){
+      double tform_len = dynamic_cast<TransformCard*>(c)->getTransform().getTranslation().length();
+      translation_addition = std::max (translation_addition, tform_len );
+    }
+  }
+  universe_size += translation_addition;
   universe_size *= 1.2;
 
-  std::cout << "Universe size: " << universe_size << std::endl;
+  std::cout << "Universe size: " << universe_size << " (trs added " << translation_addition << ")" << std::endl;
 	
+  size_t num_cells = cells.size();
+  iBase_EntityHandle *cell_array = new iBase_EntityHandle[ num_cells ];
+  int count = 0;
+
   for( cell_card_list::iterator i = cells.begin(); i!=cells.end(); ++i){
-    (*i)->define( igm, *this, universe_size );
+    cell_array[count] = defineCell( igm, *(*i), universe_size );
+    count++;
   }
+
+  iGeom_imprintEnts( igm, cell_array, num_cells, &igm_result );
+  CHECK_IGEOM( igm_result, "Imprinting all cells" );
+
+  //double tolerance = universe_size / 1.0e6;
+  double tolerance = .001;
+  std::cout << "Tolerance: " << tolerance << std::endl;
+  iGeom_mergeEnts( igm, cell_array, num_cells,  tolerance, &igm_result );
+  CHECK_IGEOM( igm_result, "Merging all cells" );
 
   std::string outName = "out.sat";
   iGeom_save( igm, outName.c_str(), "", &igm_result, outName.length(), 0 );
