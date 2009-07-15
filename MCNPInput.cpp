@@ -1,4 +1,5 @@
 #include "MCNPInput.hpp"
+#include "geometry.hpp"
 
 #include <stdexcept>
 #include <cassert>
@@ -38,6 +39,30 @@ static double makedouble( const std::string& token ){
   return ret;
 }
 
+/**
+ * Attempt to create a Transform object using the given numbers. Bounding parentheses are allowed
+ * and will be removed.
+ */
+static Transform makeTransform( const token_list_t tokens, bool degree_format = false ){
+
+  std::vector<double> args;
+  for( token_list_t::const_iterator i = tokens.begin(); i!=tokens.end(); ++i){
+
+    std::string token = *i;
+    size_t idx;
+    while( (idx = token.find_first_of("()")) != token.npos){
+      token.replace( idx, 1, "" ); // remove parentheses
+    }
+    if( token.find_first_of( "1234567890" ) != token.npos){
+      args.push_back( makedouble( token ) );
+    }
+    else if( token.length() > 0) {
+      std::cerr << "Warning: makeTransform ignoring input token [" << token << "]" << std::endl;
+    }
+  }
+  return Transform( args, degree_format );
+}
+
 
 static bool isblank( const std::string& line ){
   return (line=="" || line.find_first_not_of(" ") == line.npos );
@@ -56,10 +81,69 @@ std::ostream& operator<<( std::ostream& out, const std::vector<T>& list ){
   if(list.size() > 0) 
     out << "\b"; // unless list was empty, backspace the last | character
 
-  out << "]" << std::endl;
+  out << "]";
   return out;
 }
 
+
+/******************
+ * IMPLEMENTATIONS OF DataRef
+ ******************/
+
+template <class T>
+class ImmediateRef : public DataRef<T>{
+  
+protected:
+  T data;
+ 
+public:
+  ImmediateRef( const T& p ) :
+    data(p) 
+  {}
+
+  virtual const T& getData() const { 
+    return data;
+  }
+
+};
+
+template <class T> 
+class CardRef : public DataRef<T>{
+  
+protected:
+  InputDeck& deck;
+  DataCard::id_t key;
+
+public:
+  CardRef( InputDeck& deck_p, DataCard::kind kind, int ident ) : 
+    DataRef<T>(), deck(deck_p), key( std::make_pair( kind, ident ) )
+  {}
+
+  virtual const T& getData() const {
+    DataCard* c = deck.lookup_data_card( key );
+    const T& ref = dynamic_cast< DataRef<T>* >(c)->getData();
+    return ref;
+  }
+
+  const DataCard::id_t& getKey() const { return key; } 
+
+};
+
+template <class T>
+class NullRef : public DataRef<T>{
+
+public:
+  NullRef() : 
+    DataRef<T>()
+  {}
+
+  virtual bool hasData() const { return false; }
+
+  virtual const T& getData() const {
+    throw std::runtime_error("Attempting to pull data from a null reference!");
+  }
+
+};
 
 /******************
  * CELL CARDS
@@ -206,6 +290,43 @@ protected:
     }
   }
 
+  void makeData(){
+    
+    for( token_list_t::iterator i = data.begin(); i!=data.end(); ++i ){
+
+      std::string token = *i;
+
+      if( token == "trcl" || token == "*trcl" ){
+	std::string next_token = *(++i);
+	if( next_token.find("(") == 0 ){ // trcl begins with a ( -- immediate transformation given
+
+	  bool degree_format = (token[0] == '*');
+	  token_list_t args;
+	  
+	  do{
+	    args.push_back( next_token );
+	    next_token = *(++i);
+	  }
+	  while( next_token.find(")") == next_token.npos );
+	  args.push_back( next_token );
+
+	  trcl = new ImmediateRef<Transform>( makeTransform( args, degree_format ) );
+
+	}
+	else{ // trcl is a reference to a tr card
+	  int tr_ref = makeint(next_token);
+	  trcl = new CardRef< Transform >( parent_deck, DataCard::TR, tr_ref );
+	}
+      }
+      
+    }
+
+    // ensure data pointers are valid
+    if( !trcl ) {
+      trcl = new NullRef< Transform >();
+    }
+  }
+
 public:
   CellCardImpl( InputDeck& deck, const token_list_t& tokens ) : 
     CellCard( deck )
@@ -240,12 +361,19 @@ public:
     while(idx < tokens.size()){
       data.push_back(tokens[idx++]);
     }
+
+    makeData();
+
   }
 };
 
 CellCard::CellCard( InputDeck& deck ) :
-  Card(deck)
+  Card(deck), trcl(NULL)
 {}
+
+CellCard::~CellCard(){
+  delete trcl;
+}
 
 void CellCard::print( std::ostream& s ) const {
     s << "Cell " << ident << " geom " << geom << std::endl;
@@ -284,16 +412,25 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
     std::string token2 = tokens.at(idx++);
     if(token2.find_first_of("1234567890-") != 0){
       //token2 is the mnemonic
-      coord_xform = 0;
+      coord_xform = new NullRef<Transform>();
       mnemonic = token2;
     }
     else{
       // token2 is a coordinate transform identifier
-      coord_xform = makeint(token2);
-      if(coord_xform < 0){
-	// (-coord_xform) is the ID of surface with respect to which this surface is periodic.
+      int tx_id = makeint(token2);
+
+      if( tx_id == 0 ){
+	std::cerr << "I don't think 0 is a valid surface transformation ID, so I'm ignoring it." << std::endl;
+	coord_xform = new NullRef<Transform>();
+      }
+      else if ( tx_id < 0 ){
+	// abs(tx_id) is the ID of surface with respect to which this surface is periodic.
 	throw std::runtime_error("Cannot handle periodic surfaces");
       }
+      else{ // tx_id is positive and nonzero
+	coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
+      }
+
       mnemonic = tokens.at(idx++);
       
     }
@@ -306,7 +443,10 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
 
 void SurfaceCard::print( std::ostream& s ) const {
   s << "Surface " << ident << " " << mnemonic << args;
-  if( coord_xform != 0 ) s << " TR" << coord_xform;
+  if( coord_xform->hasData() ){
+    // this ugly lookup returns the integer ID of the TR card
+    s << " TR" << dynamic_cast<CardRef<Transform>*>(coord_xform)->getKey().second;
+  }
   s << std::endl;
 }
 
@@ -315,21 +455,35 @@ void SurfaceCard::print( std::ostream& s ) const {
  * DATA CARDS
  ******************/
 
+
+class TransformCard : public DataCard, public DataRef<Transform> {
+
+protected: 
+  int ident;
+  Transform trans;
+
+public:
+  TransformCard( InputDeck& deck, int ident_p, bool degree_format, const token_list_t& input );
+
+  //  const Transform& getTransform() const{ return trans; } 
+  const Transform& getData() const{ return trans; }
+
+  virtual void print( std::ostream& str );
+  virtual kind getKind(){ return TR; }
+  int getIdent() const{ return ident; }
+
+};
+
 TransformCard::TransformCard( InputDeck& deck, int ident_p, bool degree_format, const token_list_t& input ):
-  DataCard(deck), ident(ident_p)
-{
-  std::vector<double> args;
-  for( token_list_t::const_iterator i = input.begin(); i!=input.end(); ++i){
-    args.push_back( makedouble( *i ) );
-  }
-  trans = Transform( args, degree_format );
-}
+  DataCard(deck), ident(ident_p), trans( makeTransform( input, degree_format ) )
+{}
 
 void TransformCard::print( std::ostream& str ){
   str << "TR" << ident << ": ";
-  //trans.print(str);
+  trans.print(str);
   str << std::endl;
 }
+
 
 
 /******************
@@ -595,14 +749,17 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
     std::string cardname = token_buffer.at(0);
     token_buffer.erase( token_buffer.begin() );
 
-    if( cardname.find("tr") == 0 ){
+    if( cardname.find("tr") == 0 || cardname.find("*tr") == 0 ){
+
       t = DataCard::TR;
-      std::string id_string( cardname, 2 );
       bool degree_format = false;
-      if(id_string.at(id_string.length()-1) == '*'){ // last char is a *
+      if( cardname[0] == '*' ){
 	degree_format = true;
-	id_string.resize(id_string.length()-1);
+	cardname = cardname.substr( 1 ); // remove leading * 
       }
+
+      std::string id_string( cardname, 2 );
+
       ident = makeint( id_string );
       d = new TransformCard( *this, ident, degree_format, token_buffer);
     }

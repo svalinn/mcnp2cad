@@ -23,14 +23,6 @@ class InputDeck;
 
 
 
-template <class T> class DataRef {
-
-public:
-  virtual ~DataRef(){}
-  virtual T get() = 0;
-
-};
-
 class Transform;
 
 class AbstractSurface{
@@ -77,26 +69,6 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
   
   return e;
 }
-
-/*template <class T> class CardRef : public DataRef<T> {
-
-protected:
-  InputDeck& parent_deck;
-  DataCard::id_t key;
-  
-public:
-  CardRef( InputDeck& parent_deck_p, DataCard::kind kind_p, int ident_p ) :
-    DataRef<T>(), parent_deck(parent_deck_p), key( std::make_pair(kind_p, ident_p) )
-  {}
-
-  virtual T get(){
-    return parent_deck.lookup_data_card( key )->get();
-  };
-
-  };*/
-
-
-
 static Vector3d origin(0,0,0);
 
 
@@ -324,9 +296,8 @@ AbstractSurface& SurfaceCard::getSurface() {
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
 
-    if( this->coord_xform != 0 ){
-      DataCard* trcard = parent_deck.lookup_data_card( DataCard::TR, coord_xform );
-      const Transform& transform = dynamic_cast<TransformCard*>(trcard)->getTransform();
+    if( this->coord_xform->hasData() ){
+      const Transform& transform = coord_xform->getData();
       this->surface->setTransform( &transform );
     }
   }
@@ -412,7 +383,14 @@ iBase_EntityHandle defineCell( iGeom_Instance& igm, CellCard& cell, double unive
   }
 
   assert( stack.size() == 1);
-  return stack[0];
+
+  iBase_EntityHandle cellHandle = stack[0];
+
+  if( cell.getTrcl().hasData() ){
+    cellHandle = applyTransform( cell.getTrcl().getData(), igm, cellHandle );
+  }
+
+  return cellHandle;
 
 }
 
@@ -436,7 +414,7 @@ void InputDeck::createGeometry(){
   for( data_card_list::iterator i = datacards.begin(); i!=datacards.end(); ++i){
     DataCard* c = *i;
     if( c->getKind() == DataCard::TR ){
-      double tform_len = dynamic_cast<TransformCard*>(c)->getTransform().getTranslation().length();
+      double tform_len = dynamic_cast<DataRef<Transform>*>(c)->getData().getTranslation().length();
       translation_addition = std::max (translation_addition, tform_len );
     }
   }

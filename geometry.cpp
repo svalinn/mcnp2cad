@@ -15,9 +15,13 @@ std::ostream& operator<<(std::ostream& str, const Vector3d& v ){
  * all cases, so watch out for broken transformations!
  */
 void Transform::set_rots_from_matrix( double raw_matrix[9] ){
-  double mat[3][3] = {{ raw_matrix[0], raw_matrix[1], raw_matrix[2] },
-		      { raw_matrix[3], raw_matrix[4], raw_matrix[5] },
-		      { raw_matrix[6], raw_matrix[7], raw_matrix[8] } };
+  // double mat[3][3] = {{ raw_matrix[0], raw_matrix[1], raw_matrix[2] },
+  // 		      { raw_matrix[3], raw_matrix[4], raw_matrix[5] },
+  // 		      { raw_matrix[6], raw_matrix[7], raw_matrix[8] } };
+  
+  double mat[3][3] = {{ raw_matrix[0], raw_matrix[3], raw_matrix[6] },
+  		      { raw_matrix[1], raw_matrix[4], raw_matrix[7] },
+  		      { raw_matrix[2], raw_matrix[5], raw_matrix[8] } };
   
   if(degree_format){
     for(int i = 0; i<3; ++i){

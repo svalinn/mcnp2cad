@@ -10,6 +10,16 @@ typedef std::vector< std::string > token_list_t;
 
 class InputDeck;
 
+template <class T> class DataRef{
+
+public:
+  virtual ~DataRef(){}
+
+  virtual bool hasData() const { return true; }
+  virtual const T& getData() const = 0;
+
+};
+
 /**
  * Superclass of all cards in the input deck
  */
@@ -28,6 +38,8 @@ public:
 
 };
 
+// forward defs
+class Transform;
 
 /**
  * Cell card
@@ -43,13 +55,21 @@ protected:
   int ident;
   geom_list_t geom;
   token_list_t data;
+  DataRef<Transform>* trcl;
   
   CellCard( InputDeck& deck );
 
+private: 
+  CellCard( const CellCard& c );
+  CellCard& operator=( const CellCard& c );
+
 public:
+  ~CellCard();
 
   int getIdent() const { return ident; }
   const geom_list_t getGeom() const { return geom; }
+
+  const DataRef<Transform>& getTrcl(){ return *trcl; }
 
   void print( std::ostream& s ) const; 
 };
@@ -58,12 +78,14 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
 
 class AbstractSurface;
 
+
 /**
  * Surface Card
  */
 class SurfaceCard : public Card {
   protected:
-  int ident, coord_xform;
+  int ident;//, coord_xform;
+  DataRef<Transform> *coord_xform;
   std::string mnemonic;
   std::vector<double> args;
   AbstractSurface* surface;
@@ -76,6 +98,7 @@ public:
   void print( std::ostream& s ) const ;
 
   AbstractSurface& getSurface();
+  const DataRef<Transform>& getTransform();
 
 };
 
@@ -95,26 +118,6 @@ public:
   virtual kind getKind(){ return OTHER; }
 
 };
-
-
-#include "geometry.hpp"
-
-class TransformCard : public DataCard {
-
-protected: 
-  int ident;
-  Transform trans;
-
-public:
-  TransformCard( InputDeck& deck, int ident_p, bool degree_format, const token_list_t& input );
-
-  const Transform& getTransform() const{ return trans; } 
-
-  virtual void print( std::ostream& str );
-  virtual kind getKind(){ return TR; }
-
-};
-
 
 
 /**
