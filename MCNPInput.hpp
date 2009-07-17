@@ -17,6 +17,7 @@ public:
 
   virtual bool hasData() const { return true; }
   virtual const T& getData() const = 0;
+  virtual DataRef<T>* clone() = 0;
 
 };
 
@@ -40,6 +41,7 @@ public:
 
 // forward defs
 class Transform;
+class Lattice;
 
 /**
  * Cell card
@@ -52,26 +54,26 @@ public:
   typedef std::vector<geom_list_entry_t> geom_list_t;
   
 protected:
-  int ident;
-  geom_list_t geom;
-  token_list_t data;
-  DataRef<Transform>* trcl;
   
   CellCard( InputDeck& deck );
 
 private: 
+  // never defined and should never be called
   CellCard( const CellCard& c );
   CellCard& operator=( const CellCard& c );
 
 public:
-  ~CellCard();
+  
+  virtual int getIdent() const = 0; 
+  virtual const geom_list_t getGeom() const = 0; 
 
-  int getIdent() const { return ident; }
-  const geom_list_t getGeom() const { return geom; }
+  virtual const DataRef<Transform>& getTrcl() const = 0; 
+  virtual int getUniverse() const = 0;
+  virtual bool hasFill() const = 0;
+  virtual const Lattice& getFill() const = 0;
 
-  const DataRef<Transform>& getTrcl(){ return *trcl; }
+  virtual void print( std::ostream& s ) const = 0; 
 
-  void print( std::ostream& s ) const; 
 };
 
 std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t );
@@ -153,6 +155,8 @@ public:
   cell_card_list& getCells() { return cells; }
   surface_card_list& getSurfaces() { return surfaces; } 
   data_card_list& getDataCards(){ return datacards; }
+
+  cell_card_list getCellsOfUniverse( int universe );
 
   CellCard* lookup_cell_card(int ident){
     return (*cell_map.find(ident)).second;

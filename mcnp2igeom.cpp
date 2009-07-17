@@ -39,15 +39,22 @@ public:
   void setTransform( const Transform* transform_p ){ transform = transform_p; }
   
   virtual double getFarthestExtentFromOrigin( ) const = 0;
-  virtual iBase_EntityHandle define( bool positive, iGeom_Instance& igm, double universe_size );
+  virtual iBase_EntityHandle define( bool positive, iGeom_Instance& igm, double world_size );
 
 protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ) = 0;
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ) = 0;
 };
 
 
+#define MY_BUF_SIZE 512
+static char m_buf[MY_BUF_SIZE];
+
 #define CHECK_IGEOM(err, msg) \
-  do{if((err) != iBase_SUCCESS) std::cerr << "iGeom error (" << err << "): " << msg << std::endl; }while(0)
+  do{/*std::cout << msg << std::endl;*/ if((err) != iBase_SUCCESS){	\
+    std::cerr << "iGeom error (" << err << "): " << msg << std::endl;	\
+    iGeom_getDescription( igm, m_buf, &err, MY_BUF_SIZE); \
+    std::cerr << " * " << m_buf << std::endl; \
+     } } while(0) 
 
 iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e ) {
   
@@ -72,16 +79,16 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
 static Vector3d origin(0,0,0);
 
 
-iBase_EntityHandle makeUniverseSphere( iGeom_Instance& igm, double universe_size ){
-  iBase_EntityHandle universe_sphere;
+iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
+  iBase_EntityHandle world_sphere;
   int igm_result;
-  iGeom_createSphere( igm, universe_size, &universe_sphere, &igm_result);
-  CHECK_IGEOM( igm_result, "making universe sphere" );
-  return universe_sphere;
+  iGeom_createSphere( igm, world_size, &world_sphere, &igm_result);
+  CHECK_IGEOM( igm_result, "making world sphere" );
+  return world_sphere;
 }
 
-iBase_EntityHandle AbstractSurface::define( bool positive, iGeom_Instance& igm, double universe_size ){
-  iBase_EntityHandle handle = this->getHandle( positive, igm, universe_size );
+iBase_EntityHandle AbstractSurface::define( bool positive, iGeom_Instance& igm, double world_size ){
+  iBase_EntityHandle handle = this->getHandle( positive, igm, world_size );
   if( transform ){
     handle = applyTransform( *transform, igm, handle );
   }
@@ -107,15 +114,15 @@ public:
   }
 
 protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size){
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size){
 
     int igm_result;
-    iBase_EntityHandle universe_sphere = makeUniverseSphere(igm, universe_size);
+    iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
     iBase_EntityHandle hemisphere;
     // note the reversal of sense in this call; mcnp and igeom define it differently.
-    iGeom_sectionEnt( igm, &universe_sphere, 
+    iGeom_sectionEnt( igm, &world_sphere, 
 		      normal.v[0], normal.v[1], normal.v[2], offset, !positive, &hemisphere, &igm_result);
-    CHECK_IGEOM( igm_result, "Sectioning universe for a plane" );
+    CHECK_IGEOM( igm_result, "Sectioning world for a plane" );
     return hemisphere;
 
 
@@ -150,11 +157,11 @@ public:
   }
 
 protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ){
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
     int igm_result;
 
     iBase_EntityHandle cylinder;
-    iGeom_createCylinder( igm, 2.0 * universe_size, radius, 0, &cylinder, &igm_result);
+    iGeom_createCylinder( igm, 2.0 * world_size, radius, 0, &cylinder, &igm_result);
     CHECK_IGEOM( igm_result, "making cylinder" );
 
     
@@ -172,15 +179,15 @@ protected:
       CHECK_IGEOM( igm_result, "moving cylinder" );
     }
 
-    iBase_EntityHandle universe_sphere = makeUniverseSphere( igm, universe_size );
+    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );
     iBase_EntityHandle final_cylinder;
 
     if( positive ){
-      iGeom_subtractEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
+      iGeom_subtractEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
       CHECK_IGEOM( igm_result, "making clipped cylinder" );
     }
     else{
-      iGeom_intersectEnts( igm, universe_sphere, cylinder, &final_cylinder, &igm_result);
+      iGeom_intersectEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
       CHECK_IGEOM( igm_result, "making negative cylinder" );
     }
 
@@ -207,7 +214,7 @@ public:
   }
 
 protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double universe_size ){
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
 
     int igm_result;
     iBase_EntityHandle sphere;
@@ -223,10 +230,10 @@ protected:
 
     if(positive){
 
-	iBase_EntityHandle universe_sphere = makeUniverseSphere(igm, universe_size);
+	iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
 	iBase_EntityHandle volume;
 
-	iGeom_subtractEnts( igm, universe_sphere, sphere, &volume, &igm_result);
+	iGeom_subtractEnts( igm, world_sphere, sphere, &volume, &igm_result);
 	CHECK_IGEOM( igm_result, "subtracting sphere" );
 	
 	sphere = volume;
@@ -307,9 +314,12 @@ AbstractSurface& SurfaceCard::getSurface() {
   return *(this->surface);
 }
 
+typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
-//iBase_EntityHandle CellCard::define( iGeom_Instance& igm,  double universe_size){
-iBase_EntityHandle defineCell( iGeom_Instance& igm, CellCard& cell, double universe_size ){
+entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int universe, double world_size );
+
+//iBase_EntityHandle CellCard::define( iGeom_Instance& igm,  double world_size){
+entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double world_size, bool defineEmbedded = true ){
 
   int ident = cell.getIdent();
   const CellCard::geom_list_t& geom = cell.getGeom();
@@ -318,13 +328,19 @@ iBase_EntityHandle defineCell( iGeom_Instance& igm, CellCard& cell, double unive
   std::cerr << "Defining cell " << ident << std::endl;
   int igm_result;
 
+  entity_collection_t tmp;
+
   std::vector<iBase_EntityHandle> stack;
   for(CellCard::geom_list_t::const_iterator i = geom.begin(); i!=geom.end(); ++i){
     
     const CellCard::geom_list_entry_t& token = (*i);
     switch(token.first){
     case CellCard::CELLNUM:
-      stack.push_back( defineCell( igm, *(deck.lookup_cell_card(token.second)), universe_size) );
+      // a cell number appears in a geometry list only because it is being complemented with the # operator
+      // thus, when defineCell is called on it, set defineEmbedded to false
+      tmp = defineCell( igm, *(deck.lookup_cell_card(token.second)), world_size, false);
+      assert(tmp.size() == 1);
+      stack.push_back( tmp.at(0) );
       break;
     case CellCard::SURFNUM:
       {      
@@ -335,7 +351,7 @@ iBase_EntityHandle defineCell( iGeom_Instance& igm, CellCard& cell, double unive
 	}
 	try{
 	  AbstractSurface& surf = deck.lookup_surface_card( surface )->getSurface();
-	  iBase_EntityHandle surf_handle = surf.define( pos, igm, universe_size );
+	  iBase_EntityHandle surf_handle = surf.define( pos, igm, world_size );
 	  stack.push_back(surf_handle);
 	}
 	catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
@@ -367,11 +383,11 @@ iBase_EntityHandle defineCell( iGeom_Instance& igm, CellCard& cell, double unive
     case CellCard::COMPLEMENT:
       {
 	assert (stack.size() >= 1 );
-      	iBase_EntityHandle universe_sphere = makeUniverseSphere(igm, universe_size);
+      	iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
 	iBase_EntityHandle s = stack.back(); stack.pop_back();
 	iBase_EntityHandle result;
 
-	iGeom_subtractEnts( igm, universe_sphere, s, &result, &igm_result);
+	iGeom_subtractEnts( igm, world_sphere, s, &result, &igm_result);
 	CHECK_IGEOM( igm_result, "Complementing an entity" );
 	stack.push_back(result);
       }
@@ -390,11 +406,57 @@ iBase_EntityHandle defineCell( iGeom_Instance& igm, CellCard& cell, double unive
     cellHandle = applyTransform( cell.getTrcl().getData(), igm, cellHandle );
   }
 
-  return cellHandle;
+  if(!defineEmbedded || !cell.hasFill()){
+    return entity_collection_t(1,cellHandle);
+  }
+  else{
+    // defineEmbedded and cell.hasFill() are both true
+    const Lattice& lattice = cell.getFill();
+    assert( lattice.getKind() == Lattice::SIMPLE );
+    const LatticeNode& n = lattice.getOriginNode();
+    int filling_universe = n.getFillingUniverse();
+    std::cout << "Creating cell " << cell.getIdent() << ", which is filled with universe " << filling_universe << std::endl;
+    
+    entity_collection_t subcells = defineUniverse( igm, deck, filling_universe, world_size );
+    for(entity_collection_t::iterator i = subcells.begin(); i!=subcells.end(); ++i){
 
+      iBase_EntityHandle cell_copy;
+      iGeom_copyEnt( igm, cellHandle, &cell_copy, &igm_result);
+      CHECK_IGEOM( igm_result, "Copying a universe-bounding cell" );
+      
+      iBase_EntityHandle subcell_transformed = applyTransform( n.getTransform(), igm, *i);
+
+      iBase_EntityHandle subcell_bounded;
+      iGeom_intersectEnts( igm, cell_copy, subcell_transformed, &subcell_bounded, &igm_result);
+      CHECK_IGEOM( igm_result, "Intersecting subcell with its bounding cell" );
+      
+      if( igm_result == iBase_SUCCESS ){
+	*i = subcell_bounded;
+      }
+    }
+    iGeom_deleteEnt( igm, cellHandle, &igm_result );
+    CHECK_IGEOM( igm_result, "Deleting a bounding cell" );
+    return subcells;
+     
+  }
 }
 
+entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int universe, double world_size){
 
+  std::cout << "Defining universe " << universe << std::endl;
+  InputDeck::cell_card_list u_cells = deck.getCellsOfUniverse( universe );
+  entity_collection_t cell_list;
+
+  for( InputDeck::cell_card_list::iterator i = u_cells.begin(); i!=u_cells.end(); ++i){
+    entity_collection_t tmp = defineCell( igm, *(*i), world_size );
+    for( size_t i = 0; i < tmp.size(); ++i){
+      cell_list.push_back( tmp[i] );
+    }
+  }
+
+  return cell_list;
+
+}
 
 void InputDeck::createGeometry(){
 
@@ -404,10 +466,10 @@ void InputDeck::createGeometry(){
   iGeom_newGeom( 0, &igm, &igm_result, 0);
   CHECK_IGEOM( igm_result, "Initializing iGeom");
 
-  double universe_size = 0;
+  double world_size = 0;
   for( surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
     try{
-    universe_size = std::max( universe_size, (*i)->getSurface().getFarthestExtentFromOrigin() );
+    world_size = std::max( world_size, (*i)->getSurface().getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
   }
   double translation_addition = 0;
@@ -418,27 +480,27 @@ void InputDeck::createGeometry(){
       translation_addition = std::max (translation_addition, tform_len );
     }
   }
-  universe_size += translation_addition;
-  universe_size *= 1.2;
+  world_size += translation_addition;
+  world_size *= 1.2;
 
-  std::cout << "Universe size: " << universe_size << " (trs added " << translation_addition << ")" << std::endl;
-	
-  size_t num_cells = cells.size();
-  iBase_EntityHandle *cell_array = new iBase_EntityHandle[ num_cells ];
-  int count = 0;
+  std::cout << "World size: " << world_size << " (trs added " << translation_addition << ")" << std::endl;
 
-  for( cell_card_list::iterator i = cells.begin(); i!=cells.end(); ++i){
-    cell_array[count] = defineCell( igm, *(*i), universe_size );
-    count++;
+  entity_collection_t defined_cells = defineUniverse( igm, *this, 0, world_size );
+
+  size_t count = defined_cells.size();
+  iBase_EntityHandle *cell_array = new iBase_EntityHandle[ count ];
+  for( unsigned int i = 0; i < count; ++i ){
+    cell_array[i] = defined_cells[i];
   }
 
-  iGeom_imprintEnts( igm, cell_array, num_cells, &igm_result );
+
+  iGeom_imprintEnts( igm, cell_array, count, &igm_result );
   CHECK_IGEOM( igm_result, "Imprinting all cells" );
 
-  //double tolerance = universe_size / 1.0e6;
+  //double tolerance = world_size / 1.0e6;
   double tolerance = .001;
   std::cout << "Tolerance: " << tolerance << std::endl;
-  iGeom_mergeEnts( igm, cell_array, num_cells,  tolerance, &igm_result );
+  iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
   CHECK_IGEOM( igm_result, "Merging all cells" );
 
   std::string outName = "out.sat";
@@ -471,54 +533,4 @@ int main(int argc, char* argv[]){
 
     return 0;
     
-
-    int igm_result;
-    iGeom_Instance igm;
-    iGeom_newGeom( 0, &igm, &igm_result, 0);
-    if(igm_result != iBase_SUCCESS){
-      std::cerr << "Error initializing iGeom" << std::endl;
-    }
-
-    /**\brief Create a sphere centered on the origin
-     */
-    iBase_EntityHandle sphere;
-    iGeom_createSphere( igm, 150, &sphere, &igm_result);
-    if(igm_result != iBase_SUCCESS){
-      std::cerr << "Error making sphere" << std::endl;
-    }
-
-    std::cout << "s1" << std::endl;
-
-    iBase_EntityHandle sphere2;
-    iGeom_createSphere( igm, 35, &sphere2, &igm_result);
-    if(igm_result != iBase_SUCCESS){
-      std::cerr << "Error making sphere2" << std::endl;
-    }
-
-    std::cout << "s2" << std::endl;
-
-    iGeom_moveEnt( igm, &sphere2, 150, 0, 0, &igm_result);
-    if(igm_result != iBase_SUCCESS){
-      std::cerr << "Error moving sphere2" << std::endl;
-    }
-
-    std::cout << "move" << std::endl;
-
-    iBase_EntityHandle intersection;
-    iGeom_subtractEnts( igm, sphere, sphere2, &intersection, &igm_result);
-    if(igm_result != iBase_SUCCESS){
-      std::cerr << "Error doing intersection" << std::endl;
-    }
-    
-    std::cout << "intersect" << std::endl;
-
-    iBase_EntityHandle final;
-    iGeom_sectionEnt( igm, &intersection, 0, 1, 0, 0, false, &final, &igm_result);
-
-    std::string outName = "out.sat";
-    iGeom_save( igm, outName.c_str(), "", &igm_result, outName.length(), 0 );
-    if(igm_result != iBase_SUCCESS){
-      std::cerr << "Error saving iGeom" << std::endl;
-    }
-
 }

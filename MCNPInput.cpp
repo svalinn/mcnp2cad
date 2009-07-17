@@ -63,6 +63,19 @@ static Transform makeTransform( const token_list_t tokens, bool degree_format = 
   return Transform( args, degree_format );
 }
 
+static Transform parseTransform( token_list_t::iterator& i, bool degree_format = false ){
+ 
+  token_list_t args;
+  std::string next_token = *i;
+  do{
+    args.push_back( next_token );
+    next_token = *(++i);
+  }
+  while( next_token.find(")") == next_token.npos );
+  args.push_back( next_token );
+  
+  return makeTransform( args, degree_format );
+}
 
 static bool isblank( const std::string& line ){
   return (line=="" || line.find_first_not_of(" ") == line.npos );
@@ -90,6 +103,15 @@ std::ostream& operator<<( std::ostream& out, const std::vector<T>& list ){
  * IMPLEMENTATIONS OF DataRef
  ******************/
 
+/* Note about covariant return types:
+ * DataRef<T> requires a clone() class that (polymorphically) copies the object; this allows any
+ * DataRef object to be copied without reference to its implementing type.  This can be thought of
+ * as a virtual constructor (see parashift.com/c++-faq-lite/virtual-functions.html#faq-20.8)
+ * 
+ * Note that on some older compilers, it may be necessary to change the return type of the clone()
+ * method to be DataRef<T> for all classes.
+ */
+
 template <class T>
 class ImmediateRef : public DataRef<T>{
   
@@ -103,6 +125,13 @@ public:
 
   virtual const T& getData() const { 
     return data;
+  }
+
+  // immediateRefs can have their data amended
+  T& getData(){ return data; } 
+
+  virtual ImmediateRef<T>* clone() {
+    return new ImmediateRef<T>( *this );
   }
 
 };
@@ -125,6 +154,10 @@ public:
     return ref;
   }
 
+  virtual CardRef<T> * clone(){
+    return new CardRef<T>( *this );
+  }
+
   const DataCard::id_t& getKey() const { return key; } 
 
 };
@@ -141,6 +174,10 @@ public:
 
   virtual const T& getData() const {
     throw std::runtime_error("Attempting to pull data from a null reference!");
+  }
+
+  virtual NullRef<T> * clone(){
+    return new NullRef<T>(*this);
   }
 
 };
@@ -291,45 +328,105 @@ protected:
   }
 
   void makeData(){
-    
+
+    std::vector< LatticeNode* > trcl_inheritors;
+
     for( token_list_t::iterator i = data.begin(); i!=data.end(); ++i ){
 
       std::string token = *i;
 
       if( token == "trcl" || token == "*trcl" ){
+	bool degree_format = (token[0] == '*');
+
 	std::string next_token = *(++i);
 	if( next_token.find("(") == 0 ){ // trcl begins with a ( -- immediate transformation given
 
-	  bool degree_format = (token[0] == '*');
-	  token_list_t args;
-	  
-	  do{
-	    args.push_back( next_token );
-	    next_token = *(++i);
-	  }
-	  while( next_token.find(")") == next_token.npos );
-	  args.push_back( next_token );
-
-	  trcl = new ImmediateRef<Transform>( makeTransform( args, degree_format ) );
+	  trcl = new ImmediateRef<Transform>( parseTransform( i, degree_format ) );
 
 	}
 	else{ // trcl is a reference to a tr card
 	  int tr_ref = makeint(next_token);
-	  trcl = new CardRef< Transform >( parent_deck, DataCard::TR, tr_ref );
+	  if(tr_ref != 0){
+	    trcl = new CardRef< Transform >( parent_deck, DataCard::TR, tr_ref );
+	  }
+	  else{
+	    std::cerr << "I don't think 0 is a valid TRCL ID, so I'm ignoring it." << std::endl; 
+	    // trcl will be set to a NullRef later in the function.
+	  }
 	}
-      }
+      } // token == {*}trcl
+
+      else if( token == "u" ){
+	universe = makeint(*(++i));
+      } // token == "u"
       
+      else if( token == "fill" || token == "*fill" ){
+
+	 bool degree_format = (token[0] == '*');
+
+	std::string next_token = *(++i);
+	if( next_token.find(":") != next_token.npos ){
+	  throw std::runtime_error("Fill matrices not yet supported");
+	}
+	else{
+	  // simple fill. Format is n or n (transform) 
+
+	  int n = makeint(next_token);
+	  if( n < 0 ){
+	    n = -n; // FIXME: handle negative universe numbers specially
+	  }
+
+	  i++; // advance to next token
+
+	  
+	  Transform t;
+	  bool t_exists = false;
+	  if( i != data.end() ){
+	    next_token = *i;
+	    if( next_token[0] == '(' ){
+	      // parse a transformation
+	      t = parseTransform( i, degree_format );
+	      t_exists = true;
+	    }
+
+	  }
+	  
+	  if(!t_exists){
+	    // the next token didn't belong to this fill card
+	    i--;
+	  }
+
+	  LatticeNode filler(n, t, t_exists);
+	  fill = new ImmediateRef< Lattice >( Lattice(filler) );
+	  
+	}
+      } // token == {*}fill
     }
 
     // ensure data pointers are valid
     if( !trcl ) {
       trcl = new NullRef< Transform >();
     }
+
+    if( !fill ){
+      fill = new NullRef< Lattice > ();
+    }
+
   }
+
+  int ident;
+  geom_list_t geom;
+  token_list_t data;
+  DataRef<Transform>* trcl;
+  DataRef<Lattice>* fill;
+  int universe;
+
+  bool likenbut;
+  int likeness_cell_n;
 
 public:
   CellCardImpl( InputDeck& deck, const token_list_t& tokens ) : 
-    CellCard( deck )
+    CellCard( deck ), trcl(NULL), fill(NULL), universe(0), likenbut(false), likeness_cell_n(0)
   {
     
     unsigned int idx = 0;
@@ -337,8 +434,16 @@ public:
 
     ident = makeint(tokens.at(idx++));
     
-    if(tokens.at(1) == "like"){
-      throw std::runtime_error("LIKE/BUT cell card syntax not yet supported.");
+    if(tokens.at(idx) == "like"){
+
+      idx++;
+      likenbut = true;
+      likeness_cell_n = makeint(tokens.at(idx++));
+      idx++; // skip the "but" token
+      while(idx < tokens.size()){
+	data.push_back(tokens[idx++]);
+      }
+      return;
     }
 
     material = makeint(tokens.at(idx++));
@@ -365,29 +470,75 @@ public:
     makeData();
 
   }
+
+  ~CellCardImpl(){
+    if(trcl)
+      delete trcl;
+    if(fill)
+      delete fill;
+  }
+
+  virtual int getIdent() const{ return ident; }
+  virtual const geom_list_t getGeom() const { return geom; }
+
+  virtual const DataRef<Transform>& getTrcl() const { return *trcl; }
+  virtual int getUniverse() const { return universe; }
+
+  virtual bool hasFill() const { return fill && fill->hasData(); }
+  virtual const Lattice& getFill() const { 
+    if( fill && fill->hasData() ){
+      return fill->getData();
+    }
+    throw std::runtime_error( "Called getFill() on an unfilled cell");
+  }
+
+  virtual void print( std::ostream& s ) const{
+    s << "Cell " << ident << " geom " << geom << std::endl;
+  }
+
+protected:
+  void finish(){
+    if( likenbut ){
+      CellCardImpl* host = dynamic_cast<CellCardImpl*>(parent_deck.lookup_cell_card( likeness_cell_n ));
+      if(host->likenbut){
+	host->finish(); // infinite recursion if cells are circularly defined... but our users wouldn't do that, right?
+      }
+      geom = host->geom;
+      universe = host->universe;
+      
+      if( host->trcl->hasData()){
+	trcl = host->trcl->clone();
+      }
+      if( host->hasFill()){
+	fill = host->fill->clone();
+      }
+      makeData();
+
+      likenbut = false;
+    }
+
+    if( trcl->hasData() && fill->hasData() ){
+      std::cout << ident << " foisting tr on lattice" << std::endl;
+      (dynamic_cast<ImmediateRef<Lattice>*>(fill))->getData().setTransform( trcl->getData() );
+    }
+  }
+
+  friend class InputDeck;
 };
 
 CellCard::CellCard( InputDeck& deck ) :
-  Card(deck), trcl(NULL)
+  Card(deck)
 {}
-
-CellCard::~CellCard(){
-  delete trcl;
-}
-
-void CellCard::print( std::ostream& s ) const {
-    s << "Cell " << ident << " geom " << geom << std::endl;
-}
 
 std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t ){
   switch(t.first){
-  case CellCard::LPAREN: str << "("; break;
-  case CellCard::RPAREN: str << ")"; break;
+  case CellCard::LPAREN:     str << "("; break;
+  case CellCard::RPAREN:     str << ")"; break;
   case CellCard::COMPLEMENT: str << "#"; break;
-  case CellCard::UNION: str << ":"; break;
-  case CellCard::INTERSECT: str << "*"; break;
-  case CellCard::SURFNUM: str << t.second; break;
-  case CellCard::CELLNUM: str << "c" << t.second; break;
+  case CellCard::UNION:      str << ":"; break;
+  case CellCard::INTERSECT:  str << "*"; break;
+  case CellCard::SURFNUM:    str << t.second; break;
+  case CellCard::CELLNUM:    str << "c" << t.second; break;
   }
   return str;
 }
@@ -399,7 +550,7 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
  ******************/
 
 SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
-  Card(deck)
+  Card(deck), surface(NULL)
 {
     size_t idx = 0;
     std::string token1 = tokens.at(idx++);
@@ -467,6 +618,7 @@ public:
 
   //  const Transform& getTransform() const{ return trans; } 
   const Transform& getData() const{ return trans; }
+  TransformCard* clone(){ return new TransformCard(*this); }
 
   virtual void print( std::ostream& str );
   virtual kind getKind(){ return TR; }
@@ -664,6 +816,7 @@ void InputDeck::parseCells( LineExtractor& lines ){
 
   }
 
+
 }
 
 
@@ -757,6 +910,12 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
 	degree_format = true;
 	cardname = cardname.substr( 1 ); // remove leading * 
       }
+      else if( cardname.find("*") == cardname.length()-1 ){
+	// although it's undocumented, apparently TRn* is a synonym for *TRn
+	// (the manual uses this undocumented form in chapter 4)
+	degree_format = true;
+	cardname.resize( cardname.length() -1 ); // remove trailing *
+      }
 
       std::string id_string( cardname, 2 );
 
@@ -787,10 +946,26 @@ InputDeck& InputDeck::build( std::istream& input){
   deck->parseSurfaces(lines);
   deck->parseDataCards(lines);
 
+
+  for( std::vector<CellCard*>::iterator i = deck->cells.begin(); i!=deck->cells.end(); ++i){
+    dynamic_cast<CellCardImpl*>(*i)->finish();
+  }
+
   while(lines.hasLine()){ lines.takeLine(); }
   std::cout << "(total lines: " << lines.getLineCount() << ")" <<  std::endl;
 
   return *deck;
 }
 
+InputDeck::cell_card_list InputDeck::getCellsOfUniverse( int universe ){
 
+  cell_card_list ret;
+  for( cell_card_list::iterator i = cells.begin(); i!=cells.end(); ++i){
+    CellCard* c = *i;
+    if( std::abs(c->getUniverse()) == universe ){
+      ret.push_back( *i );
+    }
+  }
+  return ret;
+
+}

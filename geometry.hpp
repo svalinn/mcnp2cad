@@ -48,9 +48,6 @@ public:
 
 std::ostream& operator<<(std::ostream& str, const Vector3d& v );
 
-// temporary
-#include <vector>
-
 class Transform{
 
 protected:
@@ -61,7 +58,7 @@ protected:
   void set_rots_from_matrix( double raw_matrix[9] );
 
 public:
-  Transform(){}
+  Transform():translation(),has_rot(false){}
   Transform( const std::vector< double >& inputs, bool degree_format_p = false );
   const Vector3d& getTranslation() const { return translation; }
   bool hasRot() const{ return has_rot; }
@@ -69,6 +66,50 @@ public:
   double getRotY() const { return rot_y; }
   double getRotZ() const { return rot_z; }
   void print( std::ostream& str ) const;
+
+};
+
+class LatticeNode {
+
+protected:
+  int universe;
+  Transform tr;
+  bool fixed_tr;
+
+public:
+  LatticeNode( int universe_p, const Transform& tr_p, bool fixed_p = false ):
+    universe(universe_p), tr(tr_p), fixed_tr(fixed_p)
+  {}
+  
+  int getFillingUniverse() const { return universe; }
+  const Transform& getTransform() const { return tr; }
+
+  void setTransform( const Transform& tr_p ){
+    if( !fixed_tr ){ tr = tr_p; }
+  }
+
+};
+
+class Lattice{
+
+public:
+  typedef enum{ SIMPLE, INFINITE, EXPLICIT } kind;
+  LatticeNode origin;
+
+public:
+  Lattice( const LatticeNode& origin_p ):
+    origin(origin_p)
+  {}
+
+  virtual ~Lattice(){}
+
+  virtual kind getKind() const{ return SIMPLE; }
+  virtual LatticeNode& getOriginNode() { return origin; }
+  virtual const LatticeNode& getOriginNode() const { return origin; }
+						
+  void setTransform( const Transform& tr_p ){
+    origin.setTransform( tr_p );
+  }
 
 };
 
