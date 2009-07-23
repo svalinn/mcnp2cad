@@ -41,7 +41,7 @@ public:
 
 // forward defs
 class Transform;
-class Lattice;
+class Fill;
 
 /**
  * Cell card
@@ -52,7 +52,10 @@ public:
   enum geom_token_t {INTERSECT, UNION, COMPLEMENT, LPAREN, RPAREN, CELLNUM, SURFNUM};
   typedef std::pair<enum geom_token_t, int> geom_list_entry_t;
   typedef std::vector<geom_list_entry_t> geom_list_t;
-  
+
+  //  enum fill_type_t { NONE, SIMPLE, LATTICE }; 
+  enum lattice_type_t { NONE = 0, HEXAHEDRAL = 1, HEXAGONAL = 2 };
+
 protected:
   
   CellCard( InputDeck& deck );
@@ -68,9 +71,13 @@ public:
   virtual const geom_list_t getGeom() const = 0; 
 
   virtual const DataRef<Transform>& getTrcl() const = 0; 
+
   virtual int getUniverse() const = 0;
   virtual bool hasFill() const = 0;
-  virtual const Lattice& getFill() const = 0;
+  virtual const Fill& getFill() const = 0;
+  
+  virtual bool isLattice() const = 0;
+  virtual lattice_type_t getLatticeType() const = 0;
 
   virtual void print( std::ostream& s ) const = 0; 
 

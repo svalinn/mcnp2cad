@@ -69,7 +69,7 @@ public:
 
 };
 
-class LatticeNode {
+class FillNode {
 
 protected:
   int universe;
@@ -77,7 +77,7 @@ protected:
   bool fixed_tr;
 
 public:
-  LatticeNode( int universe_p, const Transform& tr_p, bool fixed_p = false ):
+  FillNode( int universe_p, const Transform& tr_p, bool fixed_p = false ):
     universe(universe_p), tr(tr_p), fixed_tr(fixed_p)
   {}
   
@@ -90,22 +90,22 @@ public:
 
 };
 
-class Lattice{
+class Fill{
 
 public:
   typedef enum{ SIMPLE, INFINITE, EXPLICIT } kind;
-  LatticeNode origin;
+  FillNode origin;
 
 public:
-  Lattice( const LatticeNode& origin_p ):
+  Fill( const FillNode& origin_p ):
     origin(origin_p)
   {}
 
-  virtual ~Lattice(){}
+  virtual ~Fill(){}
 
   virtual kind getKind() const{ return SIMPLE; }
-  virtual LatticeNode& getOriginNode() { return origin; }
-  virtual const LatticeNode& getOriginNode() const { return origin; }
+  //virtual FillNode& getOriginNode() { return origin; }
+  virtual const FillNode& getOriginNode() const { return origin; }
 						
   void setTransform( const Transform& tr_p ){
     origin.setTransform( tr_p );

@@ -72,9 +72,68 @@ static Transform parseTransform( token_list_t::iterator& i, bool degree_format =
     next_token = *(++i);
   }
   while( next_token.find(")") == next_token.npos );
+
   args.push_back( next_token );
   
   return makeTransform( args, degree_format );
+}
+
+static FillNode parseFillNode( token_list_t::iterator& i, const token_list_t::iterator& end, InputDeck& /*deck*/, bool degree_format = false ){
+  // simple fill. Format is n or n (transform). Transform may be either a TR card number
+  // or an immediate transform 
+  
+  int n; // the filling universe
+  Transform t;
+  bool has_transform = false;
+
+  std::string first_token = *i;
+  size_t paren_idx = first_token.find("(");
+
+  std::string second_token;
+
+  if( paren_idx != first_token.npos ){
+    // first_token has an open paren
+    std::string n_str(first_token, 0, paren_idx);
+    n = makeint(n_str);
+
+    second_token = first_token.substr(paren_idx,first_token.npos);
+    has_transform = true;
+  }
+  else{
+    n = makeint(first_token);
+
+    if( ++i != end ){
+      second_token = *i;
+      if( second_token[0] == '(' ){
+	has_transform = true;
+      }
+      else{
+	// the next token didn't belong to this fill 
+	i--;
+      }
+    }
+    else{ i--; }
+  }
+
+  if( has_transform ){    
+    token_list_t transform_tokens;
+    std::string next_token = second_token;
+    
+    while( next_token.find(")") == next_token.npos ){
+      transform_tokens.push_back(next_token);
+      next_token = *(++i);
+    }
+    transform_tokens.push_back( next_token );
+
+    t = makeTransform( transform_tokens, degree_format );
+  }
+
+
+  if( n < 0 ){
+    n = -n; // FIXME: handle negative universe numbers specially
+  }
+  
+  return FillNode (n, t, has_transform);
 }
 
 static bool isblank( const std::string& line ){
@@ -329,7 +388,7 @@ protected:
 
   void makeData(){
 
-    std::vector< LatticeNode* > trcl_inheritors;
+    //    std::vector< FillNode* > trcl_inheritors;
 
     for( token_list_t::iterator i = data.begin(); i!=data.end(); ++i ){
 
@@ -359,7 +418,11 @@ protected:
       else if( token == "u" ){
 	universe = makeint(*(++i));
       } // token == "u"
-      
+      else if ( token == "lat" ){
+	int lat_designator = makeint(*(++i));
+	assert( lat_designator >= 0 && lat_designator <= 2 );
+	lat_type = static_cast<lattice_type_t>(lat_designator);
+      }
       else if( token == "fill" || token == "*fill" ){
 
 	 bool degree_format = (token[0] == '*');
@@ -369,35 +432,8 @@ protected:
 	  throw std::runtime_error("Fill matrices not yet supported");
 	}
 	else{
-	  // simple fill. Format is n or n (transform) 
-
-	  int n = makeint(next_token);
-	  if( n < 0 ){
-	    n = -n; // FIXME: handle negative universe numbers specially
-	  }
-
-	  i++; // advance to next token
-
-	  
-	  Transform t;
-	  bool t_exists = false;
-	  if( i != data.end() ){
-	    next_token = *i;
-	    if( next_token[0] == '(' ){
-	      // parse a transformation
-	      t = parseTransform( i, degree_format );
-	      t_exists = true;
-	    }
-
-	  }
-	  
-	  if(!t_exists){
-	    // the next token didn't belong to this fill card
-	    i--;
-	  }
-
-	  LatticeNode filler(n, t, t_exists);
-	  fill = new ImmediateRef< Lattice >( Lattice(filler) );
+	  FillNode filler = parseFillNode( i, data.end(), parent_deck, degree_format );
+	  fill = new ImmediateRef< Fill >( Fill(filler) );
 	  
 	}
       } // token == {*}fill
@@ -409,7 +445,7 @@ protected:
     }
 
     if( !fill ){
-      fill = new NullRef< Lattice > ();
+      fill = new NullRef< Fill > ();
     }
 
   }
@@ -418,15 +454,17 @@ protected:
   geom_list_t geom;
   token_list_t data;
   DataRef<Transform>* trcl;
-  DataRef<Lattice>* fill;
+  DataRef<Fill>* fill;
   int universe;
 
   bool likenbut;
   int likeness_cell_n;
 
+  lattice_type_t lat_type;
+
 public:
   CellCardImpl( InputDeck& deck, const token_list_t& tokens ) : 
-    CellCard( deck ), trcl(NULL), fill(NULL), universe(0), likenbut(false), likeness_cell_n(0)
+    CellCard( deck ), trcl(NULL), fill(NULL), universe(0), likenbut(false), likeness_cell_n(0), lat_type(NONE)
   {
     
     unsigned int idx = 0;
@@ -485,11 +523,19 @@ public:
   virtual int getUniverse() const { return universe; }
 
   virtual bool hasFill() const { return fill && fill->hasData(); }
-  virtual const Lattice& getFill() const { 
+  virtual const Fill& getFill() const { 
     if( fill && fill->hasData() ){
       return fill->getData();
     }
     throw std::runtime_error( "Called getFill() on an unfilled cell");
+  }
+
+  virtual bool isLattice() const {
+    return lat_type != NONE;
+  }
+
+  virtual lattice_type_t getLatticeType() const {
+    return lat_type;
   }
 
   virtual void print( std::ostream& s ) const{
@@ -505,7 +551,8 @@ protected:
       }
       geom = host->geom;
       universe = host->universe;
-      
+      lat_type = host->lat_type;
+
       if( host->trcl->hasData()){
 	trcl = host->trcl->clone();
       }
@@ -518,8 +565,7 @@ protected:
     }
 
     if( trcl->hasData() && fill->hasData() ){
-      std::cout << ident << " foisting tr on lattice" << std::endl;
-      (dynamic_cast<ImmediateRef<Lattice>*>(fill))->getData().setTransform( trcl->getData() );
+      (dynamic_cast<ImmediateRef<Fill>*>(fill))->getData().setTransform( trcl->getData() );
     }
   }
 

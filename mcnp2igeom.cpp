@@ -411,9 +411,9 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
   }
   else{
     // defineEmbedded and cell.hasFill() are both true
-    const Lattice& lattice = cell.getFill();
-    assert( lattice.getKind() == Lattice::SIMPLE );
-    const LatticeNode& n = lattice.getOriginNode();
+    const Fill& fill = cell.getFill();
+    assert( fill.getKind() == Fill::SIMPLE );
+    const FillNode& n = fill.getOriginNode();
     int filling_universe = n.getFillingUniverse();
     std::cout << "Creating cell " << cell.getIdent() << ", which is filled with universe " << filling_universe << std::endl;
     
@@ -447,10 +447,15 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
   InputDeck::cell_card_list u_cells = deck.getCellsOfUniverse( universe );
   entity_collection_t cell_list;
 
-  for( InputDeck::cell_card_list::iterator i = u_cells.begin(); i!=u_cells.end(); ++i){
-    entity_collection_t tmp = defineCell( igm, *(*i), world_size );
-    for( size_t i = 0; i < tmp.size(); ++i){
-      cell_list.push_back( tmp[i] );
+  if( u_cells.size() == 1 && u_cells[0]->isLattice() ){
+    std::cout << "Universe " << universe << " is a lattice!" << std::endl;
+  }
+  else{
+    for( InputDeck::cell_card_list::iterator i = u_cells.begin(); i!=u_cells.end(); ++i){
+      entity_collection_t tmp = defineCell( igm, *(*i), world_size );
+      for( size_t i = 0; i < tmp.size(); ++i){
+	cell_list.push_back( tmp[i] );
+      }
     }
   }
 
