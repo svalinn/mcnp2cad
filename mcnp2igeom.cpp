@@ -5,7 +5,6 @@
 #include <cctype>
 #include <vector>
 #include <cmath>
-#include <map>
 
 #include <cassert>
 
@@ -15,15 +14,37 @@
 #include "MCNPInput.hpp"
 
 
-class CellCard;
-class SurfaceCard;
-class DataCard;
-class LineExtractor;
-class InputDeck;
 
+#define MY_BUF_SIZE 512
+static char m_buf[MY_BUF_SIZE];
 
+#define CHECK_IGEOM(err, msg) \
+  do{/*std::cout << msg << std::endl;*/ if((err) != iBase_SUCCESS){	\
+    std::cerr << "iGeom error (" << err << "): " << msg << std::endl;	\
+    iGeom_getDescription( igm, m_buf, &err, MY_BUF_SIZE); \
+    std::cerr << " * " << m_buf << std::endl; \
+     } } while(0) 
 
-class Transform;
+static bool intersectIfPossible( iGeom_Instance igm, 
+				 iBase_EntityHandle h1, iBase_EntityHandle h2, iBase_EntityHandle* result, 
+				 bool delete_on_failure = true)
+{
+  int igm_result;
+  iGeom_intersectEnts( igm, h1, h2, result, &igm_result);
+  
+  if( igm_result == iBase_SUCCESS ){
+    return true;
+  }
+  else{
+    if( delete_on_failure ){
+      iGeom_deleteEnt( igm, h1, &igm_result);
+      CHECK_IGEOM(igm_result, "deleting an intersection candidate");
+      iGeom_deleteEnt( igm, h2, &igm_result);
+      CHECK_IGEOM(igm_result, "deleting an intersection candidate");
+    }
+    return false;
+  }
+}
 
 class AbstractSurface{
 
@@ -45,16 +66,6 @@ protected:
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ) = 0;
 };
 
-
-#define MY_BUF_SIZE 512
-static char m_buf[MY_BUF_SIZE];
-
-#define CHECK_IGEOM(err, msg) \
-  do{/*std::cout << msg << std::endl;*/ if((err) != iBase_SUCCESS){	\
-    std::cerr << "iGeom error (" << err << "): " << msg << std::endl;	\
-    iGeom_getDescription( igm, m_buf, &err, MY_BUF_SIZE); \
-    std::cerr << " * " << m_buf << std::endl; \
-     } } while(0) 
 
 iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e ) {
   
@@ -325,7 +336,7 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
   const CellCard::geom_list_t& geom = cell.getGeom();
   InputDeck& deck = cell.getDeck();
 
-  std::cerr << "Defining cell " << ident << std::endl;
+  std::cout << "Defining cell " << ident << std::endl;
   int igm_result;
 
   entity_collection_t tmp;
@@ -407,37 +418,48 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
   }
 
   if(!defineEmbedded || !cell.hasFill()){
+    // nothing more to do: return this cell
     return entity_collection_t(1,cellHandle);
   }
-  else{
-    // defineEmbedded and cell.hasFill() are both true
-    const Fill& fill = cell.getFill();
-    assert( fill.getKind() == Fill::SIMPLE );
-    const FillNode& n = fill.getOriginNode();
+  else if(cell.hasFill() && !cell.isLattice()){
+    // define a simple (non-lattice) fill
+    
+    const FillNode& n = cell.getFill().getOriginNode();
     int filling_universe = n.getFillingUniverse();
     std::cout << "Creating cell " << cell.getIdent() << ", which is filled with universe " << filling_universe << std::endl;
     
+    // define the contained universe, then intersect all elements with this cell
     entity_collection_t subcells = defineUniverse( igm, deck, filling_universe, world_size );
-    for(entity_collection_t::iterator i = subcells.begin(); i!=subcells.end(); ++i){
+    for( size_t i = 0; i < subcells.size(); ++i ){
 
       iBase_EntityHandle cell_copy;
       iGeom_copyEnt( igm, cellHandle, &cell_copy, &igm_result);
       CHECK_IGEOM( igm_result, "Copying a universe-bounding cell" );
       
-      iBase_EntityHandle subcell_transformed = applyTransform( n.getTransform(), igm, *i);
+      iBase_EntityHandle subcell_transformed = subcells[i];
+      if( n.hasTransform() ){
+	subcell_transformed = applyTransform( n.getTransform(), igm, subcells[i]);
+      }
 
       iBase_EntityHandle subcell_bounded;
-      iGeom_intersectEnts( igm, cell_copy, subcell_transformed, &subcell_bounded, &igm_result);
-      CHECK_IGEOM( igm_result, "Intersecting subcell with its bounding cell" );
       
-      if( igm_result == iBase_SUCCESS ){
-	*i = subcell_bounded;
+      bool valid_result = intersectIfPossible( igm, cell_copy, subcell_transformed, &subcell_bounded );
+      if( valid_result ){
+	subcells[i] = subcell_bounded;
+      }
+      else{
+	subcells.erase( subcells.begin()+i );
+	i--;
       }
     }
     iGeom_deleteEnt( igm, cellHandle, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting a bounding cell" );
     return subcells;
      
+  }
+  else{
+    // cell is a lattice.
+    throw std::runtime_error("Can't do lattices yet!");
   }
 }
 
@@ -468,7 +490,7 @@ void InputDeck::createGeometry(){
   iGeom_Instance igm;
   int igm_result;
   
-  iGeom_newGeom( 0, &igm, &igm_result, 0);
+  iGeom_newGeom( "-q", &igm, &igm_result, 0);
   CHECK_IGEOM( igm_result, "Initializing iGeom");
 
   double world_size = 0;

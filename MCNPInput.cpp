@@ -6,6 +6,37 @@
 #include <iostream>
 #include <sstream>
 
+
+/******************
+ * IMPLEMENTATIONS OF DataRef
+ ******************/
+
+template <class T> 
+class CardRef : public DataRef<T>{
+  
+protected:
+  InputDeck& deck;
+  DataCard::id_t key;
+
+public:
+  CardRef( InputDeck& deck_p, DataCard::kind kind, int ident ) : 
+    DataRef<T>(), deck(deck_p), key( std::make_pair( kind, ident ) )
+  {}
+
+  virtual const T& getData() const {
+    DataCard* c = deck.lookup_data_card( key );
+    const T& ref = dynamic_cast< DataRef<T>* >(c)->getData();
+    return ref;
+  }
+
+  virtual CardRef<T> * clone(){
+    return new CardRef<T>( *this );
+  }
+
+  const DataCard::id_t& getKey() const { return key; } 
+
+};
+
 /******************
  * HELPER FUNCTIONS
  ******************/
@@ -39,15 +70,10 @@ static double makedouble( const std::string& token ){
   return ret;
 }
 
-/**
- * Attempt to create a Transform object using the given numbers. Bounding parentheses are allowed
- * and will be removed.
- */
-static Transform makeTransform( const token_list_t tokens, bool degree_format = false ){
-
+static std::vector<double> makeTransformArgs( const token_list_t tokens ){
   std::vector<double> args;
   for( token_list_t::const_iterator i = tokens.begin(); i!=tokens.end(); ++i){
-
+    
     std::string token = *i;
     size_t idx;
     while( (idx = token.find_first_of("()")) != token.npos){
@@ -57,33 +83,53 @@ static Transform makeTransform( const token_list_t tokens, bool degree_format = 
       args.push_back( makedouble( token ) );
     }
     else if( token.length() > 0) {
-      std::cerr << "Warning: makeTransform ignoring input token [" << token << "]" << std::endl;
+      std::cerr << "Warning: makeTransformArgs ignoring input token [" << token << "]" << std::endl;
     }
   }
-  return Transform( args, degree_format );
+  return args;
 }
 
-static Transform parseTransform( token_list_t::iterator& i, bool degree_format = false ){
+/**
+ * Attempt to create a Transform object using the given numbers. Bounding parentheses are allowed
+ * and will be removed.
+ *
+ * The returned object is allocated with new and becomes the property of the caller.
+ */
+static DataRef<Transform>* parseTransform( InputDeck& deck, const token_list_t tokens, bool degree_format = false ){
+
+  std::vector<double> args = makeTransformArgs( tokens );
+  if( args.size() == 1 ){
+    return new CardRef<Transform>( deck, DataCard::TR, static_cast<int>(args[0]) );
+  }
+  else{
+    return new ImmediateRef<Transform>( Transform( args, degree_format ) );
+  }
+}
+
+static DataRef<Transform>* parseTransform( InputDeck& deck, token_list_t::iterator& i, bool degree_format = false ){
  
   token_list_t args;
   std::string next_token = *i;
-  do{
-    args.push_back( next_token );
-    next_token = *(++i);
+  
+  if( next_token.find("(") != next_token.npos ){
+    do{
+      args.push_back( next_token );
+      next_token = *(++i);
+    }
+    while( next_token.find(")") == next_token.npos );
   }
-  while( next_token.find(")") == next_token.npos );
 
   args.push_back( next_token );
   
-  return makeTransform( args, degree_format );
+  return parseTransform( deck, args, degree_format );
 }
 
-static FillNode parseFillNode( token_list_t::iterator& i, const token_list_t::iterator& end, InputDeck& /*deck*/, bool degree_format = false ){
+static FillNode parseFillNode( InputDeck& deck, token_list_t::iterator& i, const token_list_t::iterator& end, bool degree_format = false ){
   // simple fill. Format is n or n (transform). Transform may be either a TR card number
   // or an immediate transform 
   
   int n; // the filling universe
-  Transform t;
+  DataRef<Transform>* t;
   bool has_transform = false;
 
   std::string first_token = *i;
@@ -125,7 +171,10 @@ static FillNode parseFillNode( token_list_t::iterator& i, const token_list_t::it
     }
     transform_tokens.push_back( next_token );
 
-    t = makeTransform( transform_tokens, degree_format );
+    t = parseTransform( deck, transform_tokens, degree_format );
+  }
+  else{
+    t = new NullRef<Transform>();
   }
 
 
@@ -133,7 +182,7 @@ static FillNode parseFillNode( token_list_t::iterator& i, const token_list_t::it
     n = -n; // FIXME: handle negative universe numbers specially
   }
   
-  return FillNode (n, t, has_transform);
+  return FillNode (n, t, has_transform );
 }
 
 static bool isblank( const std::string& line ){
@@ -158,88 +207,6 @@ std::ostream& operator<<( std::ostream& out, const std::vector<T>& list ){
 }
 
 
-/******************
- * IMPLEMENTATIONS OF DataRef
- ******************/
-
-/* Note about covariant return types:
- * DataRef<T> requires a clone() class that (polymorphically) copies the object; this allows any
- * DataRef object to be copied without reference to its implementing type.  This can be thought of
- * as a virtual constructor (see parashift.com/c++-faq-lite/virtual-functions.html#faq-20.8)
- * 
- * Note that on some older compilers, it may be necessary to change the return type of the clone()
- * method to be DataRef<T> for all classes.
- */
-
-template <class T>
-class ImmediateRef : public DataRef<T>{
-  
-protected:
-  T data;
- 
-public:
-  ImmediateRef( const T& p ) :
-    data(p) 
-  {}
-
-  virtual const T& getData() const { 
-    return data;
-  }
-
-  // immediateRefs can have their data amended
-  T& getData(){ return data; } 
-
-  virtual ImmediateRef<T>* clone() {
-    return new ImmediateRef<T>( *this );
-  }
-
-};
-
-template <class T> 
-class CardRef : public DataRef<T>{
-  
-protected:
-  InputDeck& deck;
-  DataCard::id_t key;
-
-public:
-  CardRef( InputDeck& deck_p, DataCard::kind kind, int ident ) : 
-    DataRef<T>(), deck(deck_p), key( std::make_pair( kind, ident ) )
-  {}
-
-  virtual const T& getData() const {
-    DataCard* c = deck.lookup_data_card( key );
-    const T& ref = dynamic_cast< DataRef<T>* >(c)->getData();
-    return ref;
-  }
-
-  virtual CardRef<T> * clone(){
-    return new CardRef<T>( *this );
-  }
-
-  const DataCard::id_t& getKey() const { return key; } 
-
-};
-
-template <class T>
-class NullRef : public DataRef<T>{
-
-public:
-  NullRef() : 
-    DataRef<T>()
-  {}
-
-  virtual bool hasData() const { return false; }
-
-  virtual const T& getData() const {
-    throw std::runtime_error("Attempting to pull data from a null reference!");
-  }
-
-  virtual NullRef<T> * clone(){
-    return new NullRef<T>(*this);
-  }
-
-};
 
 /******************
  * CELL CARDS
@@ -397,22 +364,9 @@ protected:
       if( token == "trcl" || token == "*trcl" ){
 	bool degree_format = (token[0] == '*');
 
-	std::string next_token = *(++i);
-	if( next_token.find("(") == 0 ){ // trcl begins with a ( -- immediate transformation given
+	i++;
+	trcl = parseTransform( parent_deck, i, degree_format );
 
-	  trcl = new ImmediateRef<Transform>( parseTransform( i, degree_format ) );
-
-	}
-	else{ // trcl is a reference to a tr card
-	  int tr_ref = makeint(next_token);
-	  if(tr_ref != 0){
-	    trcl = new CardRef< Transform >( parent_deck, DataCard::TR, tr_ref );
-	  }
-	  else{
-	    std::cerr << "I don't think 0 is a valid TRCL ID, so I'm ignoring it." << std::endl; 
-	    // trcl will be set to a NullRef later in the function.
-	  }
-	}
       } // token == {*}trcl
 
       else if( token == "u" ){
@@ -432,7 +386,7 @@ protected:
 	  throw std::runtime_error("Fill matrices not yet supported");
 	}
 	else{
-	  FillNode filler = parseFillNode( i, data.end(), parent_deck, degree_format );
+	  FillNode filler = parseFillNode( parent_deck, i, data.end(), degree_format );
 	  fill = new ImmediateRef< Fill >( Fill(filler) );
 	  
 	}
@@ -565,7 +519,10 @@ protected:
     }
 
     if( trcl->hasData() && fill->hasData() ){
-      (dynamic_cast<ImmediateRef<Fill>*>(fill))->getData().setTransform( trcl->getData() );
+      std::cout << ident << " imbuing... ";
+      trcl->getData().print(std::cout);
+      std::cout << std::endl;
+      (dynamic_cast<ImmediateRef<Fill>*>(fill))->getData().imbueTransform( trcl->getData() );
     }
   }
 
@@ -673,7 +630,7 @@ public:
 };
 
 TransformCard::TransformCard( InputDeck& deck, int ident_p, bool degree_format, const token_list_t& input ):
-  DataCard(deck), ident(ident_p), trans( makeTransform( input, degree_format ) )
+  DataCard(deck), ident(ident_p), trans( Transform( makeTransformArgs( input ), degree_format ) )
 {}
 
 void TransformCard::print( std::ostream& str ){

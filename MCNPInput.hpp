@@ -8,18 +8,9 @@
 
 typedef std::vector< std::string > token_list_t;
 
+#include "dataref.hpp"
+
 class InputDeck;
-
-template <class T> class DataRef{
-
-public:
-  virtual ~DataRef(){}
-
-  virtual bool hasData() const { return true; }
-  virtual const T& getData() const = 0;
-  virtual DataRef<T>* clone() = 0;
-
-};
 
 /**
  * Superclass of all cards in the input deck
