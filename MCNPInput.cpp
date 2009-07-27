@@ -182,7 +182,7 @@ static FillNode parseFillNode( InputDeck& deck, token_list_t::iterator& i, const
     n = -n; // FIXME: handle negative universe numbers specially
   }
   
-  return FillNode (n, t, has_transform );
+  return FillNode (n, t );
 }
 
 static bool isblank( const std::string& line ){
@@ -518,12 +518,6 @@ protected:
       likenbut = false;
     }
 
-    if( trcl->hasData() && fill->hasData() ){
-      std::cout << ident << " imbuing... ";
-      trcl->getData().print(std::cout);
-      std::cout << std::endl;
-      (dynamic_cast<ImmediateRef<Fill>*>(fill))->getData().imbueTransform( trcl->getData() );
-    }
   }
 
   friend class InputDeck;

@@ -76,26 +76,24 @@ class FillNode {
 protected:
   int universe;
   DataRef<Transform>* tr;
-  bool tr_fixed;
 
 public:
   FillNode():
-    universe(0), tr(new NullRef<Transform>()), tr_fixed(false)
+    universe(0), tr(new NullRef<Transform>())
   {}
 
-  FillNode( int universe_p, DataRef<Transform>* tr_p, bool tr_fixed_p = false ):
-    universe(universe_p), tr(tr_p), tr_fixed(tr_fixed_p)
+  FillNode( int universe_p, DataRef<Transform>* tr_p ):
+    universe(universe_p), tr(tr_p)
   {}
 
   FillNode( const FillNode& node_p ):
-    universe(node_p.universe), tr(node_p.tr->clone()), tr_fixed(node_p.tr_fixed)
+    universe(node_p.universe), tr(node_p.tr->clone())
   {}
 
   FillNode& operator=( const FillNode& node_p ){
     if( this != &node_p ){
       universe = node_p.universe;
       tr = node_p.tr->clone();
-      tr_fixed = node_p.tr_fixed;
     }
     return *this;
   }
@@ -108,13 +106,10 @@ public:
   
   bool hasTransform() const{ return tr->hasData();}
   const Transform& getTransform() const { return tr->getData(); }
-  bool isTransformFixed() const{ return tr_fixed; }
 
   void setTransform( DataRef<Transform>* tr_p ){
-    if(!tr_fixed){
-      delete tr;
-      tr = tr_p;
-    }
+    delete tr;
+    tr = tr_p;
   }
 };
 
@@ -134,20 +129,9 @@ public:
   virtual ~Fill(){}
 
   virtual kind getKind() const{ return SIMPLE; }
-  //virtual FillNode& getOriginNode() { return origin; }
+  virtual FillNode& getOriginNode() { return origin; }
   virtual const FillNode& getOriginNode() const { return origin; }
 						
-  void imbueTransform( const Transform& tr_p ){
-    if( !origin.isTransformFixed() ){
-      origin.setTransform( new ImmediateRef<Transform>(tr_p) );
-    }
-    else{
-      std::cout << "Refusing to imbue! ... ";
-      origin.getTransform().print(std::cout);
-      std::cout << std::endl;
-    }
-  }
-
 };
 
 #endif /* MCNP2IGEOM_GEOMETRY_H */

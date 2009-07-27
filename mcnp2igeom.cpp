@@ -327,7 +327,46 @@ AbstractSurface& SurfaceCard::getSurface() {
 
 typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
-entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int universe, double world_size );
+entity_collection_t defineUniverse( iGeom_Instance&, InputDeck&, int, double, iBase_EntityHandle, const Transform* );
+
+entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double world_size, iBase_EntityHandle cell_shell ){
+
+  InputDeck& deck = cell.getDeck();
+
+  if( !cell.hasFill() ){
+    // nothing more to do: return this cell
+    return entity_collection_t(1, cell_shell );
+  }
+  else if(cell.hasFill() && !cell.isLattice()){
+    // define a simple (non-lattice) fill
+    
+    const FillNode& n = cell.getFill().getOriginNode();
+    int filling_universe = n.getFillingUniverse();
+    std::cout << "Creating cell " << cell.getIdent() 
+	      << ", which is filled with universe " << filling_universe << std::endl;
+    
+    
+    // the contained universe is transformed by the FillNode's transform, if any, or
+    // else by the cell's TRCL value, if any.
+    const Transform* t;
+    if( n.hasTransform() ){
+      t = &(n.getTransform());
+    } else if( cell.getTrcl().hasData() ){
+      t = &(cell.getTrcl().getData() );
+    } else { 
+      t = NULL; 
+    }
+
+    entity_collection_t subcells = defineUniverse( igm, deck, filling_universe, world_size, cell_shell, t );
+ 
+    return subcells;
+     
+  }
+  else{
+    // cell is a lattice.
+    throw std::runtime_error("Can't do lattices yet!");
+  }
+}
 
 //iBase_EntityHandle CellCard::define( iGeom_Instance& igm,  double world_size){
 entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double world_size, bool defineEmbedded = true ){
@@ -417,33 +456,48 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
     cellHandle = applyTransform( cell.getTrcl().getData(), igm, cellHandle );
   }
 
-  if(!defineEmbedded || !cell.hasFill()){
-    // nothing more to do: return this cell
-    return entity_collection_t(1,cellHandle);
+  if( defineEmbedded ){
+    return populateCell( igm, cell, world_size, cellHandle );
   }
-  else if(cell.hasFill() && !cell.isLattice()){
-    // define a simple (non-lattice) fill
-    
-    const FillNode& n = cell.getFill().getOriginNode();
-    int filling_universe = n.getFillingUniverse();
-    std::cout << "Creating cell " << cell.getIdent() << ", which is filled with universe " << filling_universe << std::endl;
-    
-    // define the contained universe, then intersect all elements with this cell
-    entity_collection_t subcells = defineUniverse( igm, deck, filling_universe, world_size );
-    for( size_t i = 0; i < subcells.size(); ++i ){
+  else{
+    return entity_collection_t( 1, cellHandle );
+  }
+  
+}
 
-      iBase_EntityHandle cell_copy;
-      iGeom_copyEnt( igm, cellHandle, &cell_copy, &igm_result);
+entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int universe, double world_size, 
+				    iBase_EntityHandle container = NULL, const Transform* transform = NULL ){
+
+  std::cout << "Defining universe " << universe << std::endl;
+  InputDeck::cell_card_list u_cells = deck.getCellsOfUniverse( universe );
+  entity_collection_t subcells;
+
+  for( InputDeck::cell_card_list::iterator i = u_cells.begin(); i!=u_cells.end(); ++i){
+    entity_collection_t tmp = defineCell( igm, *(*i), world_size );
+    for( size_t i = 0; i < tmp.size(); ++i){
+      subcells.push_back( tmp[i] );
+    }
+  }
+  
+  if( transform ){
+    for( size_t i = 0; i < subcells.size(); ++i){
+      subcells[i] = applyTransform( *transform, igm, subcells[i] );      
+    }
+  }
+
+  if( container ){
+    
+    int igm_result;
+
+    for( size_t i = 0; i < subcells.size(); ++i ){
+      
+      iBase_EntityHandle container_copy;
+      iGeom_copyEnt( igm, container, &container_copy, &igm_result);
       CHECK_IGEOM( igm_result, "Copying a universe-bounding cell" );
       
-      iBase_EntityHandle subcell_transformed = subcells[i];
-      if( n.hasTransform() ){
-	subcell_transformed = applyTransform( n.getTransform(), igm, subcells[i]);
-      }
-
       iBase_EntityHandle subcell_bounded;
       
-      bool valid_result = intersectIfPossible( igm, cell_copy, subcell_transformed, &subcell_bounded );
+      bool valid_result = intersectIfPossible( igm, container_copy, subcells[i], &subcell_bounded );
       if( valid_result ){
 	subcells[i] = subcell_bounded;
       }
@@ -452,36 +506,11 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
 	i--;
       }
     }
-    iGeom_deleteEnt( igm, cellHandle, &igm_result );
+    iGeom_deleteEnt( igm, container, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting a bounding cell" );
-    return subcells;
-     
-  }
-  else{
-    // cell is a lattice.
-    throw std::runtime_error("Can't do lattices yet!");
-  }
-}
-
-entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int universe, double world_size){
-
-  std::cout << "Defining universe " << universe << std::endl;
-  InputDeck::cell_card_list u_cells = deck.getCellsOfUniverse( universe );
-  entity_collection_t cell_list;
-
-  if( u_cells.size() == 1 && u_cells[0]->isLattice() ){
-    std::cout << "Universe " << universe << " is a lattice!" << std::endl;
-  }
-  else{
-    for( InputDeck::cell_card_list::iterator i = u_cells.begin(); i!=u_cells.end(); ++i){
-      entity_collection_t tmp = defineCell( igm, *(*i), world_size );
-      for( size_t i = 0; i < tmp.size(); ++i){
-	cell_list.push_back( tmp[i] );
-      }
-    }
   }
 
-  return cell_list;
+  return subcells;
 
 }
 
