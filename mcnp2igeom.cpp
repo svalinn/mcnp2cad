@@ -96,14 +96,9 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
   
   int igm_result;
   if( t.hasRot() ){
-    iGeom_rotateEnt( igm, &e, t.getRotX(), 1, 0, 0, &igm_result );
-    CHECK_IGEOM( igm_result, "applying x rotation" );
-    
-    iGeom_rotateEnt( igm, &e, t.getRotY(), 0, 1, 0, &igm_result );
-    CHECK_IGEOM( igm_result, "applying y rotation" );
-    
-    iGeom_rotateEnt( igm, &e, t.getRotZ(), 0, 0, 1, &igm_result );
-    CHECK_IGEOM( igm_result, "applying z rotation" );
+    const Vector3d& axis = t.getAxis();
+    iGeom_rotateEnt( igm, &e, t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "applying rotation" );
   }
   
   const Vector3d& translation = t.getTranslation();
@@ -112,6 +107,28 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
   
   return e;
 }
+
+iBase_EntityHandle applyReverseTransform( const Transform& tx, iGeom_Instance& igm, iBase_EntityHandle& e ) {
+  
+  int igm_result;
+  Transform rev_t = tx.reverse();
+
+  const Vector3d& translation = rev_t.getTranslation();
+  iGeom_moveEnt( igm, &e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
+  CHECK_IGEOM( igm_result, "applying reverse translation" );
+
+  if( rev_t.hasRot() ){
+    const Vector3d& axis = rev_t.getAxis();
+    iGeom_rotateEnt( igm, &e, rev_t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "applying rotation" );
+  }
+  
+  
+  return e;
+}
+
+
+
 static Vector3d origin(0,0,0);
 
 
@@ -598,7 +615,7 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
   if( u_cells.size() == 1 && u_cells[0]->isLattice() ){
     lattice_shell = container;
     if(transform){
-      lattice_shell = applyTransform( transform->reverse(), igm, lattice_shell );
+      lattice_shell = applyReverseTransform( *transform, igm, lattice_shell );
     }
   }
 

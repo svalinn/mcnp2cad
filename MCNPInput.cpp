@@ -172,6 +172,7 @@ static FillNode parseFillNode( InputDeck& deck, token_list_t::iterator& i, const
     transform_tokens.push_back( next_token );
 
     t = parseTransform( deck, transform_tokens, degree_format );
+    t->getData().print(std::cout);
   }
   else{
     t = new NullRef<Transform>();

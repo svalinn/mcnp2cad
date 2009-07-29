@@ -88,11 +88,9 @@ class Transform{
 protected:
   Vector3d translation;
   bool has_rot;
-  double rot_x, rot_y, rot_z;
-  double raw_matrix[9];
-  bool degree_format;
+  double theta; Vector3d axis;
 
-  void set_rots_from_matrix( );
+  void set_rots_from_matrix( double raw_matrix[9] );
 
 public:
   Transform():translation(),has_rot(false){}
@@ -100,9 +98,8 @@ public:
   Transform( const std::vector< double >& inputs, bool degree_format_p = false );
   const Vector3d& getTranslation() const { return translation; }
   bool hasRot() const{ return has_rot; }
-  double getRotX() const { return rot_x; }
-  double getRotY() const { return rot_y; }
-  double getRotZ() const { return rot_z; }
+  double getTheta() const { return theta; }
+  const Vector3d& getAxis() const { return axis; }
   void print( std::ostream& str ) const;
 
   Transform reverse() const;
