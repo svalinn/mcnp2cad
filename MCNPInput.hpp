@@ -9,6 +9,7 @@
 typedef std::vector< std::string > token_list_t;
 
 #include "dataref.hpp"
+#include "geometry.hpp"
 
 class InputDeck;
 
@@ -69,6 +70,7 @@ public:
   
   virtual bool isLattice() const = 0;
   virtual lattice_type_t getLatticeType() const = 0;
+  virtual const Lattice& getLattice() const = 0;
 
   virtual void print( std::ostream& s ) const = 0; 
 
@@ -100,6 +102,8 @@ public:
   AbstractSurface& getSurface();
   const DataRef<Transform>& getTransform();
 
+
+  std::pair<Vector3d,double> getPlaneParams() const;
 };
 
 /**

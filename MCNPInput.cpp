@@ -353,6 +353,67 @@ protected:
     }
   }
 
+  void setupLattice(){
+    std::vector< std::pair<SurfaceCard*,bool> > surfaceCards;
+    
+    for( geom_list_t::iterator i = geom.begin(); i!=geom.end(); ++i){
+      geom_list_entry_t entry = *i;
+      if( entry.first == SURFNUM ){
+	SurfaceCard* surf = parent_deck.lookup_surface_card( std::abs(entry.second) );
+	assert(surf);
+	surfaceCards.push_back( std::make_pair(surf, (entry.first>0) ) );
+      }
+    }
+    
+    Lattice l;
+    if( fill->hasData() ){
+      l = Lattice( fill->getData().getOriginNode() );
+    }
+    else{
+      FillNode n( this->universe );
+      l = Lattice( n );
+    }
+
+    if( lat_type == HEXAHEDRAL ){
+      assert( surfaceCards.size() == 2 || surfaceCards.size() == 4 || surfaceCards.size() == 6 );
+      if( surfaceCards.size() == 2 ){
+	l.num_finite_dims = 1;
+	std::pair<Vector3d,double> params = surfaceCards.at(0).first->getPlaneParams();
+	l.v1 = params.first.normalize() * params.second; // wrong: needs subtraction
+      }
+      else if( surfaceCards.size() == 4 ){
+	throw std::runtime_error( "Can't do 1-way infinite square lattice yet" );
+      }
+      else{ // surfaceCards.size() == 6 
+
+	std::vector< std::pair<Vector3d,double> > planes;
+	for( int i = 0; i < 6; ++i ){ planes.push_back( surfaceCards.at(i).first->getPlaneParams() ); }
+
+	l.num_finite_dims = 3;
+	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
+	Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() );
+	l.v1 = xv2.normalize() * (xv * (1.0 / (xv.normalize().dot(xv2.normalize())))).length();
+	//l.v1 = xv2.normalize() * xv.length();
+
+	std::cout << xv << xv2 << l.v1 << std::endl;
+
+	l.v2 = Vector3d(0,1,0) * std::fabs( planes[2].second - planes[3].second );
+
+	l.v3 = Vector3d(0,0,1) * std::fabs( planes[4].second - planes[5].second );
+	
+      }
+      
+    }
+    else if( lat_type == HEXAGONAL ){
+      assert( surfaceCards.size() == 4 || surfaceCards.size() == 6 );
+    }
+
+
+    lattice = new ImmediateRef<Lattice>( l );
+
+    
+  }
+
   void makeData(){
 
     //    std::vector< FillNode* > trcl_inheritors;
@@ -376,6 +437,7 @@ protected:
 	int lat_designator = makeint(*(++i));
 	assert( lat_designator >= 0 && lat_designator <= 2 );
 	lat_type = static_cast<lattice_type_t>(lat_designator);
+	std::cout << ident << " is lattice type " << lat_type << std::endl;
       }
       else if( token == "fill" || token == "*fill" ){
 
@@ -415,10 +477,12 @@ protected:
   int likeness_cell_n;
 
   lattice_type_t lat_type;
+  DataRef<Lattice> *lattice;
 
 public:
   CellCardImpl( InputDeck& deck, const token_list_t& tokens ) : 
-    CellCard( deck ), trcl(NULL), fill(NULL), universe(0), likenbut(false), likeness_cell_n(0), lat_type(NONE)
+    CellCard( deck ), trcl(NULL), fill(NULL), universe(0), likenbut(false), likeness_cell_n(0), 
+    lat_type(NONE), lattice(NULL)
   {
     
     unsigned int idx = 0;
@@ -468,6 +532,8 @@ public:
       delete trcl;
     if(fill)
       delete fill;
+    if(lattice)
+      delete lattice;
   }
 
   virtual int getIdent() const{ return ident; }
@@ -492,6 +558,13 @@ public:
     return lat_type;
   }
 
+  virtual const Lattice& getLattice() const {
+    if( lattice && lattice->hasData() ){
+      return lattice->getData();
+    }
+    throw std::runtime_error( "Called getLattice() on a cell that hasn't got one" );
+  }
+
   virtual void print( std::ostream& s ) const{
     s << "Cell " << ident << " geom " << geom << std::endl;
   }
@@ -513,9 +586,16 @@ protected:
       if( host->hasFill()){
 	fill = host->fill->clone();
       }
+      if( host->isLattice()){
+	lattice = host->lattice->clone();
+      }
       makeData();
 
       likenbut = false;
+    }
+
+    if( lat_type != NONE && lattice == NULL ){
+      setupLattice();
     }
 
   }
@@ -597,6 +677,25 @@ void SurfaceCard::print( std::ostream& s ) const {
   }
   s << std::endl;
 }
+
+std::pair<Vector3d,double> SurfaceCard::getPlaneParams() const {
+  if(mnemonic == "px"){
+    return std::make_pair(Vector3d(1,0,0), args[0]);
+  }
+  else if(mnemonic == "py"){
+    return std::make_pair(Vector3d(0,1,0), args[0]);
+  }
+  else if(mnemonic == "pz"){
+    return std::make_pair(Vector3d(0,0,1), args[0]);
+  }
+  else if(mnemonic == "p"){
+    return std::make_pair(Vector3d( args ), args[3]);
+  }
+  else{
+    throw std::runtime_error("Tried to get plane normal of non-plane surface!");
+  }
+}
+
 
 
 /******************

@@ -7,7 +7,7 @@ LDFLAGS = ${IGEOM_LDFLAGS}
 CXXSOURCES = mcnp2igeom.cpp MCNPInput.cpp geometry.cpp
 CXXOBJS = mcnp2igeom.o MCNPInput.o geometry.o
 
-CXXFLAGS = -g -Wall -Wextra -Werror
+CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CUBIT
 
 
 mcnp2igeom: ${CXXOBJS} Makefile
