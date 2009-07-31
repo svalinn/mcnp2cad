@@ -388,7 +388,27 @@ protected:
 	l.v1 = params.first.normalize() * params.second; // wrong: needs subtraction
       }
       else if( surfaceCards.size() == 4 ){
-	throw std::runtime_error( "Can't do 1-way infinite square lattice yet" );
+	std::vector< std::pair<Vector3d,double> > planes;
+	for( int i = 0; i < 4; ++i ){ planes.push_back( surfaceCards.at(i).first->getPlaneParams() ); }
+
+	l.num_finite_dims = 2;
+	
+	Vector3d v3 = planes[0].first.cross( planes[2].first ).normalize(); // infer a third (infinite) direction
+	
+	// vector from planes[1] to planes[0]
+	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
+	if( surfaceCards.at(0).second == true) xv = -xv;
+
+	// direction of l.v1: cross product of normals planes[2] and v3
+	Vector3d xv2 = planes[2].first.normalize().cross( v3 ).normalize();
+	l.v1 = latticeVectorHelper( xv, xv2 );
+
+	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
+	if( surfaceCards.at(2).second == true) yv = -yv;
+	Vector3d yv2 = planes[0].first.normalize().cross( v3 ).normalize();
+	l.v2 = latticeVectorHelper( yv, yv2 );
+
+
       }
       else{ // surfaceCards.size() == 6 
 
