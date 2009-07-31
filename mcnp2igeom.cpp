@@ -373,7 +373,8 @@ entity_collection_t defineUniverse( iGeom_Instance&, InputDeck&, int, double, iB
 
 bool defineLatticeNode( iGeom_Instance& igm, const Lattice& lattice, int lattice_universe,
 			iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
-			int x, int y, int z, entity_collection_t& accum )
+			int x, int y, int z, entity_collection_t& accum,
+			InputDeck& deck, double world_size )
 {
   const FillNode* fn = &(lattice.getFillForNode( x, y, z ));				
   Transform t = lattice.getTxForNode( x, y, z );	
@@ -390,23 +391,52 @@ bool defineLatticeNode( iGeom_Instance& igm, const Lattice& lattice, int lattice
     std::cout << "failed bbox check" << std::endl;
     return false;
   }
-  
-  if( true || fn->getFillingUniverse() == lattice_universe ){	
+
+  entity_collection_t node_subcells;
+  if( fn->getFillingUniverse() == lattice_universe ){
+    node_subcells.push_back( cell_copy );
+  }
+  else{
+
+    iBase_EntityHandle cell_copy_unmoved;
+    iGeom_copyEnt( igm, cell_shell, &cell_copy_unmoved, &igm_result );
+    CHECK_IGEOM( igm_result, "Re-copying a lattice cell shell" );
+    node_subcells = defineUniverse( igm, deck, fn->getFillingUniverse(), world_size, cell_copy_unmoved, (fn->hasTransform() ? &(fn->getTransform()) : NULL ) );
+    for( size_t i = 0; i < node_subcells.size(); ++i ){
+      node_subcells[i] = applyTransform( t, igm, node_subcells[i] );
+    }
+
+    iGeom_deleteEnt( igm, cell_copy, &igm_result );
+    CHECK_IGEOM( igm_result, "Deleting lattice cell copy" );
+
+  }
+
+  bool success = false;
+  for( size_t i = 0; i < node_subcells.size(); ++i ){
     iBase_EntityHandle lattice_shell_copy;
     iGeom_copyEnt( igm, lattice_shell, &lattice_shell_copy, &igm_result );
 
     iBase_EntityHandle result;
-    if( intersectIfPossible( igm, lattice_shell_copy, cell_copy, &result, true ) ){
+    if( intersectIfPossible( igm, lattice_shell_copy, node_subcells[i], &result, true ) ){
       std::cout << "success" << std::endl;
       accum.push_back( result );
-      return true;
+      success = true;
     }
     else{ 
-      // lattice_shell_copy and cell_copy were deleted by intersectIfPossible()
+      // lattice_shell_copy and node_subcells[i] were deleted by intersectIfPossible()
       std::cout << "Failed intersection" << std::endl;
-      return false;
     }
-  }									
+  }
+
+  return success;
+}
+
+int quickPow( int x, unsigned int exp ){
+  int ret = x;
+  for( unsigned int i = 1; i < exp; i++){
+    ret *= x;
+  }
+  return ret;
 }
 
 entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double world_size, 
@@ -460,6 +490,8 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
     bool xdone = false, ydone = false, zdone = false;
     int failcount = 0;
 
+    const int try_factor = 3;
+
     do{
 
       y = 0;
@@ -472,28 +504,28 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
 	  
 	  
 	  std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
-	  bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells );
+	  bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells, deck, world_size );
 	  if(success){ failcount = 0; }
 	  else{ failcount++; }
 
 	  if( z > 0 ){ z = -z; }
 	  else{ z = (-z) + 1; }
 	  
-	  if( failcount >= 2 ){ zdone = true; }
+	  if( failcount >= (2*try_factor) ){ zdone = true; }
 
 	}while(!zdone && num_dims >= 3);
 
 	if( y > 0 ){ y = -y; }
 	else{ y = (-y) + 1; }
 
-	if( failcount >= 4 ){ ydone = true; }
+	if( failcount >= quickPow(2*try_factor,2) ){ ydone = true; }
 
       }while (!ydone && num_dims >= 2);
 
       if( x > 0){ x = -x; }
       else{ x = (-x) + 1; }
 
-      if( failcount >= 8 ){ xdone = true; }
+      if( failcount >= quickPow(2*try_factor, 3) ){ xdone = true; }
 
     }while( !xdone );
 

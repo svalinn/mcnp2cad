@@ -354,6 +354,11 @@ protected:
     }
   }
 
+  Vector3d latticeVectorHelper( Vector3d difference_along_normal, Vector3d v_dir ){
+    double length = difference_along_normal.length() / (difference_along_normal.normalize().dot(v_dir));
+    return v_dir * length;
+  }
+
   void setupLattice(){
     std::vector< std::pair<SurfaceCard*,bool> > surfaceCards;
     
@@ -391,16 +396,23 @@ protected:
 	for( int i = 0; i < 6; ++i ){ planes.push_back( surfaceCards.at(i).first->getPlaneParams() ); }
 
 	l.num_finite_dims = 3;
+	// vector from planes[1] to planes[0]
 	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
-	Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() );
-	l.v1 = xv2.normalize() * (xv * (1.0 / (xv.normalize().dot(xv2.normalize())))).length();
-	//l.v1 = xv2.normalize() * xv.length();
+	if( surfaceCards.at(0).second == true) xv = -xv;
 
-	std::cout << xv << xv2 << l.v1 << std::endl;
+	// direction of l.v1: cross product of normals planes[2] and planes[4]
+	Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() ).normalize();
+	l.v1 = latticeVectorHelper( xv, xv2 );
 
-	l.v2 = Vector3d(0,1,0) * std::fabs( planes[2].second - planes[3].second );
+	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
+	if( surfaceCards.at(2).second == true) yv = -yv;
+	Vector3d yv2 = planes[0].first.normalize().cross( planes[4].first.normalize() ).normalize();
+	l.v2 = latticeVectorHelper( yv, yv2 );
 
-	l.v3 = Vector3d(0,0,1) * std::fabs( planes[4].second - planes[5].second );
+	Vector3d zv = planes[4].first.normalize() * std::fabs( planes[4].second - planes[5].second );
+	if( surfaceCards.at(4).second == true) zv = -zv;
+	Vector3d zv2 = planes[0].first.normalize().cross( planes[2].first.normalize() ).normalize();
+	l.v3 = latticeVectorHelper( zv, zv2 );
 	
       }
       
