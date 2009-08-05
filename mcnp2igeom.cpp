@@ -323,7 +323,8 @@ AbstractSurface& SurfaceCard::getSurface() {
 	std::cerr << "         This surface type is unsupported; will proceed as if only 4 parameters given,\n";
 	std::cerr << "         but the result will probably be incorrect!" << std::endl;
       }
-      this->surface = new PlaneSurface( Vector3d( args ), args.at(3) );
+      Vector3d v(args);
+      this->surface = new PlaneSurface( v, args.at(3)/v.length() );
     }
     else if( mnemonic == "px"){
       this->surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
@@ -584,9 +585,13 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
 	iBase_EntityHandle s1 = stack.back(); stack.pop_back();
 	iBase_EntityHandle s2 = stack.back(); stack.pop_back();
 	iBase_EntityHandle result;
-	iGeom_intersectEnts( igm, s1, s2, &result, &igm_result);
-	CHECK_IGEOM( igm_result, "Intersecting two entities" );
-	stack.push_back(result);
+	if( intersectIfPossible( igm, s1, s2, &result ) ){
+	  stack.push_back(result);
+	}
+	else{
+	  std::cout << "FAILED INTERSECTION CELL #" << cell.getIdent() << std::endl;
+	  throw std::runtime_error("Intersection failed");
+	}
       }
       break;
     case CellCard::UNION:
@@ -738,13 +743,14 @@ void InputDeck::createGeometry(){
   iGeom_imprintEnts( igm, cell_array, count, &igm_result );
   CHECK_IGEOM( igm_result, "Imprinting all cells" );
 
-  double tolerance = world_size / 1.0e6;
+  double tolerance = world_size / 1.0e7;
   //double tolerance = .001;
   std::cout << "Merging, tolerance: " << tolerance << std::endl;
   iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
   CHECK_IGEOM( igm_result, "Merging all cells" );
 
   std::string outName = "out.sat";
+  std::cout << "Saving file: " << outName << std::endl;
   iGeom_save( igm, outName.c_str(), "", &igm_result, outName.length(), 0 );
   CHECK_IGEOM( igm_result, "saving the output file "+outName );
 

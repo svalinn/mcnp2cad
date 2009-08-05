@@ -385,7 +385,7 @@ protected:
       if( surfaceCards.size() == 2 ){
 	l.num_finite_dims = 1;
 	std::pair<Vector3d,double> params = surfaceCards.at(0).first->getPlaneParams();
-	l.v1 = params.first.normalize() * params.second; // wrong: needs subtraction
+	l.v1 = params.first.normalize() * std::fabs( params.second - surfaceCards.at(1).first->getPlaneParams().second ); 
       }
       else if( surfaceCards.size() == 4 ){
 	std::vector< std::pair<Vector3d,double> > planes;
@@ -478,6 +478,26 @@ protected:
 
 	std::string next_token = *(++i);
 	if( next_token.find(":") != next_token.npos ){
+	  std::pair<int,int> ranges[3];
+	  const char* range_str;
+	  char *p;
+	  
+	  int num_elements = 1;
+	  for( int dim = 0; dim < 3; ++dim ){
+	    range_str = (*(i++)).c_str();
+	    ranges[dim].first  = strtol(range_str, &p, 10);
+	    ranges[dim].second = strtol(p+1, NULL, 10); 
+	    std::cout << ranges[dim].first << " : " << ranges[dim].second << std::endl;	  
+	    if( ranges[dim].second != ranges[dim].first ){
+	      num_elements *= ( ranges[dim].second - ranges[dim].first );
+	    }
+	  }
+
+	  std::cout << "Num elements: " << num_elements << std::endl;
+
+	  
+	  
+	  
 	  throw std::runtime_error("Fill matrices not yet supported");
 	}
 	else{
@@ -722,7 +742,7 @@ std::pair<Vector3d,double> SurfaceCard::getPlaneParams() const {
     return std::make_pair(Vector3d(0,0,1), args[0]);
   }
   else if(mnemonic == "p"){
-    return std::make_pair(Vector3d( args ), args[3]);
+    return std::make_pair(Vector3d( args ), args[3]/Vector3d(args).length());
   }
   else{
     throw std::runtime_error("Tried to get plane normal of non-plane surface!");
@@ -805,14 +825,17 @@ protected:
 	
 	// convert to lowercase
 	strlower(next_line);
-	
+
+	// Append a space, to catch blank comment lines (e.g. "c") that would otherwise not meet
+	// the MCNP comment card spec ("a C anywhere in columns 1-5 followed by at least one blank.")
+	// I have seen lines like "c" or " c" as complete comment cards in practice, so MCNP must 
+	// accept them.
+	next_line.append(" ");
+
       }
     }
-    while( has_next && (next_line == "c" || next_line.find("c ") < 5)); 
+    while( has_next && (next_line.find("c ") < 5 ));
     // iterate until next_line is not a comment line.
-    // although the one-char line "c" does not technically conform to the spec given in the manual,
-    // ("a C anywhere in columns 1−5 followed by at least one blank"), I have seen
-    // it in practice.
 
   }
 
