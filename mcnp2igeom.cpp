@@ -394,7 +394,14 @@ bool defineLatticeNode( iGeom_Instance& igm, const Lattice& lattice, int lattice
   }
 
   entity_collection_t node_subcells;
-  if( fn->getFillingUniverse() == lattice_universe ){
+  if( fn->getFillingUniverse() == 0 ){
+    // this node of the lattice "exists" in sense that it's well defined, however,
+    // it is defined to be empty.  Delete the shell and return true.
+    iGeom_deleteEnt( igm, cell_copy, &igm_result );
+    CHECK_IGEOM( igm_result, "Deleting a universe-0 lattice cell" );
+    return true;
+  }
+  else if( fn->getFillingUniverse() == lattice_universe ){
     node_subcells.push_back( cell_copy );
   }
   else{
@@ -487,54 +494,79 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
     const Lattice& lattice = cell.getLattice();
     int num_dims = lattice.numFiniteDirections();
     std::cout << "Num dims " << num_dims << std::endl;
-    int x = 0, y = 0, z = 0;
-    bool xdone = false, ydone = false, zdone = false;
-    int failcount = 0;
 
-    const int try_factor = 3;
+    if( lattice.isFixedSize() ){
 
-    do{
+      std::cout << "Defining fixed lattice" << std::endl;
+      irange xrange = lattice.getXRange(), yrange = lattice.getYRange(), zrange = lattice.getZRange();
 
-      y = 0;
-      ydone = false;
+      for( int i = xrange.first; i <= xrange.second; ++i){
+	for( int j = yrange.first; j <= yrange.second; ++j ){
+	  for( int k = zrange.first; k <= zrange.second; ++k ){
+
+	    std::cout << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
+	    /* bool success = */ defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, i, j, k, subcells, deck, world_size );
+
+	    if( num_dims < 3 ) break; // from z loop
+	  }
+	  if( num_dims < 2 ) break; // from y loop
+	}
+      }
+
+    }
+    else{
+      int x = 0, y = 0, z = 0;
+      bool xdone = false, ydone = false, zdone = false;
+      int failcount = 0;
+      
+      const int try_factor = 1;
+      
       do{
-
-	z = 0;
-	zdone = false;
+	
+	y = 0;
+	ydone = false;
 	do{
 	  
+	  z = 0;
+	  zdone = false;
+	  do{
+	    
+	    
+	    std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
+	    bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells, deck, world_size );
+	    if(success){ failcount = 0; }
+	    else{ failcount++; }
+	    
+	    if( z > 0 ){ z = -z; }
+	    else{ z = (-z) + 1; }
+	    
+	    if( failcount >= (2*try_factor) ){ zdone = true; }
+	    
+	  }while(!zdone && num_dims >= 3);
 	  
-	  std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
-	  bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells, deck, world_size );
-	  if(success){ failcount = 0; }
-	  else{ failcount++; }
-
-	  if( z > 0 ){ z = -z; }
-	  else{ z = (-z) + 1; }
+	  if( y > 0 ){ y = -y; }
+	  else{ y = (-y) + 1; }
 	  
-	  if( failcount >= (2*try_factor) ){ zdone = true; }
+	  if( failcount >= quickPow(2*try_factor,2) ){ ydone = true; }
+	  
+	}while (!ydone && num_dims >= 2);
+	
+	if( x > 0){ x = -x; }
+	else{ x = (-x) + 1; }
+	
+	if( failcount >= quickPow(2*try_factor, 3) ){ xdone = true; }
+	
+      }while( !xdone );
+      
 
-	}while(!zdone && num_dims >= 3);
-
-	if( y > 0 ){ y = -y; }
-	else{ y = (-y) + 1; }
-
-	if( failcount >= quickPow(2*try_factor,2) ){ ydone = true; }
-
-      }while (!ydone && num_dims >= 2);
-
-      if( x > 0){ x = -x; }
-      else{ x = (-x) + 1; }
-
-      if( failcount >= quickPow(2*try_factor, 3) ){ xdone = true; }
-
-    }while( !xdone );
+    }
 
     int igm_result;
     iGeom_deleteEnt( igm, cell_shell, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting cell shell after building lattice" );
     iGeom_deleteEnt( igm, lattice_shell, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting lattice shell after building lattice" );
+
     return subcells;
   }
 }

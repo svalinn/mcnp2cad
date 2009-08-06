@@ -207,8 +207,10 @@ public:
 
   const FillNode& getFillForNode( int x, int y, int z ) const ;
 
-  //bool isFixedSize() const { return is_fixed; }  
-  irange getRangeForDimension( int dim ) const;
+  bool isFixedSize() const { return fill->getData().has_grid; }  
+  irange getXRange() const { return fill->getData().xrange; }
+  irange getYRange() const { return fill->getData().yrange; }
+  irange getZRange() const { return fill->getData().zrange; }
   
 
 };

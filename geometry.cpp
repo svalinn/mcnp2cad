@@ -109,8 +109,8 @@ size_t Fill::indicesToSerialIndex( int x, int y, int z ) const {
   int grid_y = y - yrange.first;
   int grid_z = z - zrange.first;
 
-  int dx = xrange.second - xrange.first;
-  int dy = yrange.second - yrange.first;
+  int dx = xrange.second - xrange.first + 1;
+  int dy = yrange.second - yrange.first + 1;
   //  int dz = zrange.second - zrange.first;
   
   int index = grid_z * (dy*dx) + grid_y * dx + grid_x;
@@ -127,8 +127,8 @@ const FillNode& Fill::getOriginNode() const {
 }
 
 const FillNode& Fill::getNode( int x, int y, int z ) const {
-    assert( has_grid );
-    return nodes.at( indicesToSerialIndex(x, y, z) );
+  assert( has_grid );
+  return nodes.at( indicesToSerialIndex(x, y, z) );
 }
 
 
@@ -176,8 +176,6 @@ Transform Lattice::getTxForNode( int x, int y, int z ) const {
   default:
     break;
   }
-
-  std::cout << v << x << ", " << y << ", " << z << std::endl;
 
   return Transform(v);
 }

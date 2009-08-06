@@ -174,7 +174,7 @@ static FillNode parseFillNode( InputDeck& deck, token_list_t::iterator& i, const
     transform_tokens.push_back( next_token );
 
     t = parseTransform( deck, transform_tokens, degree_format );
-    t->getData().print(std::cout);
+
   }
   else{
     t = new NullRef<Transform>();
@@ -282,7 +282,7 @@ protected:
 	  geom.push_back(make_geom_entry(COMPLEMENT)); j++; 
 	  break;
 	  
-	case ':':		
+	case ':':
 	  geom.push_back(make_geom_entry(UNION)); j++; 
 	  break;
 	  
@@ -384,6 +384,7 @@ protected:
 	num_finite_dims = 1;
 	std::pair<Vector3d,double> params = surfaceCards.at(0).first->getPlaneParams();
 	v1 = params.first.normalize() * std::fabs( params.second - surfaceCards.at(1).first->getPlaneParams().second ); 
+	if( surfaceCards.at(0).second == false) v1 = -v1;
       }
       else if( surfaceCards.size() == 4 ){
 	std::vector< std::pair<Vector3d,double> > planes;
@@ -395,14 +396,14 @@ protected:
 	
 	// vector from planes[1] to planes[0]
 	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
-	if( surfaceCards.at(0).second == true) xv = -xv;
+	if( surfaceCards.at(0).second == false) xv = -xv;
 
 	// direction of l.v1: cross product of normals planes[2] and v3
 	Vector3d xv2 = planes[2].first.normalize().cross( v3 ).normalize();
 	v1 = latticeVectorHelper( xv, xv2 );
 
 	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
-	if( surfaceCards.at(2).second == true) yv = -yv;
+	if( surfaceCards.at(2).second == false) yv = -yv;
 	Vector3d yv2 = planes[0].first.normalize().cross( v3 ).normalize();
 	v2 = latticeVectorHelper( yv, yv2 );
 
@@ -416,19 +417,19 @@ protected:
 	num_finite_dims = 3;
 	// vector from planes[1] to planes[0]
 	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
-	if( surfaceCards.at(0).second == true) xv = -xv;
+	if( surfaceCards.at(0).second == false) xv = -xv;
 
 	// direction of l.v1: cross product of normals planes[2] and planes[4]
 	Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() ).normalize();
 	v1 = latticeVectorHelper( xv, xv2 );
 
 	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
-	if( surfaceCards.at(2).second == true) yv = -yv;
+	if( surfaceCards.at(2).second == false) yv = -yv;
 	Vector3d yv2 = planes[0].first.normalize().cross( planes[4].first.normalize() ).normalize();
 	v2 = latticeVectorHelper( yv, yv2 );
 
 	Vector3d zv = planes[4].first.normalize() * std::fabs( planes[4].second - planes[5].second );
-	if( surfaceCards.at(4).second == true) zv = -zv;
+	if( surfaceCards.at(4).second == false) zv = -zv;
 	Vector3d zv2 = planes[0].first.normalize().cross( planes[2].first.normalize() ).normalize();
 	v3 = latticeVectorHelper( zv, zv2 );
 	
@@ -502,11 +503,12 @@ protected:
 	    i++;
 	  }
 
-	  std::cout << "Num elements: " << num_elements << std::endl;
-	  std::vector<FillNode> elements(num_elements);
+	  std::vector<FillNode> elements;
 	  for( int j = 0; j < num_elements; ++j ){
-	    elements.push_back(  parseFillNode( parent_deck, i, data.end(), degree_format ) );	    
+	    elements.push_back( parseFillNode( parent_deck, i, data.end(), degree_format )  );
+	    i++;
 	  }
+	  i--;
 
 	  fill = new ImmediateRef< Fill >( Fill( ranges[0], ranges[1], ranges[2], elements) );
 
@@ -1082,7 +1084,15 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
 
       std::string id_string( cardname, 2 );
 
-      ident = makeint( id_string );
+      // the id_string may be empty, indicating that n is missing from TRn.  
+      // examples from the manual indicate it should be assumed to be 1
+      if( id_string == "" ){
+	ident = 1;
+      }
+      else{
+	ident = makeint( id_string );
+      }
+
       d = new TransformCard( *this, ident, degree_format, token_buffer);
     }
     
@@ -1131,4 +1141,20 @@ InputDeck::cell_card_list InputDeck::getCellsOfUniverse( int universe ){
   }
   return ret;
 
+}
+
+
+CellCard* InputDeck::lookup_cell_card(int ident){
+  assert( cell_map.find(ident) != cell_map.end() );
+  return (*cell_map.find(ident)).second;
+}
+
+SurfaceCard* InputDeck::lookup_surface_card(int ident){
+  assert( surface_map.find(ident) != surface_map.end() );
+  return (*surface_map.find(ident)).second;
+}
+
+DataCard* InputDeck::lookup_data_card( const DataCard::id_t& ident ){
+  assert( datacard_map.find(ident) != datacard_map.end() );
+  return (*datacard_map.find(ident)).second;
 }

@@ -160,17 +160,9 @@ public:
 
   cell_card_list getCellsOfUniverse( int universe );
 
-  CellCard* lookup_cell_card(int ident){
-    return (*cell_map.find(ident)).second;
-  }
-
-  SurfaceCard* lookup_surface_card(int ident){
-    return (*surface_map.find(ident)).second;
-  }
-
-  DataCard* lookup_data_card( const DataCard::id_t& ident ){
-    return (*datacard_map.find(ident)).second;
-  }
+  CellCard* lookup_cell_card(int ident);
+  SurfaceCard* lookup_surface_card(int ident);
+  DataCard* lookup_data_card( const DataCard::id_t& ident );
 
   DataCard* lookup_data_card( DataCard::kind k, int ident ){
     return lookup_data_card( std::make_pair( k, ident ) );
