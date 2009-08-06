@@ -1,6 +1,7 @@
 #include "geometry.hpp"
 #include <cfloat>
 #include <iostream>
+#include <cassert>
 
 std::ostream& operator<<(std::ostream& str, const Vector3d& v ){
   str << "(" << v.v[0] << ", " << v.v[1] << ", " << v.v[2] << ")";
@@ -100,14 +101,66 @@ void Transform::print( std::ostream& str ) const{
   str << "]";
 }
 
-Lattice::Lattice( const FillNode& fill ) : 
-  num_finite_dims(0), is_fixed(false)
-{
-  fills.push_back(fill);
+
+
+
+size_t Fill::indicesToSerialIndex( int x, int y, int z ) const {
+  int grid_x = x - xrange.first;
+  int grid_y = y - yrange.first;
+  int grid_z = z - zrange.first;
+
+  int dx = xrange.second - xrange.first;
+  int dy = yrange.second - yrange.first;
+  //  int dz = zrange.second - zrange.first;
+  
+  int index = grid_z * (dy*dx) + grid_y * dx + grid_x;
+
+  assert( index >= 0 && (unsigned)(index) <= nodes.size() );
+  return static_cast<size_t>( index );
+}
+
+const FillNode& Fill::getOriginNode() const { 
+  if( !has_grid ){
+    return nodes.at(0); 
+  }
+  else return nodes.at(indicesToSerialIndex( 0, 0, 0));
+}
+
+const FillNode& Fill::getNode( int x, int y, int z ) const {
+    assert( has_grid );
+    return nodes.at( indicesToSerialIndex(x, y, z) );
 }
 
 
-// size_t indicesToSerialIndex( int x, int y, int z );
+
+
+
+
+Lattice::Lattice( int dims, const Vector3d& v1_p, const Vector3d& v2_p, const Vector3d& v3_p, const FillNode& node ) : 
+  num_finite_dims(dims), v1(v1_p), v2(v2_p), v3(v3_p), fill(new ImmediateRef<Fill>( Fill(node) ))
+{}
+
+Lattice::Lattice( int dims, const Vector3d& v1_p, const Vector3d& v2_p, const Vector3d& v3_p, const Fill& fill_p ) :
+  num_finite_dims(dims), v1(v1_p), v2(v2_p), v3(v3_p), fill(new PointerRef<Fill>(&fill_p) )
+{}
+
+
+Lattice::Lattice( const Lattice& l ) :
+  num_finite_dims( l.num_finite_dims ), v1( l.v1 ), v2( l.v2 ), v3( l.v3 ), fill( l.fill->clone() )
+{}
+
+Lattice& Lattice::operator=( const Lattice& l ){
+  if( this != &l ){
+
+    num_finite_dims = l.num_finite_dims;
+    fill = l.fill->clone();
+    v1 = l.v1;
+    v2 = l.v2;
+    v3 = l.v3;
+    
+  }
+  return *this;
+}
 
 
 Transform Lattice::getTxForNode( int x, int y, int z ) const {
@@ -129,12 +182,12 @@ Transform Lattice::getTxForNode( int x, int y, int z ) const {
   return Transform(v);
 }
 
-const FillNode& Lattice::getFillForNode( int /*x*/, int /*y*/, int /*z*/ ) const {
-  if( is_fixed ){
-    throw std::runtime_error("is_Fixed!");
+const FillNode& Lattice::getFillForNode( int x, int y, int z ) const {
+  if( fill->getData().has_grid ){
+    return fill->getData().getNode( x, y, z );
   }
   else{
-    return fills.at(0);
+    return fill->getData().getOriginNode();
   }
 }
 

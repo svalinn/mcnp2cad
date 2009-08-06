@@ -152,53 +152,66 @@ public:
   }
 };
 
+typedef std::pair<int,int> irange;
+
+class Fill{
+
+protected:
+  std::vector<FillNode> nodes;
+  bool has_grid;
+  irange xrange, yrange, zrange;
+
+
+ size_t indicesToSerialIndex( int x, int y, int z ) const ;
+
+public:
+  Fill():
+    nodes(1,FillNode()),has_grid(false)
+  {}
+
+  Fill( const FillNode& origin_p ):
+    nodes(1,origin_p), has_grid(false)
+  {}
+
+  Fill( irange x, irange y, irange z, std::vector<FillNode> nodes_p ):
+    nodes(nodes_p), has_grid(true), xrange(x), yrange(y), zrange(z)
+  {}
+
+  const FillNode& getOriginNode() const;  
+  const FillNode& getNode( int x, int y, int z ) const;
+
+  friend class Lattice;
+};
+
+
 class Lattice{
 
 protected:
   int num_finite_dims;
   Vector3d v1, v2, v3;
 
-  typedef std::pair<int,int> range;
-  range v1_range, v2_range, v3_range;
-
-  bool is_fixed;
-  std::vector<FillNode> fills;
-
-  Lattice(){}
-  Lattice( const FillNode& fill );
-
-  size_t indicesToSerialIndex( int x, int y, int z ) const ;
+  DataRef<Fill> *fill;
 
 public:
+  Lattice() : fill(new NullRef<Fill>()){}
+  Lattice( int dims, const Vector3d& v1_p, const Vector3d& v2_p, const Vector3d& v3_p, const FillNode& singleton_fill );
+  Lattice( int dims, const Vector3d& v1_p, const Vector3d& v2_p, const Vector3d& v3_p, const Fill& full_fill );
+
+  Lattice( const Lattice& l );
+  Lattice& operator=( const Lattice& l );
+  ~Lattice(){ delete fill; }
+  
 
   int numFiniteDirections() const { return num_finite_dims; }
   Transform getTxForNode( int x, int y, int z ) const ;
 
   const FillNode& getFillForNode( int x, int y, int z ) const ;
 
-  bool isFixedSize() const { return is_fixed; }  
-  range getRangeForDimension( int dim ) const;
+  //bool isFixedSize() const { return is_fixed; }  
+  irange getRangeForDimension( int dim ) const;
   
-  friend class CellCardImpl;
 
 };
 
-class Fill{
-
-protected:
-  FillNode origin;
-
-public:
-  Fill( const FillNode& origin_p ):
-    origin(origin_p)
-  {}
-
-  virtual ~Fill(){}
-
-  //  virtual kind getKind() const{ return SIMPLE; }
-  virtual FillNode& getOriginNode() { return origin; }
-  virtual const FillNode& getOriginNode() const { return origin; }
-  
-};
 
 #endif /* MCNP2IGEOM_GEOMETRY_H */

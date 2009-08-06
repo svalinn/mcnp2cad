@@ -60,6 +60,8 @@ static int makeint( const std::string& token ){
   return ret;
 }
 
+
+/* TODO: support Fortran's shorthand format, e.g. 1.23-45, meaning 1.23e-45 */
 static double makedouble( const std::string& token ){
   const char* str = token.c_str();
   char* end;
@@ -360,6 +362,7 @@ protected:
   }
 
   void setupLattice(){
+
     std::vector< std::pair<SurfaceCard*,bool> > surfaceCards;
     
     for( geom_list_t::iterator i = geom.begin(); i!=geom.end(); ++i){
@@ -370,28 +373,23 @@ protected:
 	surfaceCards.push_back( std::make_pair(surf, (entry.first>0) ) );
       }
     }
-    
-    Lattice l;
-    if( fill->hasData() ){
-      l = Lattice( fill->getData().getOriginNode() );
-    }
-    else{
-      FillNode n( this->universe );
-      l = Lattice( n );
-    }
+
+    int num_finite_dims = 0;
+    Vector3d v1, v2, v3;
+
 
     if( lat_type == HEXAHEDRAL ){
       assert( surfaceCards.size() == 2 || surfaceCards.size() == 4 || surfaceCards.size() == 6 );
       if( surfaceCards.size() == 2 ){
-	l.num_finite_dims = 1;
+	num_finite_dims = 1;
 	std::pair<Vector3d,double> params = surfaceCards.at(0).first->getPlaneParams();
-	l.v1 = params.first.normalize() * std::fabs( params.second - surfaceCards.at(1).first->getPlaneParams().second ); 
+	v1 = params.first.normalize() * std::fabs( params.second - surfaceCards.at(1).first->getPlaneParams().second ); 
       }
       else if( surfaceCards.size() == 4 ){
 	std::vector< std::pair<Vector3d,double> > planes;
 	for( int i = 0; i < 4; ++i ){ planes.push_back( surfaceCards.at(i).first->getPlaneParams() ); }
 
-	l.num_finite_dims = 2;
+	num_finite_dims = 2;
 	
 	Vector3d v3 = planes[0].first.cross( planes[2].first ).normalize(); // infer a third (infinite) direction
 	
@@ -401,12 +399,12 @@ protected:
 
 	// direction of l.v1: cross product of normals planes[2] and v3
 	Vector3d xv2 = planes[2].first.normalize().cross( v3 ).normalize();
-	l.v1 = latticeVectorHelper( xv, xv2 );
+	v1 = latticeVectorHelper( xv, xv2 );
 
 	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
 	if( surfaceCards.at(2).second == true) yv = -yv;
 	Vector3d yv2 = planes[0].first.normalize().cross( v3 ).normalize();
-	l.v2 = latticeVectorHelper( yv, yv2 );
+	v2 = latticeVectorHelper( yv, yv2 );
 
 
       }
@@ -415,24 +413,24 @@ protected:
 	std::vector< std::pair<Vector3d,double> > planes;
 	for( int i = 0; i < 6; ++i ){ planes.push_back( surfaceCards.at(i).first->getPlaneParams() ); }
 
-	l.num_finite_dims = 3;
+	num_finite_dims = 3;
 	// vector from planes[1] to planes[0]
 	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
 	if( surfaceCards.at(0).second == true) xv = -xv;
 
 	// direction of l.v1: cross product of normals planes[2] and planes[4]
 	Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() ).normalize();
-	l.v1 = latticeVectorHelper( xv, xv2 );
+	v1 = latticeVectorHelper( xv, xv2 );
 
 	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
 	if( surfaceCards.at(2).second == true) yv = -yv;
 	Vector3d yv2 = planes[0].first.normalize().cross( planes[4].first.normalize() ).normalize();
-	l.v2 = latticeVectorHelper( yv, yv2 );
+	v2 = latticeVectorHelper( yv, yv2 );
 
 	Vector3d zv = planes[4].first.normalize() * std::fabs( planes[4].second - planes[5].second );
 	if( surfaceCards.at(4).second == true) zv = -zv;
 	Vector3d zv2 = planes[0].first.normalize().cross( planes[2].first.normalize() ).normalize();
-	l.v3 = latticeVectorHelper( zv, zv2 );
+	v3 = latticeVectorHelper( zv, zv2 );
 	
       }
       
@@ -441,6 +439,16 @@ protected:
       assert( surfaceCards.size() == 4 || surfaceCards.size() == 6 );
     }
 
+
+    
+    Lattice l;
+    if( fill->hasData() ){
+      l = Lattice( num_finite_dims, v1, v2, v3, fill->getData() );
+    }
+    else{
+      FillNode n( this->universe );
+      l = Lattice( num_finite_dims, v1, v2, v3,  n );
+    }
 
     lattice = new ImmediateRef<Lattice>( l );
 
@@ -478,27 +486,30 @@ protected:
 
 	std::string next_token = *(++i);
 	if( next_token.find(":") != next_token.npos ){
-	  std::pair<int,int> ranges[3];
+	  irange ranges[3];
 	  const char* range_str;
 	  char *p;
 	  
 	  int num_elements = 1;
 	  for( int dim = 0; dim < 3; ++dim ){
-	    range_str = (*(i++)).c_str();
+	    range_str = (*i).c_str();
 	    ranges[dim].first  = strtol(range_str, &p, 10);
 	    ranges[dim].second = strtol(p+1, NULL, 10); 
 	    std::cout << ranges[dim].first << " : " << ranges[dim].second << std::endl;	  
 	    if( ranges[dim].second != ranges[dim].first ){
-	      num_elements *= ( ranges[dim].second - ranges[dim].first );
+	      num_elements *= ( ranges[dim].second - ranges[dim].first )+1;
 	    }
+	    i++;
 	  }
 
 	  std::cout << "Num elements: " << num_elements << std::endl;
+	  std::vector<FillNode> elements(num_elements);
+	  for( int j = 0; j < num_elements; ++j ){
+	    elements.push_back(  parseFillNode( parent_deck, i, data.end(), degree_format ) );	    
+	  }
 
-	  
-	  
-	  
-	  throw std::runtime_error("Fill matrices not yet supported");
+	  fill = new ImmediateRef< Fill >( Fill( ranges[0], ranges[1], ranges[2], elements) );
+
 	}
 	else{
 	  FillNode filler = parseFillNode( parent_deck, i, data.end(), degree_format );

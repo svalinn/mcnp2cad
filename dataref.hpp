@@ -49,6 +49,28 @@ public:
 
 };
 
+// a reference by pointer: use cautiously, as it assumes its data is always valid
+template <class T>
+class PointerRef : public DataRef<T>{
+
+protected:
+  const T* data;
+
+public:
+  PointerRef( const T* p ) : 
+    data(p)
+  {}
+
+  virtual const T& getData() const {
+    return *data;
+  }
+
+  virtual PointerRef<T>* clone() {
+    return new PointerRef<T>( *this );
+  }
+
+};
+
 #include <stdexcept>
 
 // a class that has no data, and throws an exception if getData() is called.

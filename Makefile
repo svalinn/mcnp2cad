@@ -14,9 +14,9 @@ mcnp2igeom: ${CXXOBJS} Makefile
 	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} ${IGEOM_LIBS}
 
 
-geometry.o: geometry.cpp geometry.hpp
-MCNPInput.o: MCNPInput.cpp MCNPInput.hpp geometry.hpp
-mcnp2igeom.o: mcnp2igeom.cpp MCNPInput.hpp geometry.hpp
+geometry.o: geometry.cpp geometry.hpp dataref.hpp
+MCNPInput.o: MCNPInput.cpp MCNPInput.hpp geometry.hpp dataref.hpp
+mcnp2igeom.o: mcnp2igeom.cpp MCNPInput.hpp geometry.hpp dataref.hpp
 
 .cpp.o:
 	${CXX} ${CXXFLAGS} ${IGEOM_CPPFLAGS} -o $@ -c $<
