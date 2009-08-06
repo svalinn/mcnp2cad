@@ -447,6 +447,39 @@ int quickPow( int x, unsigned int exp ){
   return ret;
 }
 
+typedef struct{ int v[3]; } int_triple;
+
+static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
+  if( r == 0 ){ 
+    int_triple v; v.v[0] = v.v[1] = v.v[2] = 0;
+    return std::vector<int_triple>(1,v);
+  }
+  else{
+    std::vector<int_triple> ret;
+    
+    int jmin = dimensions > 1 ? -r : 0;
+    int jmax = dimensions > 1 ?  r : 0;
+    int kmin = dimensions > 2 ? -r : 0;
+    int kmax = dimensions > 2 ?  r : 0;
+    for( int i = -r; i <= r; ++i ){
+      for( int j = jmin;j <= jmax; ++j ){
+	for( int k = kmin; k <= kmax; ++k ){
+	  if( i == -r || i == r ||
+	      j == -r || j == r ||
+	      k == -r || k == r ){
+	    int_triple v;
+	    v.v[0] = i; 
+	    v.v[1] = j;
+	    v.v[2] = k;
+	    ret.push_back(v);
+	  }
+	}
+      }
+    }
+    return ret;
+  }
+}
+
 entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double world_size, 
 				  iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell = NULL ){
 
@@ -515,49 +548,29 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
 
     }
     else{
-      int x = 0, y = 0, z = 0;
-      bool xdone = false, ydone = false, zdone = false;
-      int failcount = 0;
+	    
+
+      bool done = false;
+      int radius = 0;
+
+      while( !done ){
+	
+	done = true;
+	std::vector<int_triple> shell = makeGridShellOfRadius(radius++, num_dims);
+
+	for( std::vector<int_triple>::iterator i = shell.begin(); i!=shell.end(); ++i){
+	  int x = (*i).v[0];
+	  int y = (*i).v[1];
+	  int z = (*i).v[2];
+	  std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
+	  bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells, deck, world_size );
+	  if( success ) done = false;
+	}
+
+	
+      }
       
-      const int try_factor = 1;
-      
-      do{
-	
-	y = 0;
-	ydone = false;
-	do{
-	  
-	  z = 0;
-	  zdone = false;
-	  do{
 	    
-	    
-	    std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
-	    bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells, deck, world_size );
-	    if(success){ failcount = 0; }
-	    else{ failcount++; }
-	    
-	    if( z > 0 ){ z = -z; }
-	    else{ z = (-z) + 1; }
-	    
-	    if( failcount >= (2*try_factor) ){ zdone = true; }
-	    
-	  }while(!zdone && num_dims >= 3);
-	  
-	  if( y > 0 ){ y = -y; }
-	  else{ y = (-y) + 1; }
-	  
-	  if( failcount >= quickPow(2*try_factor,2) ){ ydone = true; }
-	  
-	}while (!ydone && num_dims >= 2);
-	
-	if( x > 0){ x = -x; }
-	else{ x = (-x) + 1; }
-	
-	if( failcount >= quickPow(2*try_factor, 3) ){ xdone = true; }
-	
-      }while( !xdone );
-      
 
     }
 
