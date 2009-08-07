@@ -1,0 +1,11 @@
+Repeat of INP-simple, but with some tests of Fortran's variant floating point syntax
+1 0 100 -200 400
+2 0 -100 -300 400
+c 3 0 100 300
+
+100 sx 4 1e+1
+200 sy -3e0 8+0
+300 sz 5 6
+400 pz -.052-09
+
+

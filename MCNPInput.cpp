@@ -61,13 +61,23 @@ static int makeint( const std::string& token ){
 }
 
 
-/* TODO: support Fortran's shorthand format, e.g. 1.23-45, meaning 1.23e-45 */
 static double makedouble( const std::string& token ){
-  const char* str = token.c_str();
+  std::string tmp = token;
+
+  // MCNP allows FORTRAN-style floating point values where the 'e' in the exponent is missing,
+  // e.g. 1.23-45 means 1.23e-45.  The following check inserts such a missing 'e' to avoid 
+  // confusing strtod().
+  size_t s_idx = tmp.find_last_of("+-");
+  if( s_idx != tmp.npos && s_idx > tmp.find_first_of("1234567890") && tmp.at(s_idx-1) != 'e' ){
+    tmp.insert( tmp.find_last_of("+-"), "e" );
+    std::cout << "Formatting FORTRAN value: converted " << token << " to " << tmp << std::endl;
+  }
+
+  const char* str = tmp.c_str();
   char* end;
   double ret = strtod(str, &end);
-  if( end != str+token.length() ){
-    std::cerr << "Warning: string [" << token << "] did not convert to double as expected." << std::endl;
+  if( end != str+tmp.length() ){
+    std::cerr << "Warning: string [" << tmp << "] did not convert to double as expected." << std::endl;
   }
   return ret;
 }
