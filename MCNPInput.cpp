@@ -380,66 +380,62 @@ protected:
       if( entry.first == SURFNUM ){
 	SurfaceCard* surf = parent_deck.lookup_surface_card( std::abs(entry.second) );
 	assert(surf);
-	surfaceCards.push_back( std::make_pair(surf, (entry.first>0) ) );
+	surfaceCards.push_back( std::make_pair(surf, (entry.second>0) ) );
       }
     }
 
     int num_finite_dims = 0;
     Vector3d v1, v2, v3;
 
+    std::vector< std::pair<Vector3d, double> > planes;
+    for( unsigned int i = 0; i < surfaceCards.size(); ++i){
+      planes.push_back( surfaceCards.at(i).first->getPlaneParams() );
+      if( surfaceCards.at(i).second == true ){ planes[i].first = -planes[i].first; }
+      std::cout << i << " " << planes[i].first  << std::endl;
+    }
+
 
     if( lat_type == HEXAHEDRAL ){
-      assert( surfaceCards.size() == 2 || surfaceCards.size() == 4 || surfaceCards.size() == 6 );
-      if( surfaceCards.size() == 2 ){
-	num_finite_dims = 1;
-	std::pair<Vector3d,double> params = surfaceCards.at(0).first->getPlaneParams();
-	v1 = params.first.normalize() * std::fabs( params.second - surfaceCards.at(1).first->getPlaneParams().second ); 
-	if( surfaceCards.at(0).second == false) v1 = -v1;
-      }
-      else if( surfaceCards.size() == 4 ){
-	std::vector< std::pair<Vector3d,double> > planes;
-	for( int i = 0; i < 4; ++i ){ planes.push_back( surfaceCards.at(i).first->getPlaneParams() ); }
+      assert( planes.size() == 2 || planes.size() == 4 || planes.size() == 6 );
+      if( planes.size() == 2 ){
 
+	num_finite_dims = 1;
+	v1 = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second ); 
+
+      }
+      else if( planes.size() == 4 ){
 	num_finite_dims = 2;
 	
 	Vector3d v3 = planes[0].first.cross( planes[2].first ).normalize(); // infer a third (infinite) direction
 	
 	// vector from planes[1] to planes[0]
 	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
-	if( surfaceCards.at(0).second == false) xv = -xv;
 
 	// direction of l.v1: cross product of normals planes[2] and v3
 	Vector3d xv2 = planes[2].first.normalize().cross( v3 ).normalize();
 	v1 = latticeVectorHelper( xv, xv2 );
 
 	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
-	if( surfaceCards.at(2).second == false) yv = -yv;
 	Vector3d yv2 = planes[0].first.normalize().cross( v3 ).normalize();
 	v2 = latticeVectorHelper( yv, yv2 );
 
 
       }
-      else{ // surfaceCards.size() == 6 
-
-	std::vector< std::pair<Vector3d,double> > planes;
-	for( int i = 0; i < 6; ++i ){ planes.push_back( surfaceCards.at(i).first->getPlaneParams() ); }
-
+      else{ // planes.size() == 6 
 	num_finite_dims = 3;
+
 	// vector from planes[1] to planes[0]
 	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
-	if( surfaceCards.at(0).second == false) xv = -xv;
 
-	// direction of l.v1: cross product of normals planes[2] and planes[4]
+	// direction of v1: cross product of normals planes[2] and planes[4]
 	Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() ).normalize();
 	v1 = latticeVectorHelper( xv, xv2 );
 
 	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
-	if( surfaceCards.at(2).second == false) yv = -yv;
 	Vector3d yv2 = planes[0].first.normalize().cross( planes[4].first.normalize() ).normalize();
 	v2 = latticeVectorHelper( yv, yv2 );
 
 	Vector3d zv = planes[4].first.normalize() * std::fabs( planes[4].second - planes[5].second );
-	if( surfaceCards.at(4).second == false) zv = -zv;
 	Vector3d zv2 = planes[0].first.normalize().cross( planes[2].first.normalize() ).normalize();
 	v3 = latticeVectorHelper( zv, zv2 );
 	
@@ -447,10 +443,37 @@ protected:
       
     }
     else if( lat_type == HEXAGONAL ){
-      assert( surfaceCards.size() == 4 || surfaceCards.size() == 6 );
+      assert( planes.size() == 6 || planes.size() == 8 );
+
+      v3 = planes[0].first.cross( planes[2].first ).normalize(); // prism's primary axis
+
+      // vector from planes[1] to planes[0]
+      Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
+      
+      // direction of l.v1: cross product of normals average(planes[2]+planes[4]) and v3
+      // TODO: this averaging trick only works with regular hexagons...
+      Vector3d xv2 = (planes[2].first.normalize()+planes[4].first.normalize()).normalize().cross( v3 ).normalize();
+      v1 = latticeVectorHelper( xv, xv2 );
+      
+      Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
+      Vector3d yv2 = (planes[1].first.normalize()+planes[4].first.normalize()).normalize().cross( v3 ).normalize();
+      v2 = latticeVectorHelper( yv, yv2 );
+      
+
+      if( planes.size() == 6 ){
+	num_finite_dims = 2;
+	
+      }
+      else{ // planes.size() == 8
+	num_finite_dims = 3;
+
+	Vector3d zv = planes[6].first.normalize() * std::fabs( planes[6].second - planes[7].second );
+	Vector3d zv2 = v3;
+	v3 = latticeVectorHelper( zv, zv2 );
+      }
     }
 
-
+    std::cout << num_finite_dims << v1 << v2 << v3 << std::endl;
     
     Lattice l;
     if( fill->hasData() ){
