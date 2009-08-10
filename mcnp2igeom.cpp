@@ -8,10 +8,10 @@
 
 #include <cassert>
 
-//#include "MCNPInputDeck.hpp"
 #include "iGeom.h"
 #include "geometry.hpp"
 #include "MCNPInput.hpp"
+#include "options.hpp"
 
 
 #ifdef USING_CUBIT
@@ -389,7 +389,7 @@ bool defineLatticeNode( iGeom_Instance& igm, const Lattice& lattice, int lattice
   if( !boundBoxesIntersect( igm, cell_copy, lattice_shell ) ){
     iGeom_deleteEnt( igm, cell_copy, &igm_result);
     CHECK_IGEOM( igm_result, "Deleting a lattice cell shell" );
-    std::cout << "failed bbox check" << std::endl;
+    if( OPT_DEBUG ) std::cout << " node failed bbox check" << std::endl;
     return false;
   }
 
@@ -426,13 +426,14 @@ bool defineLatticeNode( iGeom_Instance& igm, const Lattice& lattice, int lattice
 
     iBase_EntityHandle result;
     if( intersectIfPossible( igm, lattice_shell_copy, node_subcells[i], &result, true ) ){
-      std::cout << "success" << std::endl;
+      if( OPT_DEBUG ) std::cout << " node defined successfully" << std::endl;
       accum.push_back( result );
       success = true;
     }
     else{ 
-      // lattice_shell_copy and node_subcells[i] were deleted by intersectIfPossible()
-      std::cout << "Failed intersection" << std::endl;
+      // lattice_shell_copy and node_subcells[i] were deleted by intersectIfPossible(),
+      // so there's no need to delete them explicitly
+      if( OPT_DEBUG ) std::cout << " node failed intersection" << std::endl;
     }
   }
 
@@ -484,7 +485,8 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
 				  iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell = NULL ){
 
   InputDeck& deck = cell.getDeck();
-  std::cout << "Populating cell " << cell.getIdent() << std::endl;
+  
+  if( OPT_DEBUG ) std::cout << "Populating cell " << cell.getIdent() << std::endl;
 
 
   if( !cell.hasFill() && !cell.isLattice() ){
@@ -496,9 +498,11 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
     
     const FillNode& n = cell.getFill().getOriginNode();
     int filling_universe = n.getFillingUniverse();
-    std::cout << "Creating cell " << cell.getIdent() 
-	      << ", which is filled with universe " << filling_universe << std::endl;
     
+    if( OPT_DEBUG ){
+      std::cout << "Creating cell " << cell.getIdent() 
+		<< ", which is filled with universe " << filling_universe << std::endl;
+    }
     
     // the contained universe is transformed by the FillNode's transform, if any, or
     // else by the cell's TRCL value, if any.
@@ -521,23 +525,28 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
     // cell->getLattice() has the lattice parameters.
 
     assert(lattice_shell);
-    std::cout << "Creating cell " << cell.getIdent() << " lattice within a shell" << std::endl;
+    
+    if( OPT_VERBOSE ) std::cout << "Creating cell " << cell.getIdent() << "'s lattice" << std::endl;
+
     entity_collection_t subcells;
         
     const Lattice& lattice = cell.getLattice();
     int num_dims = lattice.numFiniteDirections();
-    std::cout << "Num dims " << num_dims << std::endl;
+    
+    if( OPT_DEBUG ) std::cout << "  lattice num dims: " << num_dims << std::endl;
 
     if( lattice.isFixedSize() ){
 
-      std::cout << "Defining fixed lattice" << std::endl;
+      if( OPT_DEBUG ) std::cout << "Defining fixed lattice" << std::endl;
+
       irange xrange = lattice.getXRange(), yrange = lattice.getYRange(), zrange = lattice.getZRange();
 
       for( int i = xrange.first; i <= xrange.second; ++i){
 	for( int j = yrange.first; j <= yrange.second; ++j ){
 	  for( int k = zrange.first; k <= zrange.second; ++k ){
 
-	    std::cout << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
+	    if( OPT_DEBUG ) std::cout << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
+
 	    /* bool success = */ defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, i, j, k, subcells, deck, world_size );
 
 	    if( num_dims < 3 ) break; // from z loop
@@ -548,7 +557,8 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
 
     }
     else{
-	    
+
+      if( OPT_DEBUG ) std::cout << "Defining infinite lattice" << std::endl;
 
       bool done = false;
       int radius = 0;
@@ -562,16 +572,14 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
 	  int x = (*i).v[0];
 	  int y = (*i).v[1];
 	  int z = (*i).v[2];
-	  std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
+	  
+	  if( OPT_DEBUG ) std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
+
 	  bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells, deck, world_size );
 	  if( success ) done = false;
-	}
 
-	
+	}	
       }
-      
-	    
-
     }
 
     int igm_result;
@@ -592,7 +600,8 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
   const CellCard::geom_list_t& geom = cell.getGeom();
   InputDeck& deck = cell.getDeck();
 
-  std::cout << "Defining cell " << ident << std::endl;
+  if( OPT_VERBOSE ) std::cout << "Defining cell " << ident << std::endl;
+
   int igm_result;
 
   entity_collection_t tmp;
@@ -689,7 +698,8 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
 entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int universe, double world_size, 
 				    iBase_EntityHandle container = NULL, const Transform* transform = NULL ){
 
-  std::cout << "Defining universe " << universe << std::endl;
+  if( OPT_VERBOSE ) std::cout << "Defining universe " << universe << std::endl;
+
   InputDeck::cell_card_list u_cells = deck.getCellsOfUniverse( universe );
   entity_collection_t subcells;
 
@@ -714,7 +724,7 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
     }
   }
 
-  if( container && !lattice_shell){
+  if( container && !lattice_shell ){
     
     int igm_result;
     
@@ -727,7 +737,7 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
 	
 	iBase_EntityHandle subcell_bounded;
 	
-	std::cout << "Bounding" << std::endl;
+	if( OPT_DEBUG) std::cout << "Bounding a universe cell..." << std::endl;
 	bool valid_result = intersectIfPossible( igm, container_copy, subcells[i], &subcell_bounded );
 	if( valid_result ){
 	  subcells[i] = subcell_bounded;
@@ -744,26 +754,27 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
     iGeom_deleteEnt( igm, container, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting a bounding cell" );
   }
+
+  if( OPT_VERBOSE ) std::cout << "Done defining universe " << universe << std::endl;
   return subcells;
  
 }
 
-void InputDeck::createGeometry(){
+void createGeometry( iGeom_Instance &igm, InputDeck& deck ){
 
-  iGeom_Instance igm;
   int igm_result;
-  
-  iGeom_newGeom( "-q", &igm, &igm_result, 0);
-  CHECK_IGEOM( igm_result, "Initializing iGeom");
+ 
+  InputDeck::surface_card_list surfaces  = deck.getSurfaces();
+  InputDeck::data_card_list    datacards = deck.getDataCards();
 
   double world_size = 0;
-  for( surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
+  for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
     try{
     world_size = std::max( world_size, (*i)->getSurface().getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
   }
   double translation_addition = 0;
-  for( data_card_list::iterator i = datacards.begin(); i!=datacards.end(); ++i){
+  for( InputDeck::data_card_list::iterator i = datacards.begin(); i!=datacards.end(); ++i){
     DataCard* c = *i;
     if( c->getKind() == DataCard::TR ){
       double tform_len = dynamic_cast<DataRef<Transform>*>(c)->getData().getTranslation().length();
@@ -775,7 +786,9 @@ void InputDeck::createGeometry(){
 
   std::cout << "World size: " << world_size << " (trs added " << translation_addition << ")" << std::endl;
 
-  entity_collection_t defined_cells = defineUniverse( igm, *this, 0, world_size );
+  std::cout << "Defining geometry..." << std::endl;
+
+  entity_collection_t defined_cells = defineUniverse( igm, deck, 0, world_size );
 
   size_t count = defined_cells.size();
   iBase_EntityHandle *cell_array = new iBase_EntityHandle[ count ];
@@ -784,50 +797,169 @@ void InputDeck::createGeometry(){
   }
 
 
-  std::cout << "Imprinting all..." << std::endl;
+  std::cout << "Imprinting all...\t\t\t" << std::flush;
   iGeom_imprintEnts( igm, cell_array, count, &igm_result );
   CHECK_IGEOM( igm_result, "Imprinting all cells" );
+  std::cout << " done." << std::endl;
 
   double tolerance = world_size / 1.0e7;
   //double tolerance = .001;
-  std::cout << "Merging, tolerance: " << tolerance << std::endl;
+  std::cout << "Merging, tolerance=" << tolerance << "...\t\t" << std::flush;
   iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
   CHECK_IGEOM( igm_result, "Merging all cells" );
+  std::cout << " done." << std::endl;
 
-  std::string outName = "out.sat";
-  std::cout << "Saving file: " << outName << std::endl;
+  std::string outName = opt.output_file;
+  std::cout << "Saving file \"" << outName << "\"...\t\t\t" << std::flush;
   iGeom_save( igm, outName.c_str(), "", &igm_result, outName.length(), 0 );
   CHECK_IGEOM( igm_result, "saving the output file "+outName );
+  std::cout << " done." << std::endl;
 
 }
 
+void debugSurfaceDistances( InputDeck& deck, std::ostream& out = std::cout ){
+
+  InputDeck::surface_card_list& surfaces = deck.getSurfaces();
+  for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
+    try{
+      const AbstractSurface& s = (*i)->getSurface();
+      out << "S" << (*i)->getIdent() << " distance from origin: " << s.getFarthestExtentFromOrigin() << std::endl;
+    }
+    catch(std::runtime_error& e){
+      std::cerr << "Error debugging surface distances: " << e.what() << std::endl;
+      throw;
+    }
+  }
   
+}
+
+void printHelp( const char* progname, std::ostream& out );
+
+struct program_option_struct opt;
+
 int main(int argc, char* argv[]){
 
+
+  if( argc < 2 ){
+    printHelp( argv[0], std::cout );
+    return 0;
+  }
+
+
 #ifdef USING_CUBIT
-  //  std::cout << CubitMessage::instance()->get_info_flag() << std::endl;
   CubitMessage::instance()->set_info_flag( false );
 #endif
 
-  std::string input_file = "INP";
-  if(argc > 1){ input_file = argv[1]; }
+  opt.input_file = NULL;
+  opt.output_file = "out.sat";
+  opt.igeom_init_options = "";
+  
 
-  std::ifstream input(input_file.c_str(), std::ios::in );
-    InputDeck& d = InputDeck::build(input);
-
-    InputDeck::surface_card_list& surfaces = d.getSurfaces();
-    for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
-      try{
-	const AbstractSurface& s = (*i)->getSurface();
-	std::cout << "Distance from origin: " << s.getFarthestExtentFromOrigin() << std::endl;
+  bool DiFlag = false, DoFlag = false;
+  
+  for( int i = 1; i < argc; ++i){
+    std::string arg = argv[i];
+    if( arg == "-h" || arg == "--help" ){
+      printHelp( argv[0], std::cout );
+      return 0;
+    }
+    else if( arg == "-o" ){
+      if( i+1 >= argc ){
+	std::cerr << "Error: -o option requires an argument" << std::endl;
+	printHelp( argv[0], std::cerr );
+	return 1;
       }
-      catch(std::runtime_error& e){
-	std::cout << e.what() << std::endl;
+      else{
+	opt.output_file = argv[i+1];
+	i++;
       }
     }
+    else if( arg == "-v" ){
+      opt.verbose = true;
+    }
+    else if( arg == "-D" ){
+      opt.debug   = true;
+    }
+    else if( arg == "-Do" ){
+      DoFlag = true;
+    }
+    else if (arg == "-Di" ){
+      DiFlag = true;
+    }
+#ifdef USING_CUBIT
+    else if (arg == "-Cv" ){
+      CubitMessage::instance()->set_info_flag( true );
+    }
+#endif
+    else if ( arg[0] == '-'){ 
+      std::cerr << "Error: unknown option  \"" << arg << "\"" << std::endl;
+      printHelp( argv[0], std::cerr );
+      return 1;
+    }
+    else{
+      opt.input_file = argv[i];
+    }
 
-    d.createGeometry();
+  }
 
-    return 0;
+  if( opt.input_file == NULL ){
+    std::cerr << "Error: no input file given" << std::endl;
+    printHelp( argv[0], std::cerr );
+    return 1;
+  }
+  
+  std::ifstream input(opt.input_file, std::ios::in );
+  if( !input.is_open() ){
+    std::cerr << "Error: couldn't open file \"" << opt.input_file << "\"" << std::endl;
+    return 1;
+  }
+  
+  std::cout << "Reading input file..." << std::endl;
+
+  // if -Di and not -D, set debugging to be true for InputDeck::build() call only
+  if( DiFlag && !OPT_DEBUG){
+    opt.debug = true;
+  }
+  else{ DiFlag = false; }
+
+  InputDeck& deck = InputDeck::build(input);
+  std::cout << "Done reading input." << std::endl;
+
+  // turn off debug if it was set by -Di only
+  if( DiFlag ){ opt.debug = false; }
+  
+  if( DoFlag && !OPT_DEBUG ){ opt.debug = true; }
+
+  if( OPT_DEBUG ){ 
+    debugSurfaceDistances( deck );
+  }
+
+  iGeom_Instance igm;
+  int igm_result; 
+
+  iGeom_newGeom( opt.igeom_init_options, &igm, &igm_result, std::strlen(opt.igeom_init_options) );
+  CHECK_IGEOM( igm_result, "Initializing iGeom");
+
+  createGeometry( igm, deck );
+  
+  return 0;
     
+}
+
+void printHelp( const char* progname, std::ostream& out ){
+  
+  out << "usage: " << progname << " [options] input_file\n" << std::endl;
+  out << "options:\n";
+  out << 
+    "  -h, --help            Show this message and exit\n" <<
+    "  -o OUTPUT             Give name of output file (default: " << OPT_DEFAULT_OUTPUT_FILENAME << ")\n" <<
+    "  -v                    Verbose output\n" <<
+    "  -D                    Debugging (super-verbose) output\n" <<
+    "  -Di                   Debugging output for MCNP parsing phase only\n" <<
+    "  -Do                   Debugging output for iGeom output phase only\n" << 
+#ifdef USING_CUBIT
+    "  -Cv                   Verbose messages from CGM library\n" <<
+#endif
+    std::endl;
+
 }

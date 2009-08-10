@@ -1,5 +1,6 @@
 #include "MCNPInput.hpp"
 #include "geometry.hpp"
+#include "options.hpp"
 
 #include <stdexcept>
 #include <cassert>
@@ -70,7 +71,7 @@ static double makedouble( const std::string& token ){
   size_t s_idx = tmp.find_last_of("+-");
   if( s_idx != tmp.npos && s_idx > tmp.find_first_of("1234567890") && tmp.at(s_idx-1) != 'e' ){
     tmp.insert( tmp.find_last_of("+-"), "e" );
-    std::cout << "Formatting FORTRAN value: converted " << token << " to " << tmp << std::endl;
+    if( OPT_DEBUG ) std::cout << "Formatting FORTRAN value: converted " << token << " to " << tmp << std::endl;
   }
 
   const char* str = tmp.c_str();
@@ -95,7 +96,7 @@ static std::vector<double> makeTransformArgs( const token_list_t tokens ){
       args.push_back( makedouble( token ) );
     }
     else if( token.length() > 0) {
-      std::cerr << "Warning: makeTransformArgs ignoring input token [" << token << "]" << std::endl;
+      std::cerr << "Warning: makeTransformArgs ignoring unrecognized input token [" << token << "]" << std::endl;
     }
   }
   return args;
@@ -314,7 +315,7 @@ protected:
       } 
     }
     
-    std::cout << tokens << " -> " << geom << std::endl;
+    if( OPT_DEBUG ) std::cout << tokens << " -> " << geom << std::endl;
     
   }
 
@@ -373,6 +374,8 @@ protected:
 
   void setupLattice(){
 
+    if( OPT_DEBUG ) std::cout << "Setting up lattice for cell " << ident << std::endl;
+
     std::vector< std::pair<SurfaceCard*,bool> > surfaceCards;
     
     for( geom_list_t::iterator i = geom.begin(); i!=geom.end(); ++i){
@@ -391,7 +394,7 @@ protected:
     for( unsigned int i = 0; i < surfaceCards.size(); ++i){
       planes.push_back( surfaceCards.at(i).first->getPlaneParams() );
       if( surfaceCards.at(i).second == true ){ planes[i].first = -planes[i].first; }
-      std::cout << i << " " << planes[i].first  << std::endl;
+      if( OPT_DEBUG ) std::cout << " plane " << i << " normal = " << planes[i].first  << std::endl;
     }
 
 
@@ -473,7 +476,7 @@ protected:
       }
     }
 
-    std::cout << num_finite_dims << v1 << v2 << v3 << std::endl;
+    if( OPT_DEBUG )std::cout << " dims " << num_finite_dims << " vectors " << v1 << v2 << v3 << std::endl;
     
     Lattice l;
     if( fill->hasData() ){
@@ -512,7 +515,7 @@ protected:
 	int lat_designator = makeint(*(++i));
 	assert( lat_designator >= 0 && lat_designator <= 2 );
 	lat_type = static_cast<lattice_type_t>(lat_designator);
-	std::cout << ident << " is lattice type " << lat_type << std::endl;
+	if( OPT_DEBUG ) std::cout << "cell " << ident << " is lattice type " << lat_type << std::endl;
       }
       else if( token == "fill" || token == "*fill" ){
 
@@ -529,7 +532,7 @@ protected:
 	    range_str = (*i).c_str();
 	    ranges[dim].first  = strtol(range_str, &p, 10);
 	    ranges[dim].second = strtol(p+1, NULL, 10); 
-	    std::cout << ranges[dim].first << " : " << ranges[dim].second << std::endl;	  
+	    
 	    if( ranges[dim].second != ranges[dim].first ){
 	      num_elements *= ( ranges[dim].second - ranges[dim].first )+1;
 	    }
@@ -752,7 +755,7 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
       }
       else if ( tx_id < 0 ){
 	// abs(tx_id) is the ID of surface with respect to which this surface is periodic.
-	throw std::runtime_error("Cannot handle periodic surfaces");
+	std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
       }
       else{ // tx_id is positive and nonzero
 	coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
@@ -995,7 +998,6 @@ void InputDeck::parseCells( LineExtractor& lines ){
   while( !isblank(line = lines.takeLine()) ){
 
     tokenizeLine(line, token_buffer, "=");
-    std::cout << token_buffer << std::endl;
     
     if( lines.peekLine().find("     ") == 0){
       continue;
@@ -1005,8 +1007,11 @@ void InputDeck::parseCells( LineExtractor& lines ){
       continue;
     }
 
+    if( OPT_DEBUG ) std::cout << "Creating cell with the following tokens:\n" << token_buffer << std::endl;
     CellCard* c = new CellCardImpl(*this, token_buffer);
-    c->print(std::cout);
+
+    if( OPT_VERBOSE ) c->print(std::cout);
+
     this->cells.push_back(c);
     this->cell_map.insert( std::make_pair(c->getIdent(), c) );
 
@@ -1026,7 +1031,7 @@ void InputDeck::parseTitle( LineExtractor& lines ){
   int lineno;
   std::string topLine = lines.takeLine(lineno);
   if(topLine.find("message:") == 0){
-    std::clog << "Skipping message block..." << std::endl;
+    if( OPT_VERBOSE ) std::cout << "Skipping MCNP file message block..." << std::endl;
     do{
       // nothing
     }
@@ -1040,8 +1045,8 @@ void InputDeck::parseTitle( LineExtractor& lines ){
     std::cerr << "  beware of trouble ahead!" << std::endl;
   }
 
-  std::clog << "The title card is:" << topLine << std::endl;
-  std::clog << "    and occupies line " << lineno << std::endl;
+  std::cout << "The MCNP title card is: " << topLine << std::endl;
+  //std::cout << "    and occupies line " << lineno << std::endl;
 }
 
 
@@ -1063,7 +1068,9 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
     }
 
     SurfaceCard* s = new SurfaceCard(*this, token_buffer);
-    s->print(std::cout);
+
+    if( OPT_VERBOSE) s->print(std::cout);
+
     this->surfaces.push_back(s);
     this->surface_map.insert( std::make_pair(s->getIdent(), s) );
 
@@ -1130,7 +1137,7 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
     }
     
     if(d){
-      d->print( std::cout );
+      if( OPT_VERBOSE ){ d->print( std::cout ); }
       this->datacards.push_back(d);
       this->datacard_map.insert( std::make_pair( std::make_pair(t,ident), d) );
     }
@@ -1158,7 +1165,7 @@ InputDeck& InputDeck::build( std::istream& input){
   }
 
   while(lines.hasLine()){ lines.takeLine(); }
-  std::cout << "(total lines: " << lines.getLineCount() << ")" <<  std::endl;
+  if( OPT_VERBOSE ) { std::cout << "Total lines read: " << lines.getLineCount()  <<  std::endl; }
 
   return *deck;
 }

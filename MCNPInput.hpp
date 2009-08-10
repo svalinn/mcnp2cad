@@ -170,8 +170,6 @@ public:
 
   static InputDeck& build( std::istream& input );
   
-  void createGeometry();
-
 
 };
 
