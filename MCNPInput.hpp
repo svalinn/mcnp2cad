@@ -72,6 +72,9 @@ public:
   virtual lattice_type_t getLatticeType() const = 0;
   virtual const Lattice& getLattice() const = 0;
 
+  virtual int getMat() const = 0;
+  virtual double getRho() const = 0;
+
   virtual void print( std::ostream& s ) const = 0; 
 
 };

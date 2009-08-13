@@ -494,8 +494,6 @@ protected:
 
   void makeData(){
 
-    //    std::vector< FillNode* > trcl_inheritors;
-
     for( token_list_t::iterator i = data.begin(); i!=data.end(); ++i ){
 
       std::string token = *i;
@@ -517,12 +515,18 @@ protected:
 	lat_type = static_cast<lattice_type_t>(lat_designator);
 	if( OPT_DEBUG ) std::cout << "cell " << ident << " is lattice type " << lat_type << std::endl;
       }
+      else if ( token == "mat" ){
+	material = makeint(*(++i));
+      }
+      else if ( token == "rho" ){
+	rho = makedouble(*(++i));
+      }
       else if( token == "fill" || token == "*fill" ){
 
 	 bool degree_format = (token[0] == '*');
 
 	std::string next_token = *(++i);
-	if( next_token.find(":") != next_token.npos ){
+	if( next_token.find(":") != next_token.npos ){ // explicit lattice grid exists
 	  irange ranges[3];
 	  const char* range_str;
 	  char *p;
@@ -549,7 +553,7 @@ protected:
 	  fill = new ImmediateRef< Fill >( Fill( ranges[0], ranges[1], ranges[2], elements) );
 
 	}
-	else{
+	else{ // no explicit grid; fill card is a single fill node
 	  FillNode filler = parseFillNode( parent_deck, i, data.end(), degree_format );
 	  fill = new ImmediateRef< Fill >( Fill(filler) );
 	  
@@ -569,6 +573,9 @@ protected:
   }
 
   int ident;
+  int material;
+  double rho; // material density
+
   geom_list_t geom;
   token_list_t data;
   DataRef<Transform>* trcl;
@@ -588,7 +595,6 @@ public:
   {
     
     unsigned int idx = 0;
-    int material;
 
     ident = makeint(tokens.at(idx++));
     
@@ -605,8 +611,9 @@ public:
     }
 
     material = makeint(tokens.at(idx++));
+    rho = 0.0;
     if(material != 0){
-      makedouble(tokens.at(idx++)); // material density, currently ignored.
+      rho = makedouble(tokens.at(idx++)); // material density
     }
 
     token_list_t temp_geom;
@@ -666,6 +673,9 @@ public:
     }
     throw std::runtime_error( "Called getLattice() on a cell that hasn't got one" );
   }
+
+  virtual int getMat() const { return material; }
+  virtual double getRho() const { return rho; }
 
   virtual void print( std::ostream& s ) const{
     s << "Cell " << ident << " geom " << geom << std::endl;

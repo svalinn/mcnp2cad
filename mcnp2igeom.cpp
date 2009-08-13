@@ -4,7 +4,10 @@
 #include <stdexcept>
 #include <cctype>
 #include <vector>
+#include <set>
+#include <map>
 #include <cmath>
+#include <sstream>
 
 #include <cassert>
 
@@ -28,6 +31,9 @@ static char m_buf[MY_BUF_SIZE];
     iGeom_getDescription( igm, m_buf, &err, MY_BUF_SIZE); \
     std::cerr << " * " << m_buf << std::endl; \
      } } while(0) 
+
+
+typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
 static bool intersectIfPossible( iGeom_Instance igm, 
 				 iBase_EntityHandle h1, iBase_EntityHandle h2, iBase_EntityHandle* result, 
@@ -237,7 +243,7 @@ protected:
 
     if( positive ){
       iGeom_subtractEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
-      CHECK_IGEOM( igm_result, "making clipped cylinder" );
+      CHECK_IGEOM( igm_result, "making positive cylinder" );
     }
     else{
       iGeom_intersectEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
@@ -368,14 +374,204 @@ AbstractSurface& SurfaceCard::getSurface() {
   return *(this->surface);
 }
 
-typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
-entity_collection_t defineUniverse( iGeom_Instance&, InputDeck&, int, double, iBase_EntityHandle, const Transform* );
 
-bool defineLatticeNode( iGeom_Instance& igm, const Lattice& lattice, int lattice_universe,
-			iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
-			int x, int y, int z, entity_collection_t& accum,
-			InputDeck& deck, double world_size )
+
+
+
+class GeometryContext {
+
+protected:
+  iGeom_Instance& igm;
+  InputDeck& deck;
+  double world_size;
+  int universe_depth;
+
+  typedef std::pair<int, double> material_t;
+  static material_t make_mat( int i, double d ){ return std::make_pair(i,d); }
+
+  std::set< material_t > material_ids;
+  std::map<iBase_EntityHandle, material_t > material_map;
+
+public:
+  GeometryContext( iGeom_Instance& igm_p, InputDeck& deck_p ) :
+    igm(igm_p), deck(deck_p), world_size(0.0), universe_depth(0)
+  {}
+
+  bool defineLatticeNode( const Lattice& lattice, int lattice_universe, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
+			  int x, int y, int z, entity_collection_t& accum );
+  
+
+  entity_collection_t defineCell( CellCard& cell, bool defineEmbedded, iBase_EntityHandle lattice_shell );
+  entity_collection_t populateCell( CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell );
+ 
+
+  entity_collection_t defineUniverse( int universe, iBase_EntityHandle container, const Transform* transform );
+  
+
+  void setMaterial( iBase_EntityHandle cell, int material, double density );
+  void updateMaps ( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell );
+
+  bool mapSanityCheck( iBase_EntityHandle* cells, size_t count );
+  void setMaterialsAsGroups( );
+
+  void createGeometry( );
+
+};
+
+void GeometryContext::setMaterial( iBase_EntityHandle cell, int material, double density ){
+
+  
+  material_t mat = make_mat( material, density );
+  material_map.insert( std::make_pair( cell, mat ) );
+  material_ids.insert( mat );
+
+  if( OPT_DEBUG ){ std::cout << "Updated cell with new material, num materials now " << material_ids.size() << std::endl; }
+}
+
+void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell ){
+
+ 
+  if( material_map.find( old_cell ) != material_map.end() ){
+    if( new_cell != NULL ){
+      material_map[new_cell] = material_map[old_cell];
+    }
+    material_map.erase( old_cell);
+  }
+}
+
+void GeometryContext::setMaterialsAsGroups( ){
+  int igm_result;
+  
+  std::map< material_t, iBase_EntitySetHandle> groups;
+
+  std::string name_tag_id = "NAME";
+  int name_tag_maxlength = 64;
+  iBase_TagHandle name_tag;
+  iBase_EntitySetHandle last_set;
+
+  iGeom_getTagHandle( igm, name_tag_id.c_str(), &name_tag, &igm_result, name_tag_id.length() );
+  CHECK_IGEOM( igm_result, "Looking up NAME tag" );
+  
+  iGeom_getTagSizeBytes( igm, name_tag, &name_tag_maxlength, &igm_result );
+  CHECK_IGEOM( igm_result, "Querying NAME tag length" );
+  std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
+
+  for( std::map<iBase_EntityHandle,material_t>::iterator i = material_map.begin(); i != material_map.end(); ++i ){
+    std::map< material_t, iBase_EntitySetHandle>::iterator j = groups.find((*i).second);
+
+    if( j == groups.end() ){ 
+      // create a new named entity set corresponding to the material *i.second, and name it
+      iBase_EntitySetHandle set;
+      iGeom_createEntSet( igm, 0, &set, &igm_result );
+      CHECK_IGEOM( igm_result, "Creating a new entity set " );
+      std::cout << "New set " << set << std::endl;
+
+      last_set = set;
+
+      groups[(*i).second] = set;
+      j = groups.find((*i).second); 
+      assert( j != groups.end() );
+    }
+
+    //add *i.first (an entity) to *j.second (an entity set) 
+    iGeom_addEntToSet( igm, (*i).first, &((*j).second), &igm_result );
+    CHECK_IGEOM( igm_result, "Adding entity to material set" );
+
+    //iGeom_addPrntChld( igm, &((*j).second), (void**)&((*i).first), &igm_result );
+    //CHECK_IGEOM( igm_result, "Adding entity as child" );
+    if( OPT_DEBUG ){ std::cout << "Added " << (*i).first << " to set at " << (*j).second << std::endl; }
+
+  }
+
+  for(  std::map< material_t, iBase_EntitySetHandle>::iterator i = groups.begin(); i != groups.end(); ++i){
+    
+    std::string name;
+      std::stringstream formatter;
+      formatter << "mat_" << (*i).first.first << "_rho_" << (*i).first.second;
+      formatter >> name;
+      
+      if( name.length() > static_cast<unsigned>(name_tag_maxlength) ){
+	name.resize( name_tag_maxlength -1 );
+      }
+
+      if( OPT_DEBUG ){ std::cout << "Creating material group " << name << " (" << (*i).second << ")" << std::endl; }
+
+      iGeom_setEntSetData( igm, (*i).second, name_tag, name.c_str(), name.length(), &igm_result );
+      CHECK_IGEOM( igm_result, "Naming an entity set" );
+
+  }
+  return;
+
+  iBase_TagHandle th[12];
+  int twelve = 12;
+  int th_size;
+  iBase_TagHandle *thp = &th[0];
+  iGeom_getAllEntSetTags( igm, last_set, &thp, &twelve, &th_size, &igm_result );
+  CHECK_IGEOM( igm_result, "Hack" );
+  std::cout << "last_set has " << th_size << "tags" << std::endl;
+  for( int i = 0 ; i < th_size; ++i ){
+    //char str[32][32];
+    //char* strp = &str[0];
+    std::string str;
+    std::string * str_p = &str;
+    int strlength = 32;
+    int strsize;
+    iGeom_getEntSetData( igm, last_set, name_tag, reinterpret_cast<char**>(&str_p), &strlength, &strsize, &igm_result );
+    std::cout << str << std::endl;
+  }
+}
+
+bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){ 
+  bool good = true;
+  int igm_result;
+
+  iBase_EntitySetHandle rootset;
+  iGeom_getRootSet( igm, &rootset, &igm_result );
+  CHECK_IGEOM( igm_result, "Getting root set for sanity check" );
+
+  int num_regions;
+  iGeom_getNumOfType( igm, rootset, iBase_REGION, &num_regions, &igm_result );
+  CHECK_IGEOM( igm_result, "Getting num regions for sanity check" );
+
+  iBase_EntityHandle * handle_vector = new iBase_EntityHandle[ num_regions ];
+  int size = 0;
+
+  std::cout << "Map sanity check: num_regions = " << num_regions << std::endl;
+  iGeom_getEntities( igm, rootset, iBase_REGION, &handle_vector, &num_regions, &size, &igm_result );
+  CHECK_IGEOM( igm_result, "Getting entities for sanity check" );
+
+  std::cout << "Map sanity check: root set size = " << size << " (" << num_regions << ")" << std::endl;
+  std::cout << "Cell count: " << count << std::endl;
+  if( static_cast<unsigned>(size) != count ){ std::cout << "WARNING: sizes differ; there may be gremlins in your geometry." << std::endl; }
+
+  std::cout << "Map sanity check: cells with material properties set = " << material_map.size() << std::endl;
+
+  // sanity conditions: all the keys in material_map are in the cells list
+  std::set< iBase_EntityHandle > allRegions;
+  for( size_t i = 0; i < count; ++i ){
+    allRegions.insert( cells[i] );
+  }
+  
+  for( std::map<iBase_EntityHandle,material_t>::iterator i = material_map.begin(); i!=material_map.end(); ++i){
+    std::pair<iBase_EntityHandle,material_t> kv = *i;
+    bool check = allRegions.find( kv.first ) != allRegions.end();
+    if( !check ){
+      std::cout << kv.first << " is not in all regions!" << std::endl;
+    }
+    good = good && check;
+  }
+
+  if( good ){ std::cout << "Map sanity check: pass!"  << std::endl; }
+  else{ std::cout << "WARNING: Failed map sanity check!" << std::endl; }
+
+  return good;
+}
+
+
+bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_universe,
+					  iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
+					  int x, int y, int z, entity_collection_t& accum )
 {
   const FillNode* fn = &(lattice.getFillForNode( x, y, z ));				
   Transform t = lattice.getTxForNode( x, y, z );	
@@ -409,7 +605,7 @@ bool defineLatticeNode( iGeom_Instance& igm, const Lattice& lattice, int lattice
     iBase_EntityHandle cell_copy_unmoved;
     iGeom_copyEnt( igm, cell_shell, &cell_copy_unmoved, &igm_result );
     CHECK_IGEOM( igm_result, "Re-copying a lattice cell shell" );
-    node_subcells = defineUniverse( igm, deck, fn->getFillingUniverse(), world_size, cell_copy_unmoved, (fn->hasTransform() ? &(fn->getTransform()) : NULL ) );
+    node_subcells = defineUniverse(  fn->getFillingUniverse(), cell_copy_unmoved, (fn->hasTransform() ? &(fn->getTransform()) : NULL ) );
     for( size_t i = 0; i < node_subcells.size(); ++i ){
       node_subcells[i] = applyTransform( t, igm, node_subcells[i] );
     }
@@ -481,16 +677,16 @@ static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
   }
 }
 
-entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double world_size, 
-				  iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell = NULL ){
-
-  InputDeck& deck = cell.getDeck();
+entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_EntityHandle cell_shell, 
+						   iBase_EntityHandle lattice_shell = NULL )
+{
   
   if( OPT_DEBUG ) std::cout << "Populating cell " << cell.getIdent() << std::endl;
 
 
   if( !cell.hasFill() && !cell.isLattice() ){
-    // nothing more to do: return this cell
+    // nothing inside this cell
+    if( cell.getMat() != 0 ){ setMaterial( cell_shell, cell.getMat(), cell.getRho() ); }
     return entity_collection_t(1, cell_shell );
   }
   else if(cell.hasFill() && !cell.isLattice()){
@@ -515,7 +711,7 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
       t = NULL; 
     }
 
-    entity_collection_t subcells = defineUniverse( igm, deck, filling_universe, world_size, cell_shell, t );
+    entity_collection_t subcells = defineUniverse(  filling_universe, cell_shell, t );
  
     return subcells;
      
@@ -547,7 +743,7 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
 
 	    if( OPT_DEBUG ) std::cout << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
 
-	    /* bool success = */ defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, i, j, k, subcells, deck, world_size );
+	    /* bool success = */ defineLatticeNode( lattice, cell.getUniverse(), cell_shell, lattice_shell, i, j, k, subcells );
 
 	    if( num_dims < 3 ) break; // from z loop
 	  }
@@ -575,7 +771,7 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
 	  
 	  if( OPT_DEBUG ) std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
 
-	  bool success = defineLatticeNode( igm, lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells, deck, world_size );
+	  bool success = defineLatticeNode( lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells );
 	  if( success ) done = false;
 
 	}	
@@ -592,14 +788,12 @@ entity_collection_t populateCell( iGeom_Instance& igm, CellCard& cell, double wo
   }
 }
 
-//iBase_EntityHandle CellCard::define( iGeom_Instance& igm,  double world_size){
-entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double world_size, 
-				bool defineEmbedded = true, iBase_EntityHandle lattice_shell = NULL ){
-
+entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEmbedded = true, 
+						  iBase_EntityHandle lattice_shell = NULL )
+{
   int ident = cell.getIdent();
   const CellCard::geom_list_t& geom = cell.getGeom();
-  InputDeck& deck = cell.getDeck();
-
+ 
   if( OPT_VERBOSE ) std::cout << "Defining cell " << ident << std::endl;
 
   int igm_result;
@@ -614,7 +808,7 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
     case CellCard::CELLNUM:
       // a cell number appears in a geometry list only because it is being complemented with the # operator
       // thus, when defineCell is called on it, set defineEmbedded to false
-      tmp = defineCell( igm, *(deck.lookup_cell_card(token.second)), world_size, false);
+      tmp = defineCell( *(deck.lookup_cell_card(token.second)), false);
       assert(tmp.size() == 1);
       stack.push_back( tmp.at(0) );
       break;
@@ -687,7 +881,7 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
   }
 
   if( defineEmbedded ){
-    return populateCell( igm, cell, world_size, cellHandle, lattice_shell );
+    return populateCell( cell, cellHandle, lattice_shell );
   }
   else{
     return entity_collection_t( 1, cellHandle );
@@ -695,8 +889,9 @@ entity_collection_t defineCell( iGeom_Instance& igm, CellCard& cell, double worl
   
 }
 
-entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int universe, double world_size, 
-				    iBase_EntityHandle container = NULL, const Transform* transform = NULL ){
+entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityHandle container = NULL, 
+						     const Transform* transform = NULL )
+{
 
   if( OPT_VERBOSE ) std::cout << "Defining universe " << universe << std::endl;
 
@@ -712,7 +907,7 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
   }
 
   for( InputDeck::cell_card_list::iterator i = u_cells.begin(); i!=u_cells.end(); ++i){
-    entity_collection_t tmp = defineCell( igm, *(*i), world_size, true, lattice_shell );
+    entity_collection_t tmp = defineCell( *(*i), true, lattice_shell );
     for( size_t i = 0; i < tmp.size(); ++i){
       subcells.push_back( tmp[i] );
     }
@@ -740,9 +935,11 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
 	if( OPT_DEBUG) std::cout << "Bounding a universe cell..." << std::endl;
 	bool valid_result = intersectIfPossible( igm, container_copy, subcells[i], &subcell_bounded );
 	if( valid_result ){
+	  updateMaps( subcells[i], subcell_bounded );
 	  subcells[i] = subcell_bounded;
 	}
 	else{
+	  updateMaps( subcells[i], NULL );
 	  subcells.erase( subcells.begin()+i );
 	  i--;
 	}
@@ -760,14 +957,13 @@ entity_collection_t defineUniverse( iGeom_Instance &igm, InputDeck& deck, int un
  
 }
 
-void createGeometry( iGeom_Instance &igm, InputDeck& deck ){
+void GeometryContext::createGeometry( ){
 
   int igm_result;
  
   InputDeck::surface_card_list surfaces  = deck.getSurfaces();
   InputDeck::data_card_list    datacards = deck.getDataCards();
 
-  double world_size = 0;
   for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
     try{
     world_size = std::max( world_size, (*i)->getSurface().getFarthestExtentFromOrigin() );
@@ -788,7 +984,7 @@ void createGeometry( iGeom_Instance &igm, InputDeck& deck ){
 
   std::cout << "Defining geometry..." << std::endl;
 
-  entity_collection_t defined_cells = defineUniverse( igm, deck, 0, world_size );
+  entity_collection_t defined_cells = defineUniverse( 0 );
 
   size_t count = defined_cells.size();
   iBase_EntityHandle *cell_array = new iBase_EntityHandle[ count ];
@@ -796,6 +992,9 @@ void createGeometry( iGeom_Instance &igm, InputDeck& deck ){
     cell_array[i] = defined_cells[i];
   }
 
+
+  if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
+  setMaterialsAsGroups();
 
   std::cout << "Imprinting all...\t\t\t" << std::flush;
   iGeom_imprintEnts( igm, cell_array, count, &igm_result );
@@ -940,7 +1139,8 @@ int main(int argc, char* argv[]){
   iGeom_newGeom( opt.igeom_init_options, &igm, &igm_result, std::strlen(opt.igeom_init_options) );
   CHECK_IGEOM( igm_result, "Initializing iGeom");
 
-  createGeometry( igm, deck );
+  GeometryContext context( igm, deck );
+  context.createGeometry();
   
   return 0;
     

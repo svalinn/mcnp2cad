@@ -1,4 +1,5 @@
 CGM_BASE_DIR = /home/cnerg/opt/CGMA
+#CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM-testing
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
