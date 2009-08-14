@@ -103,12 +103,12 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
   int igm_result;
   if( t.hasRot() ){
     const Vector3d& axis = t.getAxis();
-    iGeom_rotateEnt( igm, &e, t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
+    iGeom_rotateEnt( igm, e, t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
     CHECK_IGEOM( igm_result, "applying rotation" );
   }
   
   const Vector3d& translation = t.getTranslation();
-  iGeom_moveEnt( igm, &e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
+  iGeom_moveEnt( igm, e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
   CHECK_IGEOM( igm_result, "applying translation" );
   
   return e;
@@ -120,12 +120,12 @@ iBase_EntityHandle applyReverseTransform( const Transform& tx, iGeom_Instance& i
   Transform rev_t = tx.reverse();
 
   const Vector3d& translation = rev_t.getTranslation();
-  iGeom_moveEnt( igm, &e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
+  iGeom_moveEnt( igm, e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
   CHECK_IGEOM( igm_result, "applying reverse translation" );
 
   if( rev_t.hasRot() ){
     const Vector3d& axis = rev_t.getAxis();
-    iGeom_rotateEnt( igm, &e, rev_t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
+    iGeom_rotateEnt( igm, e, rev_t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
     CHECK_IGEOM( igm_result, "applying rotation" );
   }
   
@@ -179,7 +179,7 @@ protected:
     iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
     iBase_EntityHandle hemisphere;
     // note the reversal of sense in this call; mcnp and igeom define it differently.
-    iGeom_sectionEnt( igm, &world_sphere, 
+    iGeom_sectionEnt( igm, world_sphere, 
 		      normal.v[0], normal.v[1], normal.v[2], offset, !positive, &hemisphere, &igm_result);
     CHECK_IGEOM( igm_result, "Sectioning world for a plane" );
     return hemisphere;
@@ -225,16 +225,16 @@ protected:
 
     
     if( axis == X ){
-      iGeom_rotateEnt( igm, &cylinder, 90, 0, 1, 0, &igm_result );
+      iGeom_rotateEnt( igm, cylinder, 90, 0, 1, 0, &igm_result );
       CHECK_IGEOM( igm_result, "rotating cylinder (X)" );
     }
     else if( axis == Y ){
-      iGeom_rotateEnt( igm, &cylinder, 90, 1, 0, 0, &igm_result );
+      iGeom_rotateEnt( igm, cylinder, 90, 1, 0, 0, &igm_result );
       CHECK_IGEOM( igm_result, "rotating cylinder (Y)" );
     }
 
     if( onaxis == false ){
-      iGeom_moveEnt( igm, &cylinder, center.v[0], center.v[1], center.v[2], &igm_result);
+      iGeom_moveEnt( igm, cylinder, center.v[0], center.v[1], center.v[2], &igm_result);
       CHECK_IGEOM( igm_result, "moving cylinder" );
     }
 
@@ -281,7 +281,7 @@ protected:
     iGeom_createSphere( igm, radius, &sphere, &igm_result);
     CHECK_IGEOM( igm_result, "making sphere" );
 
-    iGeom_moveEnt( igm, &sphere, center.v[0], center.v[1], center.v[2], &igm_result );
+    iGeom_moveEnt( igm, sphere, center.v[0], center.v[1], center.v[2], &igm_result );
     CHECK_IGEOM( igm_result, "moving sphere" );
 
     // sphere now defines the interior sphere volume, corresponding to mcnp's notion of negative sense.
@@ -475,7 +475,7 @@ void GeometryContext::setMaterialsAsGroups( ){
     }
 
     //add *i.first (an entity) to *j.second (an entity set) 
-    iGeom_addEntToSet( igm, (*i).first, &((*j).second), &igm_result );
+    iGeom_addEntToSet( igm, (*i).first, (*j).second, &igm_result );
     CHECK_IGEOM( igm_result, "Adding entity to material set" );
 
     //iGeom_addPrntChld( igm, &((*j).second), (void**)&((*i).first), &igm_result );
@@ -513,11 +513,12 @@ void GeometryContext::setMaterialsAsGroups( ){
   for( int i = 0 ; i < th_size; ++i ){
     //char str[32][32];
     //char* strp = &str[0];
-    std::string str;
-    std::string * str_p = &str;
+    //std::string str;
+    //std::string * str_p = &str;
+    char str[32];
     int strlength = 32;
     int strsize;
-    iGeom_getEntSetData( igm, last_set, name_tag, reinterpret_cast<char**>(&str_p), &strlength, &strsize, &igm_result );
+    iGeom_getEntSetData( igm, last_set, name_tag, (char**)(&(str)), &strlength, &strsize, &igm_result );
     std::cout << str << std::endl;
   }
 }
