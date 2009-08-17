@@ -16,7 +16,6 @@
 #include "MCNPInput.hpp"
 #include "options.hpp"
 
-
 #ifdef USING_CUBIT
 #include <CubitMessage.hpp>
 #endif
@@ -1137,7 +1136,7 @@ int main(int argc, char* argv[]){
   iGeom_Instance igm;
   int igm_result; 
 
-  iGeom_newGeom( opt.igeom_init_options, &igm, &igm_result, std::strlen(opt.igeom_init_options) );
+  iGeom_newGeom( opt.igeom_init_options, &igm, &igm_result, std::string(opt.igeom_init_options).length() );
   CHECK_IGEOM( igm_result, "Initializing iGeom");
 
   GeometryContext context( igm, deck );
