@@ -3,13 +3,11 @@ CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM-testing
 CUBIT_BASE_DIR = /home/cnerg/opt/cubit10.2/64
 
 
-# I've chosen not to use the defs in the iGeom-Defs file for now, 
-# because they are needlessly crufty and (in the case of -R flags) 
-# actually incompatible with gcc. 
 #include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
 LDFLAGS = -L${CGM_BASE_DIR}/lib -L${CUBIT_BASE_DIR}/bin -liGeom -lcgm -lcubiti19 -Wl,-rpath=${CUBIT_BASE_DIR}/bin
 
+IGEOM_CPPFLAGS = -I${CGM_BASE_DIR}/include 
 CXXSOURCES = mcnp2igeom.cpp MCNPInput.cpp geometry.cpp
 CXXOBJS = mcnp2igeom.o MCNPInput.o geometry.o
 

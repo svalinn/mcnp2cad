@@ -1108,8 +1108,10 @@ void GeometryContext::createGeometry( ){
   }
 
 
-  if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
-  setMaterialsAsGroups();
+  if( opt.tag_materials ){
+    if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
+    setMaterialsAsGroups();
+  }
 
   std::cout << "Imprinting all...\t\t\t" << std::flush;
   iGeom_imprintEnts( igm, cell_array, count, &igm_result );
@@ -1164,6 +1166,9 @@ int main(int argc, char* argv[]){
   CubitMessage::instance()->set_info_flag( false );
 #endif
 
+  // set default options
+  opt.verbose = opt.debug = false;
+  opt.tag_materials = false;
   opt.input_file = NULL;
   opt.output_file = "out.sat";
   opt.igeom_init_options = "";
@@ -1190,6 +1195,9 @@ int main(int argc, char* argv[]){
     }
     else if( arg == "-v" ){
       opt.verbose = true;
+    }
+    else if( arg == "-m" ){
+      opt.tag_materials = true;
     }
     else if( arg == "-D" ){
       opt.debug   = true;
@@ -1268,6 +1276,7 @@ void printHelp( const char* progname, std::ostream& out ){
   out << 
     "  -h, --help            Show this message and exit\n" <<
     "  -o OUTPUT             Give name of output file (default: " << OPT_DEFAULT_OUTPUT_FILENAME << ")\n" <<
+    "  -m                    Tag materials using group names\n" << 
     "  -v                    Verbose output\n" <<
     "  -D                    Debugging (super-verbose) output\n" <<
     "  -Di                   Debugging output for MCNP parsing phase only\n" <<

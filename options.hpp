@@ -4,6 +4,8 @@
 struct program_option_struct{
   bool verbose;
   bool debug;
+
+  bool tag_materials;
   
   const char* output_file;
   const char* input_file;
