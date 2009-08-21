@@ -1,16 +1,20 @@
 #CGM_BASE_DIR = /home/cnerg/opt/CGMA
 CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM-testing
+CUBIT_BASE_DIR = /home/cnerg/opt/cubit10.2/64
 
-#include ${CGM_BASE_DIR}/lib/cgm.make
-include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
-LDFLAGS = -L/local.hd/cnergg/sjackson/CGM-testing/lib -L/home/cnerg/opt/cubit10.2/64/bin -liGeom -lcgm -lcubiti19 -Wl,-rpath=/home/cnerg/opt/cubit10.2/64/bin
+# I've chosen not to use the defs in the iGeom-Defs file for now, 
+# because they are needlessly crufty and (in the case of -R flags) 
+# actually incompatible with gcc. 
+#include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
+
+LDFLAGS = -L${CGM_BASE_DIR}/lib -L${CUBIT_BASE_DIR}/bin -liGeom -lcgm -lcubiti19 -Wl,-rpath=${CUBIT_BASE_DIR}/bin
 
 CXXSOURCES = mcnp2igeom.cpp MCNPInput.cpp geometry.cpp
 CXXOBJS = mcnp2igeom.o MCNPInput.o geometry.o
 
-CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CUBIT 
-
+# Remove HAVE_IGEOM_CONE from the next line if using old iGeom implementation
+CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CUBIT  -DHAVE_IGEOM_CONE
 
 mcnp2igeom: ${CXXOBJS} Makefile
 	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} 

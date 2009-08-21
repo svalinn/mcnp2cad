@@ -878,9 +878,9 @@ protected:
       else{
 	
 	next_line_idx++;
-	
+
 	// strip trailing carriage return, if any
-	if(*(next_line.rbegin()) == '\r')
+	if(next_line.length() > 0 && *(next_line.rbegin()) == '\r')
 	  next_line.resize(next_line.size()-1);
 	
 	// convert to lowercase

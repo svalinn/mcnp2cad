@@ -254,6 +254,114 @@ protected:
 
 };
 
+#ifdef HAVE_IGEOM_CONE
+
+class ConeSurface : public AbstractSurface {
+
+public:
+
+  enum nappe {LEFT=-1, BOTH=0, RIGHT=1};
+
+  static enum nappe make_nappe( double param ){
+    
+    enum nappe n = static_cast<enum nappe>(param);
+    if( -1 <= n && n <= 1 ){
+      return n;
+    }
+    else{
+      std::cerr << "WARNING: Bad cylinder +/-1 argument: " << param << std::endl;
+      std::cerr << "         will pretend it was really 0" << std::endl;
+      return BOTH;
+    }
+  }
+
+  enum axis{ X=0, Y=1, Z=2 } axis;
+  double theta;    /// the cone's opening angle
+  Vector3d center; /// the cone's apex 
+  bool onaxis;
+  enum nappe nappe; 
+
+  ConeSurface( enum axis axis_p, double tsquared_p, double point_p, double nappe_p ):
+    AbstractSurface(), axis(axis_p), theta( atan(sqrt(tsquared_p)) ), center(origin), onaxis(true), nappe(make_nappe(nappe_p))
+  {
+    center.v[axis] = point_p; 
+  }
+
+  ConeSurface( enum axis axis_p, double tsquared_p, Vector3d center_p, double nappe_p ):
+    AbstractSurface(), axis(axis_p), theta( atan(sqrt(tsquared_p)) ), center(center_p), onaxis(false), nappe(make_nappe(nappe_p))
+  {}
+  
+  virtual double getFarthestExtentFromOrigin( ) const{
+    return sqrt(3) + ( center.length() );
+  }
+
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+
+    double height = (center.length() + world_size);
+    double base_radius = height * tan( theta / 2 );
+
+    int igm_result;
+
+    iBase_EntityHandle right_nappe = 0;
+    iBase_EntityHandle left_nappe = 0;
+    iBase_EntityHandle cone; 
+    
+    if( nappe != LEFT){
+      iGeom_createCone( igm, height, base_radius, 0, 0, &right_nappe, &igm_result);
+      CHECK_IGEOM( igm_result, "making cone (right nappe)" );
+      iGeom_rotateEnt( igm, right_nappe, 180, 1, 0, 0, &igm_result);
+      CHECK_IGEOM( igm_result, "Rotating cone (right nappe)");
+      iGeom_moveEnt( igm, right_nappe, 0, 0, height/2.0, &igm_result );
+      CHECK_IGEOM( igm_result, "Moving cone (right nappe)");      
+      cone = right_nappe;
+    }
+    if( nappe != RIGHT ){
+      iGeom_createCone( igm, height, base_radius, 0, 0, &left_nappe, &igm_result );
+      CHECK_IGEOM( igm_result, "making cone (left nappe)" );
+      iGeom_moveEnt( igm, left_nappe, 0, 0, -height/2.0, &igm_result );
+      CHECK_IGEOM( igm_result, "Moving cone (left nappe)" );
+      cone = left_nappe;
+    }
+
+    
+    if( right_nappe && left_nappe ){
+      iBase_EntityHandle nappes[2] = {right_nappe, left_nappe};
+      iGeom_uniteEnts( igm, nappes, 2, &cone, &igm_result );
+      CHECK_IGEOM( igm_result, "Unioning cone nappes" );
+    }
+
+    if( axis == X ){
+      iGeom_rotateEnt( igm, cone, 90, 0, 1, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating cone (X)" );
+    }
+    else if( axis == Y ){
+      iGeom_rotateEnt( igm, cone, -90, 1, 0, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating cone (Y)" );
+    }
+
+    iGeom_moveEnt( igm, cone, center.v[0], center.v[1], center.v[2], &igm_result);
+    CHECK_IGEOM( igm_result, "moving cone to its apex" );
+
+    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );
+    iBase_EntityHandle final_cone;
+
+    if( positive ){
+      iGeom_subtractEnts( igm, world_sphere, cone, &final_cone, &igm_result);
+      CHECK_IGEOM( igm_result, "making positive cone" );
+    }
+    else{
+      iGeom_intersectEnts( igm, world_sphere, cone, &final_cone, &igm_result);
+      CHECK_IGEOM( igm_result, "making negative cone" );
+    }
+    return final_cone;
+
+    }
+
+};
+
+#endif /* HAVE_IGEOM_CONE */
+
 class SphereSurface : public AbstractSurface {
 
 public:
@@ -358,6 +466,32 @@ AbstractSurface& SurfaceCard::getSurface() {
     else if( mnemonic == "c/z"){
       this->surface = new CylinderSurface( CylinderSurface::Z, args.at(2), args.at(0), args.at(1) );
     }
+#ifdef HAVE_IGEOM_CONE
+    else if( mnemonic == "kx"){
+      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+      this->surface = new ConeSurface( ConeSurface::X, args.at(1), args.at(0), arg3 );
+    } 
+    else if( mnemonic == "ky"){
+      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+      this->surface = new ConeSurface( ConeSurface::Y, args.at(1), args.at(0), arg3 );
+    }
+    else if( mnemonic == "kz"){
+      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+      this->surface = new ConeSurface( ConeSurface::Z, args.at(1), args.at(0), arg3 );
+    }
+    else if( mnemonic == "k/x" ){
+      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+      this->surface = new ConeSurface( ConeSurface::X, args.at(3), Vector3d(args),  arg5 );
+    }
+    else if( mnemonic == "k/y" ){
+      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+      this->surface = new ConeSurface( ConeSurface::Y, args.at(3), Vector3d(args),  arg5 );
+    }
+    else if( mnemonic == "k/z" ){
+      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+      this->surface = new ConeSurface( ConeSurface::Z, args.at(3), Vector3d(args),  arg5 );
+    }
+#endif /*HAVE_IGEOM_CONE */
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
@@ -500,26 +634,7 @@ void GeometryContext::setMaterialsAsGroups( ){
       CHECK_IGEOM( igm_result, "Naming an entity set" );
 
   }
-  return;
 
-  iBase_TagHandle th[12];
-  int twelve = 12;
-  int th_size;
-  iBase_TagHandle *thp = &th[0];
-  iGeom_getAllEntSetTags( igm, last_set, &thp, &twelve, &th_size, &igm_result );
-  CHECK_IGEOM( igm_result, "Hack" );
-  std::cout << "last_set has " << th_size << "tags" << std::endl;
-  for( int i = 0 ; i < th_size; ++i ){
-    //char str[32][32];
-    //char* strp = &str[0];
-    //std::string str;
-    //std::string * str_p = &str;
-    char str[32];
-    int strlength = 32;
-    int strsize;
-    iGeom_getEntSetData( igm, last_set, name_tag, (char**)(&(str)), &strlength, &strsize, &igm_result );
-    std::cout << str << std::endl;
-  }
 }
 
 bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){ 
