@@ -740,7 +740,7 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
  ******************/
 
 SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
-  Card(deck), surface(NULL)
+  Card(deck)
 {
     size_t idx = 0;
     std::string token1 = tokens.at(idx++);
@@ -780,6 +780,10 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
       args.push_back( makedouble(tokens[idx++]) );
     }
 
+}
+
+const DataRef<Transform>& SurfaceCard::getTransform() const {
+  return *coord_xform;
 }
 
 void SurfaceCard::print( std::ostream& s ) const {

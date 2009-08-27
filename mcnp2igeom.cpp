@@ -6,7 +6,6 @@
 #include <vector>
 #include <set>
 #include <map>
-#include <cmath>
 #include <sstream>
 
 #include <cassert>
@@ -15,22 +14,52 @@
 #include "geometry.hpp"
 #include "MCNPInput.hpp"
 #include "options.hpp"
+#include "volumes.hpp"
 
-#ifdef USING_CUBIT
+#ifdef USING_CGMA
 #include <CubitMessage.hpp>
+
+static bool CGMA_opt_inhibit_intersect_errs = false;
+
+/*  CubitMessage doesn't provide a way to shut up error messages.
+ *  For those rare cases when we really want that behavior, we set up 
+ *  a message handler that just drops messages.
+ */
+class SilentCubitMessageHandler : public CubitMessageHandler
+{
+
+public:
+  static int num_dropped_errors;
+
+  SilentCubitMessageHandler() {}
+
+  virtual void print_message_prefix(const char *){}
+  virtual void print_message(const char *){}
+  virtual void print_error_prefix(const char *){}
+  virtual void print_error(const char *){num_dropped_errors++;}
+};
+
+int SilentCubitMessageHandler::num_dropped_errors = 0;
+
+/* RAII class to set up and shut down a SilentCubitMessageHandler */
+class CubitSilence
+{
+protected:
+  CubitMessageHandler* old_handler;
+  SilentCubitMessageHandler silencer;
+public:
+  CubitSilence() :
+    old_handler( CubitMessage::instance()->get_message_handler() )
+  {
+    CubitMessage::instance()->set_message_handler( &silencer );
+  }
+
+  ~CubitSilence(){
+    CubitMessage::instance()->set_message_handler( old_handler );
+  }
+};
+
 #endif
-
-
-#define MY_BUF_SIZE 512
-static char m_buf[MY_BUF_SIZE];
-
-#define CHECK_IGEOM(err, msg) \
-  do{/*std::cout << msg << std::endl;*/ if((err) != iBase_SUCCESS){	\
-    std::cerr << "iGeom error (" << err << "): " << msg << std::endl;	\
-    iGeom_getDescription( igm, m_buf, &err, MY_BUF_SIZE); \
-    std::cerr << " * " << m_buf << std::endl; \
-     } } while(0) 
-
 
 typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
@@ -39,8 +68,17 @@ static bool intersectIfPossible( iGeom_Instance igm,
 				 bool delete_on_failure = true)
 {
   int igm_result;
-  iGeom_intersectEnts( igm, h1, h2, result, &igm_result);
- 
+
+#ifdef USING_CGMA
+  if( CGMA_opt_inhibit_intersect_errs ){
+    CubitSilence s;
+    iGeom_intersectEnts( igm, h1, h2, result, &igm_result); 
+  }  else
+#endif
+  {
+    iGeom_intersectEnts( igm, h1, h2, result, &igm_result);
+  }
+  
   if( igm_result == iBase_SUCCESS ){
     return true;
   }
@@ -76,25 +114,7 @@ static bool boundBoxesIntersect( iGeom_Instance igm, iBase_EntityHandle h1, iBas
 
 }
 
-class AbstractSurface{
 
-protected:
-  const Transform* transform;
-
-public:
-  AbstractSurface( const Transform* transform_p = NULL):
-    transform(transform_p)
-  {}
-  virtual ~AbstractSurface(){}
-
-  void setTransform( const Transform* transform_p ){ transform = transform_p; }
-  
-  virtual double getFarthestExtentFromOrigin( ) const = 0;
-  virtual iBase_EntityHandle define( bool positive, iGeom_Instance& igm, double world_size );
-
-protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ) = 0;
-};
 
 
 iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e ) {
@@ -133,380 +153,13 @@ iBase_EntityHandle applyReverseTransform( const Transform& tx, iGeom_Instance& i
 }
 
 
-
-static Vector3d origin(0,0,0);
-
-
-iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
-  iBase_EntityHandle world_sphere;
-  int igm_result;
-  iGeom_createSphere( igm, world_size, &world_sphere, &igm_result);
-  CHECK_IGEOM( igm_result, "making world sphere" );
-  return world_sphere;
-}
-
-iBase_EntityHandle AbstractSurface::define( bool positive, iGeom_Instance& igm, double world_size ){
+iBase_EntityHandle SurfaceVolume::define( bool positive, iGeom_Instance& igm, double world_size ){
   iBase_EntityHandle handle = this->getHandle( positive, igm, world_size );
   if( transform ){
     handle = applyTransform( *transform, igm, handle );
   }
   return handle;
 }
-
-class PlaneSurface : public AbstractSurface { 
-
-public:
-  Vector3d normal;
-  double offset;
-
-public:
-  PlaneSurface( const Vector3d& normal_p, double offset_p ) :
-    AbstractSurface(), normal(normal_p), offset(offset_p) 
-  {}
-  
-  virtual double getFarthestExtentFromOrigin() const{
-    // this is a funny situation, since planes are technically infinte...
-    // in order to have a sane answer, we just return the offset from the origin.
-    // (multiplied by root 3, which was done in the old converter, why?)
-    return sqrt(3.0) *  std::abs(offset);
-  }
-
-protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size){
-
-    int igm_result;
-    iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
-    iBase_EntityHandle hemisphere;
-    // note the reversal of sense in this call; mcnp and igeom define it differently.
-    iGeom_sectionEnt( igm, world_sphere, 
-		      normal.v[0], normal.v[1], normal.v[2], offset, !positive, &hemisphere, &igm_result);
-    CHECK_IGEOM( igm_result, "Sectioning world for a plane" );
-    return hemisphere;
-
-
-  }
-
-};
-
-class CylinderSurface : public AbstractSurface {
-
-public:
-  enum axis{ X=0, Y=1, Z=2 } axis;
-  double radius;
-  Vector3d center;
-  bool onaxis;
-
-  CylinderSurface( enum axis axis_p, double radius_p ):
-    AbstractSurface(), axis(axis_p), radius(radius_p), center(origin), onaxis(true)
-  {}
-
-  CylinderSurface( enum axis axis_p, double radius_p, double trans1, double trans2 ):
-    AbstractSurface(), axis(axis_p), radius(radius_p), center(origin), onaxis(false)
-  {
-    switch(axis){
-    case X: center.v[Y] += trans1; center.v[Z] += trans2; break;
-    case Y: center.v[X] += trans1; center.v[Z] += trans2; break;
-    case Z: center.v[X] += trans1; center.v[Y] += trans2; break;
-    }
-  }
-  
-  virtual double getFarthestExtentFromOrigin( ) const{
-    return radius + center.length();
-  }
-
-protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
-    int igm_result;
-
-    iBase_EntityHandle cylinder;
-    iGeom_createCylinder( igm, 2.0 * world_size, radius, 0, &cylinder, &igm_result);
-    CHECK_IGEOM( igm_result, "making cylinder" );
-
-    
-    if( axis == X ){
-      iGeom_rotateEnt( igm, cylinder, 90, 0, 1, 0, &igm_result );
-      CHECK_IGEOM( igm_result, "rotating cylinder (X)" );
-    }
-    else if( axis == Y ){
-      iGeom_rotateEnt( igm, cylinder, 90, 1, 0, 0, &igm_result );
-      CHECK_IGEOM( igm_result, "rotating cylinder (Y)" );
-    }
-
-    if( onaxis == false ){
-      iGeom_moveEnt( igm, cylinder, center.v[0], center.v[1], center.v[2], &igm_result);
-      CHECK_IGEOM( igm_result, "moving cylinder" );
-    }
-
-    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );
-    iBase_EntityHandle final_cylinder;
-
-    if( positive ){
-      iGeom_subtractEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
-      CHECK_IGEOM( igm_result, "making positive cylinder" );
-    }
-    else{
-      iGeom_intersectEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
-      CHECK_IGEOM( igm_result, "making negative cylinder" );
-    }
-
-    return final_cylinder;
-  };
-
-};
-
-#ifdef HAVE_IGEOM_CONE
-
-class ConeSurface : public AbstractSurface {
-
-public:
-
-  enum nappe {LEFT=-1, BOTH=0, RIGHT=1};
-
-  static enum nappe make_nappe( double param ){
-    
-    enum nappe n = static_cast<enum nappe>(param);
-    if( -1 <= n && n <= 1 ){
-      return n;
-    }
-    else{
-      std::cerr << "WARNING: Bad cylinder +/-1 argument: " << param << std::endl;
-      std::cerr << "         will pretend it was really 0" << std::endl;
-      return BOTH;
-    }
-  }
-
-  enum axis{ X=0, Y=1, Z=2 } axis;
-  double theta;    /// the cone's opening angle
-  Vector3d center; /// the cone's apex 
-  bool onaxis;
-  enum nappe nappe; 
-
-  ConeSurface( enum axis axis_p, double tsquared_p, double point_p, double nappe_p ):
-    AbstractSurface(), axis(axis_p), theta( atan(sqrt(tsquared_p)) ), center(origin), onaxis(true), nappe(make_nappe(nappe_p))
-  {
-    center.v[axis] = point_p; 
-  }
-
-  ConeSurface( enum axis axis_p, double tsquared_p, Vector3d center_p, double nappe_p ):
-    AbstractSurface(), axis(axis_p), theta( atan(sqrt(tsquared_p)) ), center(center_p), onaxis(false), nappe(make_nappe(nappe_p))
-  {}
-  
-  virtual double getFarthestExtentFromOrigin( ) const{
-    return sqrt(3) + ( center.length() );
-  }
-
-protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
-
-    double height = (center.length() + world_size);
-    double base_radius = height * tan( theta / 2 );
-
-    int igm_result;
-
-    iBase_EntityHandle right_nappe = 0;
-    iBase_EntityHandle left_nappe = 0;
-    iBase_EntityHandle cone; 
-    
-    if( nappe != LEFT){
-      iGeom_createCone( igm, height, base_radius, 0, 0, &right_nappe, &igm_result);
-      CHECK_IGEOM( igm_result, "making cone (right nappe)" );
-      iGeom_rotateEnt( igm, right_nappe, 180, 1, 0, 0, &igm_result);
-      CHECK_IGEOM( igm_result, "Rotating cone (right nappe)");
-      iGeom_moveEnt( igm, right_nappe, 0, 0, height/2.0, &igm_result );
-      CHECK_IGEOM( igm_result, "Moving cone (right nappe)");      
-      cone = right_nappe;
-    }
-    if( nappe != RIGHT ){
-      iGeom_createCone( igm, height, base_radius, 0, 0, &left_nappe, &igm_result );
-      CHECK_IGEOM( igm_result, "making cone (left nappe)" );
-      iGeom_moveEnt( igm, left_nappe, 0, 0, -height/2.0, &igm_result );
-      CHECK_IGEOM( igm_result, "Moving cone (left nappe)" );
-      cone = left_nappe;
-    }
-
-    
-    if( right_nappe && left_nappe ){
-      iBase_EntityHandle nappes[2] = {right_nappe, left_nappe};
-      iGeom_uniteEnts( igm, nappes, 2, &cone, &igm_result );
-      CHECK_IGEOM( igm_result, "Unioning cone nappes" );
-    }
-
-    if( axis == X ){
-      iGeom_rotateEnt( igm, cone, 90, 0, 1, 0, &igm_result );
-      CHECK_IGEOM( igm_result, "rotating cone (X)" );
-    }
-    else if( axis == Y ){
-      iGeom_rotateEnt( igm, cone, -90, 1, 0, 0, &igm_result );
-      CHECK_IGEOM( igm_result, "rotating cone (Y)" );
-    }
-
-    iGeom_moveEnt( igm, cone, center.v[0], center.v[1], center.v[2], &igm_result);
-    CHECK_IGEOM( igm_result, "moving cone to its apex" );
-
-    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );
-    iBase_EntityHandle final_cone;
-
-    if( positive ){
-      iGeom_subtractEnts( igm, world_sphere, cone, &final_cone, &igm_result);
-      CHECK_IGEOM( igm_result, "making positive cone" );
-    }
-    else{
-      iGeom_intersectEnts( igm, world_sphere, cone, &final_cone, &igm_result);
-      CHECK_IGEOM( igm_result, "making negative cone" );
-    }
-    return final_cone;
-
-    }
-
-};
-
-#endif /* HAVE_IGEOM_CONE */
-
-class SphereSurface : public AbstractSurface {
-
-public:
-  Vector3d center;
-  double radius;
-
-public:
-  SphereSurface( const Vector3d& center_p, double radius_p ) :
-    AbstractSurface(), center(center_p), radius(radius_p)
-  {}
-
-  virtual ~SphereSurface(){}
-
-  virtual double getFarthestExtentFromOrigin ( ) const {
-    return (center.length() + radius);
-  }
-
-protected:
-  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
-
-    int igm_result;
-    iBase_EntityHandle sphere;
-
-    iGeom_createSphere( igm, radius, &sphere, &igm_result);
-    CHECK_IGEOM( igm_result, "making sphere" );
-
-    iGeom_moveEnt( igm, sphere, center.v[0], center.v[1], center.v[2], &igm_result );
-    CHECK_IGEOM( igm_result, "moving sphere" );
-
-    // sphere now defines the interior sphere volume, corresponding to mcnp's notion of negative sense.
-    // If positive sense is required, we must return the outside of the surface.
-
-    if(positive){
-
-	iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
-	iBase_EntityHandle volume;
-
-	iGeom_subtractEnts( igm, world_sphere, sphere, &volume, &igm_result);
-	CHECK_IGEOM( igm_result, "subtracting sphere" );
-	
-	sphere = volume;
-
-    }
-    
-    return sphere; 
-  }
-
-};
-
-AbstractSurface& SurfaceCard::getSurface() {
-  // SurfaceCard variables: surface, mnemonic, args, coord_xform
-  
-  if(!this->surface){
-    if( mnemonic == "so"){
-      this->surface = new SphereSurface( origin, args.at(0) );
-    }
-    else if( mnemonic == "sx"){
-      this->surface = new SphereSurface( Vector3d( args.at(0), 0, 0 ), args.at(1) );
-    }
-    else if( mnemonic == "sy"){
-      this->surface = new SphereSurface( Vector3d( 0, args.at(0), 0 ), args.at(1) );
-    }
-    else if( mnemonic == "sz"){
-      this->surface = new SphereSurface( Vector3d( 0, 0, args.at(0) ), args.at(1) );
-    }
-    else if( mnemonic == "s" || mnemonic == "sph" ){
-      this->surface = new SphereSurface( Vector3d( args ), args.at(3) );
-    }
-    else if( mnemonic == "p"){
-      if( args.size() > 4 ){
-	std::cerr << "Warning: surface of type P with more than 4 parameters." << std::endl;
-	std::cerr << "         This surface type is unsupported; will proceed as if only 4 parameters given,\n";
-	std::cerr << "         but the result will probably be incorrect!" << std::endl;
-      }
-      Vector3d v(args);
-      this->surface = new PlaneSurface( v, args.at(3)/v.length() );
-    }
-    else if( mnemonic == "px"){
-      this->surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-    }
-    else if( mnemonic == "py"){
-      this->surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
-    }
-    else if( mnemonic == "pz"){
-      this->surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
-    }
-    else if( mnemonic == "cx" ){
-      this->surface = new CylinderSurface( CylinderSurface::X, args.at(0) );
-    }
-    else if( mnemonic == "cy" ){
-      this->surface = new CylinderSurface( CylinderSurface::Y, args.at(0) );
-    }
-    else if( mnemonic == "cz" ){
-      this->surface = new CylinderSurface( CylinderSurface::Z, args.at(0) );
-    }
-    else if( mnemonic == "c/x"){
-      this->surface = new CylinderSurface( CylinderSurface::X, args.at(2), args.at(0), args.at(1) );
-    }
-    else if( mnemonic == "c/y"){
-      this->surface = new CylinderSurface( CylinderSurface::Y, args.at(2), args.at(0), args.at(1) );
-    }
-    else if( mnemonic == "c/z"){
-      this->surface = new CylinderSurface( CylinderSurface::Z, args.at(2), args.at(0), args.at(1) );
-    }
-#ifdef HAVE_IGEOM_CONE
-    else if( mnemonic == "kx"){
-      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      this->surface = new ConeSurface( ConeSurface::X, args.at(1), args.at(0), arg3 );
-    } 
-    else if( mnemonic == "ky"){
-      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      this->surface = new ConeSurface( ConeSurface::Y, args.at(1), args.at(0), arg3 );
-    }
-    else if( mnemonic == "kz"){
-      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      this->surface = new ConeSurface( ConeSurface::Z, args.at(1), args.at(0), arg3 );
-    }
-    else if( mnemonic == "k/x" ){
-      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      this->surface = new ConeSurface( ConeSurface::X, args.at(3), Vector3d(args),  arg5 );
-    }
-    else if( mnemonic == "k/y" ){
-      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      this->surface = new ConeSurface( ConeSurface::Y, args.at(3), Vector3d(args),  arg5 );
-    }
-    else if( mnemonic == "k/z" ){
-      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      this->surface = new ConeSurface( ConeSurface::Z, args.at(3), Vector3d(args),  arg5 );
-    }
-#endif /*HAVE_IGEOM_CONE */
-    else{
-      throw std::runtime_error( mnemonic + " is not a supported surface" );
-    }
-
-    if( this->coord_xform->hasData() ){
-      const Transform& transform = coord_xform->getData();
-      this->surface->setTransform( &transform );
-    }
-  }
-
-  
-
-  return *(this->surface);
-}
-
 
 
 
@@ -751,14 +404,6 @@ bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_un
   return success;
 }
 
-int quickPow( int x, unsigned int exp ){
-  int ret = x;
-  for( unsigned int i = 1; i < exp; i++){
-    ret *= x;
-  }
-  return ret;
-}
-
 typedef struct{ int v[3]; } int_triple;
 
 static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
@@ -935,7 +580,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
 	  pos = false; surface = -surface;
 	}
 	try{
-	  AbstractSurface& surf = deck.lookup_surface_card( surface )->getSurface();
+	  SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( surface ) );
 	  iBase_EntityHandle surf_handle = surf.define( pos, igm, world_size );
 	  stack.push_back(surf_handle);
 	}
@@ -1081,7 +726,7 @@ void GeometryContext::createGeometry( ){
 
   for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
     try{
-    world_size = std::max( world_size, (*i)->getSurface().getFarthestExtentFromOrigin() );
+      world_size = std::max( world_size, makeSurface( *i ).getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
   }
   double translation_addition = 0;
@@ -1138,7 +783,7 @@ void debugSurfaceDistances( InputDeck& deck, std::ostream& out = std::cout ){
   InputDeck::surface_card_list& surfaces = deck.getSurfaces();
   for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
     try{
-      const AbstractSurface& s = (*i)->getSurface();
+      const SurfaceVolume& s = makeSurface(*i);
       out << "S" << (*i)->getIdent() << " distance from origin: " << s.getFarthestExtentFromOrigin() << std::endl;
     }
     catch(std::runtime_error& e){
@@ -1162,7 +807,9 @@ int main(int argc, char* argv[]){
   }
 
 
-#ifdef USING_CUBIT
+#ifdef USING_CGMA
+  // turn off informational messages by default
+  // they can be re-enabled with the -Cv flag.
   CubitMessage::instance()->set_info_flag( false );
 #endif
 
@@ -1208,9 +855,15 @@ int main(int argc, char* argv[]){
     else if (arg == "-Di" ){
       DiFlag = true;
     }
-#ifdef USING_CUBIT
+#ifdef USING_CGMA
     else if (arg == "-Cv" ){
       CubitMessage::instance()->set_info_flag( true );
+    }
+    else if (arg == "-Cq" ){
+      CubitMessage::instance()->set_warning_flag( false );
+    }
+    else if( arg == "-CIq" ){
+      CGMA_opt_inhibit_intersect_errs = true;
     }
 #endif
     else if ( arg[0] == '-'){ 
@@ -1265,13 +918,19 @@ int main(int argc, char* argv[]){
   GeometryContext context( igm, deck );
   context.createGeometry();
   
+#ifdef USING_CGMA
+  if( CGMA_opt_inhibit_intersect_errs && SilentCubitMessageHandler::num_dropped_errors > 0){
+    std::cout << "-CIq: supressed " << SilentCubitMessageHandler::num_dropped_errors << " intersection errors." << std::endl;
+  }
+#endif 
+
   return 0;
     
 }
 
 void printHelp( const char* progname, std::ostream& out ){
   
-  out << "usage: " << progname << " [options] input_file\n" << std::endl;
+  out << "\nusage: " << progname << " [options] input_file\n" << std::endl;
   out << "options:\n";
   out << 
     "  -h, --help            Show this message and exit\n" <<
@@ -1281,8 +940,11 @@ void printHelp( const char* progname, std::ostream& out ){
     "  -D                    Debugging (super-verbose) output\n" <<
     "  -Di                   Debugging output for MCNP parsing phase only\n" <<
     "  -Do                   Debugging output for iGeom output phase only\n" << 
-#ifdef USING_CUBIT
-    "  -Cv                   Verbose messages from CGM library\n" <<
+#ifdef USING_CGMA
+    "  -Cv                   Allow verbose messages from CGM library\n" <<
+    "  -Cq                   Silence warning message from CGM library\n" << 
+    "  -CIq                  Silence ERROR messages from CGM library when during intersect tests.\n" <<
+    "                        (May be useful for infinite lattices, but use cautiously)\n" << 
 #endif
     std::endl;
 

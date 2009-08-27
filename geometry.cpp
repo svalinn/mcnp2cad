@@ -8,8 +8,6 @@ std::ostream& operator<<(std::ostream& str, const Vector3d& v ){
   return str;
 }
 
-// FIXME: assumes M_PI defined; not actually part of standard library everywhere.
-
 /**
  * Compute Euler axis/angle, given a rotation matix.
  * See en.wikipedia.org/wiki/Rotation_representation_(mathematics) 

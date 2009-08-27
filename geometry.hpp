@@ -2,10 +2,17 @@
 #define MCNP2IGEOM_GEOMETRY_H
 
 #include <vector>
-#include <cmath>
 #include <iosfwd>
 
 #include "dataref.hpp"
+
+// under visual studio, the following macro must be defined
+// in order to get M_PI and friends from the cmath header.
+#ifdef _MSC_VER
+#define _USE_MATH_DEFINES
+#endif 
+
+#include <cmath>
 
 class Vector3d{
 

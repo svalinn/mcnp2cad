@@ -45,7 +45,6 @@ public:
   typedef std::pair<enum geom_token_t, int> geom_list_entry_t;
   typedef std::vector<geom_list_entry_t> geom_list_t;
 
-  //  enum fill_type_t { NONE, SIMPLE, LATTICE }; 
   enum lattice_type_t { NONE = 0, HEXAHEDRAL = 1, HEXAGONAL = 2 };
 
 protected:
@@ -81,19 +80,16 @@ public:
 
 std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t );
 
-class AbstractSurface;
-
 
 /**
  * Surface Card
  */
 class SurfaceCard : public Card {
-  protected:
-  int ident;//, coord_xform;
+protected:
+  int ident;
   DataRef<Transform> *coord_xform;
   std::string mnemonic;
   std::vector<double> args;
-  AbstractSurface* surface;
 
 public:
   SurfaceCard( InputDeck& deck, const token_list_t tokens );
@@ -102,8 +98,9 @@ public:
 					     
   void print( std::ostream& s ) const ;
 
-  AbstractSurface& getSurface();
-  const DataRef<Transform>& getTransform();
+  const DataRef<Transform>& getTransform() const ; 
+  const std::string& getMnemonic() const { return mnemonic; }
+  const std::vector<double>& getArgs() const { return args; }
 
 
   std::pair<Vector3d,double> getPlaneParams() const;
