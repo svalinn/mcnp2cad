@@ -62,6 +62,18 @@ static int makeint( const std::string& token ){
   return ret;
 }
 
+double makedouble_strict( const char* string ) throw (std::runtime_error){
+
+  std::string sstr(string);
+  char* end;
+  double ret = strtod(string, &end);
+  if( end != string+sstr.length() ){
+    std::string err = "Bad double parameter: ";
+    err = err + string;
+    throw std::runtime_error( err );
+  }
+  return ret;
+}
 
 static double makedouble( const std::string& token ){
   std::string tmp = token;

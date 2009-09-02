@@ -35,10 +35,10 @@ public:
     v[2] = z;
   }
 
-  Vector3d( const std::vector<double>& p ){
-    v[0] = p.at(0);
-    v[1] = p.at(1);
-    v[2] = p.at(2);
+  Vector3d( const std::vector<double>& p, int idx = 0 ){
+    v[0] = p.at(idx+0);
+    v[1] = p.at(idx+1);
+    v[2] = p.at(idx+2);
   }
 
   double length() const{
@@ -90,19 +90,28 @@ public:
 
 std::ostream& operator<<(std::ostream& str, const Vector3d& v );
 
+
+// determinant of 3x3 matrix (C-style matrix ordering)
+double matrix_det( double mat[9] );
+
 class Transform{
+
+public:
+  enum mat_format{ C_STYLE, FORTRAN_STYLE };
 
 protected:
   Vector3d translation;
   bool has_rot;
   double theta; Vector3d axis;
 
-  void set_rots_from_matrix( double raw_matrix[9] );
+  void set_rots_from_matrix( double raw_matrix[9], enum mat_format  );
 
 public:
   Transform():translation(),has_rot(false){}
   Transform( const Vector3d& v ):translation(v),has_rot(false){}
-  Transform( const std::vector< double >& inputs, bool degree_format_p = false );
+  Transform( const std::vector< double >& inputs, bool degree_format_p = false, enum mat_format = FORTRAN_STYLE );
+  Transform( double rot[9], const Vector3d& trans,  enum mat_format = C_STYLE );
+
   const Vector3d& getTranslation() const { return translation; }
   bool hasRot() const{ return has_rot; }
   double getTheta() const { return theta; }
@@ -112,6 +121,8 @@ public:
   Transform reverse() const;
 
 };
+
+std::ostream& operator<<(std::ostream& str, const Transform& t );
 
 class FillNode {
 

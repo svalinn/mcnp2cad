@@ -201,6 +201,10 @@ public:
   bool mapSanityCheck( iBase_EntityHandle* cells, size_t count );
   void setMaterialsAsGroups( );
 
+  std::string uprefix() { 
+    return std::string( universe_depth, ' ' );
+  }
+
   void createGeometry( );
 
 };
@@ -212,7 +216,7 @@ void GeometryContext::setMaterial( iBase_EntityHandle cell, int material, double
   material_map.insert( std::make_pair( cell, mat ) );
   material_ids.insert( mat );
 
-  if( OPT_DEBUG ){ std::cout << "Updated cell with new material, num materials now " << material_ids.size() << std::endl; }
+  if( OPT_DEBUG ){ std::cout << uprefix() << "Updated cell with new material, num materials now " << material_ids.size() << std::endl; }
 }
 
 void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell ){
@@ -353,7 +357,7 @@ bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_un
   if( !boundBoxesIntersect( igm, cell_copy, lattice_shell ) ){
     iGeom_deleteEnt( igm, cell_copy, &igm_result);
     CHECK_IGEOM( igm_result, "Deleting a lattice cell shell" );
-    if( OPT_DEBUG ) std::cout << " node failed bbox check" << std::endl;
+    if( OPT_DEBUG ) std::cout << uprefix() << " node failed bbox check" << std::endl;
     return false;
   }
 
@@ -441,7 +445,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 						   iBase_EntityHandle lattice_shell = NULL )
 {
   
-  if( OPT_DEBUG ) std::cout << "Populating cell " << cell.getIdent() << std::endl;
+  if( OPT_DEBUG ) std::cout << uprefix() << "Populating cell " << cell.getIdent() << std::endl;
 
 
   if( !cell.hasFill() && !cell.isLattice() ){
@@ -456,7 +460,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
     int filling_universe = n.getFillingUniverse();
     
     if( OPT_DEBUG ){
-      std::cout << "Creating cell " << cell.getIdent() 
+      std::cout << uprefix() << "Creating cell " << cell.getIdent() 
 		<< ", which is filled with universe " << filling_universe << std::endl;
     }
     
@@ -471,6 +475,8 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
       t = NULL; 
     }
 
+    if( OPT_DEBUG && t ) std::cout << uprefix() << " ... and has transform: " << *t << std::endl;
+
     entity_collection_t subcells = defineUniverse(  filling_universe, cell_shell, t );
  
     return subcells;
@@ -482,18 +488,18 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 
     assert(lattice_shell);
     
-    if( OPT_VERBOSE ) std::cout << "Creating cell " << cell.getIdent() << "'s lattice" << std::endl;
+    if( OPT_VERBOSE ) std::cout << uprefix() << "Creating cell " << cell.getIdent() << "'s lattice" << std::endl;
 
     entity_collection_t subcells;
         
     const Lattice& lattice = cell.getLattice();
     int num_dims = lattice.numFiniteDirections();
     
-    if( OPT_DEBUG ) std::cout << "  lattice num dims: " << num_dims << std::endl;
+    if( OPT_DEBUG ) std::cout << uprefix() << "  lattice num dims: " << num_dims << std::endl;
 
     if( lattice.isFixedSize() ){
 
-      if( OPT_DEBUG ) std::cout << "Defining fixed lattice" << std::endl;
+      if( OPT_DEBUG ) std::cout << uprefix() << "Defining fixed lattice" << std::endl;
 
       irange xrange = lattice.getXRange(), yrange = lattice.getYRange(), zrange = lattice.getZRange();
 
@@ -501,7 +507,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 	for( int j = yrange.first; j <= yrange.second; ++j ){
 	  for( int k = zrange.first; k <= zrange.second; ++k ){
 
-	    if( OPT_DEBUG ) std::cout << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
+	    if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
 
 	    /* bool success = */ defineLatticeNode( lattice, cell.getUniverse(), cell_shell, lattice_shell, i, j, k, subcells );
 
@@ -514,7 +520,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
     }
     else{
 
-      if( OPT_DEBUG ) std::cout << "Defining infinite lattice" << std::endl;
+      if( OPT_DEBUG ) std::cout << uprefix() << "Defining infinite lattice" << std::endl;
 
       bool done = false;
       int radius = 0;
@@ -529,7 +535,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 	  int y = (*i).v[1];
 	  int z = (*i).v[2];
 	  
-	  if( OPT_DEBUG ) std::cout << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
+	  if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
 
 	  bool success = defineLatticeNode( lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells );
 	  if( success ) done = false;
@@ -554,7 +560,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
   int ident = cell.getIdent();
   const CellCard::geom_list_t& geom = cell.getGeom();
  
-  if( OPT_VERBOSE ) std::cout << "Defining cell " << ident << std::endl;
+  if( OPT_VERBOSE ) std::cout << uprefix() << "Defining cell " << ident << std::endl;
 
   int igm_result;
 
@@ -653,7 +659,8 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
 						     const Transform* transform = NULL )
 {
 
-  if( OPT_VERBOSE ) std::cout << "Defining universe " << universe << std::endl;
+  if( OPT_VERBOSE ) std::cout << uprefix() << "Defining universe " << universe << std::endl;
+  universe_depth++;
 
   InputDeck::cell_card_list u_cells = deck.getCellsOfUniverse( universe );
   entity_collection_t subcells;
@@ -685,25 +692,39 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
     
     for( size_t i = 0; i < subcells.size(); ++i ){
       
+      if( OPT_DEBUG ) std::cout << uprefix() << "Bounding a universe cell..." << std::flush;    
+      bool subcell_removed = false;
+
       if( boundBoxesIntersect( igm, subcells[i], container )){
 	iBase_EntityHandle container_copy;
 	iGeom_copyEnt( igm, container, &container_copy, &igm_result);
 	CHECK_IGEOM( igm_result, "Copying a universe-bounding cell" );
 	
 	iBase_EntityHandle subcell_bounded;
-	
-	if( OPT_DEBUG) std::cout << "Bounding a universe cell..." << std::endl;
 	bool valid_result = intersectIfPossible( igm, container_copy, subcells[i], &subcell_bounded );
 	if( valid_result ){
 	  updateMaps( subcells[i], subcell_bounded );
 	  subcells[i] = subcell_bounded;
+	  if( OPT_DEBUG ) std::cout << " ok." <<  std::endl;
 	}
 	else{
 	  updateMaps( subcells[i], NULL );
-	  subcells.erase( subcells.begin()+i );
-	  i--;
+	  subcell_removed = true;
 	}
 
+      }
+      else{
+	// bounding boxes didn't intersect, delete subcells[i].
+	// this suggests invalid geometry, but we can continue anyway.
+	iGeom_deleteEnt( igm, subcells[i], &igm_result );
+	CHECK_IGEOM( igm_result, "Deleting a subcell that didn't intersect a parent's bounding box (strange!)" );
+	subcell_removed = true;
+      }
+      
+      if( subcell_removed ){
+	subcells.erase( subcells.begin()+i );
+	i--;
+	if( OPT_DEBUG ) std::cout << " removed." << std::endl;
       }
       
     }
@@ -712,7 +733,9 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
     CHECK_IGEOM( igm_result, "Deleting a bounding cell" );
   }
 
-  if( OPT_VERBOSE ) std::cout << "Done defining universe " << universe << std::endl;
+  universe_depth--;
+  if( OPT_VERBOSE ) std::cout << uprefix() << "Done defining universe " << universe << std::endl;
+
   return subcells;
  
 }
@@ -764,7 +787,9 @@ void GeometryContext::createGeometry( ){
   std::cout << " done." << std::endl;
 
   double tolerance = world_size / 1.0e7;
-  //double tolerance = .001;
+  if( opt.override_tolerance ){
+    tolerance = opt.specific_tolerance;
+  }
   std::cout << "Merging, tolerance=" << tolerance << "...\t\t" << std::flush;
   iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
   CHECK_IGEOM( igm_result, "Merging all cells" );
@@ -798,6 +823,10 @@ void printHelp( const char* progname, std::ostream& out );
 
 struct program_option_struct opt;
 
+
+// number parsing function from MCNPInput.cpp, used her to parse command line parameters
+double makedouble_strict( const char* string ) ;
+
 int main(int argc, char* argv[]){
 
 
@@ -819,7 +848,7 @@ int main(int argc, char* argv[]){
   opt.input_file = NULL;
   opt.output_file = "out.sat";
   opt.igeom_init_options = "";
-  
+  opt.override_tolerance = false;
 
   bool DiFlag = false, DoFlag = false;
   
@@ -838,6 +867,22 @@ int main(int argc, char* argv[]){
       else{
 	opt.output_file = argv[i+1];
 	i++;
+      }
+    }
+    else if( arg == "-t" ){
+      
+      if( i+1 >= argc ){
+	std::cerr << "Error: -t option requires an argument" << std::endl;
+	printHelp( argv[0], std::cerr );
+	return 1;
+      }
+      else{
+	double tol = makedouble_strict( argv[i+1] );
+	if( tol <= 0.0 || tol > .1 ){
+	  std::cerr << "Warning: you seem to have specified an unusual tolerance (" << tol << ")." << std::endl;
+	}
+	opt.override_tolerance = true;
+	opt.specific_tolerance = tol;
       }
     }
     else if( arg == "-v" ){
@@ -935,6 +980,7 @@ void printHelp( const char* progname, std::ostream& out ){
   out << 
     "  -h, --help            Show this message and exit\n" <<
     "  -o OUTPUT             Give name of output file (default: " << OPT_DEFAULT_OUTPUT_FILENAME << ")\n" <<
+    "  -t VALUE              Give tolerance for merge step\n" << 
     "  -m                    Tag materials using group names\n" << 
     "  -v                    Verbose output\n" <<
     "  -D                    Debugging (super-verbose) output\n" <<

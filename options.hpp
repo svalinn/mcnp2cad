@@ -11,6 +11,9 @@ struct program_option_struct{
   const char* input_file;
   
   const char* igeom_init_options;
+
+  bool override_tolerance;
+  double specific_tolerance;
 };
 
 extern struct program_option_struct opt;

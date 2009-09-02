@@ -6,6 +6,7 @@
 #include "MCNPInput.hpp"
 #include "volumes.hpp"
 #include "geometry.hpp"
+#include "options.hpp"
 
 
 static Vector3d origin(0,0,0);
@@ -19,11 +20,40 @@ iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
   return world_sphere;
 }
 
+/**
+ * A convenience function for SurfaceVolumes to call at the end of getHandle functions.
+ * Return the negative or positive sense of the given body, as appropriate.  If
+ * bound_within_world is true, a negative-sense body will be intersected with the world sphere
+ * (a step necessary for cylinders and other infinite bodies) 
+ */
+static iBase_EntityHandle embedWithinWorld( bool positive, iGeom_Instance& igm, double world_size, 
+					    iBase_EntityHandle body, bool bound_with_world )
+{
+  iBase_EntityHandle final_body;
+  int igm_result;
+
+  if( !positive && !bound_with_world ){
+    final_body = body;
+  }
+  else{
+    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );    
+    
+    if( positive ){
+      iGeom_subtractEnts( igm, world_sphere, body, &final_body, &igm_result);
+      CHECK_IGEOM( igm_result, "making positive body" );
+    }
+    else{ // !positive && bound_with_world
+      iGeom_intersectEnts( igm, world_sphere, body, &final_body, &igm_result);
+      CHECK_IGEOM( igm_result, "making negative body" );
+    }
+  }
+  return final_body;
+}
 
 
 class PlaneSurface : public SurfaceVolume { 
 
-public:
+protected:
   Vector3d normal;
   double offset;
 
@@ -56,19 +86,24 @@ protected:
 
 };
 
+
+typedef  enum { X=0, Y=1, Z=2 } axis_t;
+
+
 class CylinderSurface : public SurfaceVolume {
 
-public:
-  enum axis{ X=0, Y=1, Z=2 } axis;
+protected:
+  axis_t axis;
   double radius;
   Vector3d center;
   bool onaxis;
 
-  CylinderSurface( enum axis axis_p, double radius_p ):
+public:
+  CylinderSurface( axis_t axis_p, double radius_p ):
     SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(true)
   {}
 
-  CylinderSurface( enum axis axis_p, double radius_p, double trans1, double trans2 ):
+  CylinderSurface( axis_t axis_p, double radius_p, double trans1, double trans2 ):
     SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false)
   {
     switch(axis){
@@ -105,17 +140,7 @@ protected:
       CHECK_IGEOM( igm_result, "moving cylinder" );
     }
 
-    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );
-    iBase_EntityHandle final_cylinder;
-
-    if( positive ){
-      iGeom_subtractEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
-      CHECK_IGEOM( igm_result, "making positive cylinder" );
-    }
-    else{
-      iGeom_intersectEnts( igm, world_sphere, cylinder, &final_cylinder, &igm_result);
-      CHECK_IGEOM( igm_result, "making negative cylinder" );
-    }
+    iBase_EntityHandle final_cylinder = embedWithinWorld( positive, igm, world_size, cylinder, true );
 
     return final_cylinder;
   };
@@ -126,7 +151,7 @@ protected:
 
 class ConeSurface : public SurfaceVolume {
 
-public:
+protected:
 
   enum nappe {LEFT=-1, BOTH=0, RIGHT=1};
 
@@ -143,19 +168,20 @@ public:
     }
   }
 
-  enum axis{ X=0, Y=1, Z=2 } axis;
+  axis_t axis;
   double theta;    /// the cone's opening angle
   Vector3d center; /// the cone's apex 
   bool onaxis;
   enum nappe nappe; 
 
-  ConeSurface( enum axis axis_p, double tsquared_p, double point_p, double nappe_p ):
+public:
+  ConeSurface( axis_t axis_p, double tsquared_p, double point_p, double nappe_p ):
     SurfaceVolume(), axis(axis_p), theta( atan(sqrt(tsquared_p)) ), center(origin), onaxis(true), nappe(make_nappe(nappe_p))
   {
     center.v[axis] = point_p; 
   }
 
-  ConeSurface( enum axis axis_p, double tsquared_p, Vector3d center_p, double nappe_p ):
+  ConeSurface( axis_t axis_p, double tsquared_p, Vector3d center_p, double nappe_p ):
     SurfaceVolume(), axis(axis_p), theta( atan(sqrt(tsquared_p)) ), center(center_p), onaxis(false), nappe(make_nappe(nappe_p))
   {}
   
@@ -211,17 +237,8 @@ protected:
     iGeom_moveEnt( igm, cone, center.v[0], center.v[1], center.v[2], &igm_result);
     CHECK_IGEOM( igm_result, "moving cone to its apex" );
 
-    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );
-    iBase_EntityHandle final_cone;
+    iBase_EntityHandle final_cone = embedWithinWorld( positive, igm, world_size, cone, true );
 
-    if( positive ){
-      iGeom_subtractEnts( igm, world_sphere, cone, &final_cone, &igm_result);
-      CHECK_IGEOM( igm_result, "making positive cone" );
-    }
-    else{
-      iGeom_intersectEnts( igm, world_sphere, cone, &final_cone, &igm_result);
-      CHECK_IGEOM( igm_result, "making negative cone" );
-    }
     return final_cone;
 
     }
@@ -230,9 +247,64 @@ protected:
 
 #endif /* HAVE_IGEOM_CONE */
 
-class SphereSurface : public SurfaceVolume {
+class TorusSurface : public SurfaceVolume {
+
+protected:
+  Vector3d center;
+  axis_t axis;
+  double radius;
+  double ellipse_axis_rad;
+  double ellipse_perp_rad;
 
 public:
+  TorusSurface( axis_t axis_p, const Vector3d& center_p, double A, double B, double C ) :
+    center(center_p), axis( axis_p ), radius(A), ellipse_axis_rad( B ), ellipse_perp_rad( C )
+  {}
+
+  virtual double getFarthestExtentFromOrigin ( ) const {
+    return center.length() + radius + std::max( ellipse_axis_rad, ellipse_perp_rad );
+  }
+
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+
+    int igm_result;
+
+    iBase_EntityHandle torus;
+
+    iGeom_createTorus( igm, radius, ellipse_perp_rad, &torus, &igm_result );
+    CHECK_IGEOM( igm_result, "Creating initial torus");
+
+    if( ellipse_axis_rad != ellipse_perp_rad ){
+      double scalef = ellipse_axis_rad / ellipse_perp_rad;
+      iGeom_scaleEnt( igm, torus, 1.0, 1.0, scalef, &igm_result );
+      CHECK_IGEOM( igm_result, "Scaling torus" );
+    }
+    
+    if( axis == X ){
+      iGeom_rotateEnt( igm, torus, 90, 0, 1, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating torus (X)" );
+    }
+    else if( axis == Y ){
+      iGeom_rotateEnt( igm, torus, -90, 1, 0, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating torus (Y)" );
+    }
+
+    iGeom_moveEnt( igm, torus, center.v[0], center.v[1], center.v[2], &igm_result);
+    CHECK_IGEOM( igm_result, "moving torus to its center point" );
+    
+    
+    iBase_EntityHandle final_torus = embedWithinWorld( positive, igm, world_size, torus, false );
+
+    return final_torus;
+
+  }
+
+};
+
+class SphereSurface : public SurfaceVolume {
+
+protected:
   Vector3d center;
   double radius;
 
@@ -259,25 +331,89 @@ protected:
     iGeom_moveEnt( igm, sphere, center.v[0], center.v[1], center.v[2], &igm_result );
     CHECK_IGEOM( igm_result, "moving sphere" );
 
-    // sphere now defines the interior sphere volume, corresponding to mcnp's notion of negative sense.
-    // If positive sense is required, we must return the outside of the surface.
 
-    if(positive){
-
-	iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
-	iBase_EntityHandle volume;
-
-	iGeom_subtractEnts( igm, world_sphere, sphere, &volume, &igm_result);
-	CHECK_IGEOM( igm_result, "subtracting sphere" );
-	
-	sphere = volume;
-
-    }
+    iBase_EntityHandle final_sphere = embedWithinWorld( positive, igm, world_size, sphere, false );
     
-    return sphere; 
+    return final_sphere; 
   }
 
 };
+
+
+class BoxVolume : public SurfaceVolume {
+
+protected:
+  Vector3d dimensions;
+  Transform transform;
+  bool invert;
+
+public:
+  BoxVolume( const Vector3d& corner, const Vector3d& v1, const Vector3d& v2, const Vector3d& v3 ) :
+    dimensions( v1.length(), v2.length(), v3.length() ), invert(false)
+  {
+    Vector3d x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
+    Vector3d a1 = v1.normalize(), a2 = v2.normalize(), a3 = v3.normalize();
+    
+    double rot_matrix[9] = 
+      { a1.dot(x), a1.dot(y), a1.dot(z),
+	a2.dot(x), a2.dot(y), a2.dot(z),
+	a3.dot(x), a3.dot(y), a3.dot(z) };
+
+    if( matrix_det(rot_matrix) < 0 ){
+      // negative determinant-- we have an improper rotation (rotation + inversion)
+      if( OPT_DEBUG ){ std::cout << " inverting box" << std::endl; }
+      invert = true;
+      for( int i = 0; i < 9; ++i){ rot_matrix[i] = -rot_matrix[i]; }
+    }
+    
+    transform = Transform( rot_matrix, corner );
+  }
+  
+  virtual double getFarthestExtentFromOrigin ( ) const {
+    return transform.getTranslation().length() + dimensions.length();
+  }
+  
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+
+
+    int igm_result;
+    iBase_EntityHandle box;
+
+    iGeom_createBrick( igm, dimensions.v[0], dimensions.v[1], dimensions.v[2], &box, &igm_result );
+    CHECK_IGEOM( igm_result, "making box" );
+
+    Vector3d halfdim = dimensions.scale( 1.0 / 2.0 );
+    iGeom_moveEnt( igm, box, halfdim.v[0], halfdim.v[1], halfdim.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "moving box (halfdim)" );
+
+    if( transform.hasRot() ){
+      const Vector3d& axis = transform.getAxis();
+      iGeom_rotateEnt( igm, box, transform.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
+      CHECK_IGEOM( igm_result, "rotating box" );
+    }
+    if( invert ){
+      //TODO: ask about the right way to do this.  Rotate seems to work, but I don't really know why...
+      iGeom_rotateEnt( igm, box, 180, 0, 0, 0, &igm_result );
+      //iGeom_reflectEnt( igm, box, 0, 0, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "inverting box" );
+    }
+
+    const Vector3d& v = transform.getTranslation();
+    iGeom_moveEnt( igm, box, v.v[0], v.v[1], v.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "moving box (xform)" );
+
+    iBase_EntityHandle final_box = embedWithinWorld( positive, igm, world_size, box, false );
+
+    return final_box;
+  }
+
+};
+
+
+
+
+
 
 
 
@@ -360,49 +496,61 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
       surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
     }
     else if( mnemonic == "cx" ){
-      surface = new CylinderSurface( CylinderSurface::X, args.at(0) );
+      surface = new CylinderSurface( X, args.at(0) );
     }
     else if( mnemonic == "cy" ){
-      surface = new CylinderSurface( CylinderSurface::Y, args.at(0) );
+      surface = new CylinderSurface( Y, args.at(0) );
     }
     else if( mnemonic == "cz" ){
-      surface = new CylinderSurface( CylinderSurface::Z, args.at(0) );
+      surface = new CylinderSurface( Z, args.at(0) );
     }
     else if( mnemonic == "c/x"){
-      surface = new CylinderSurface( CylinderSurface::X, args.at(2), args.at(0), args.at(1) );
+      surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1) );
     }
     else if( mnemonic == "c/y"){
-      surface = new CylinderSurface( CylinderSurface::Y, args.at(2), args.at(0), args.at(1) );
+      surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1) );
     }
     else if( mnemonic == "c/z"){
-      surface = new CylinderSurface( CylinderSurface::Z, args.at(2), args.at(0), args.at(1) );
+      surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
     }
 #ifdef HAVE_IGEOM_CONE
     else if( mnemonic == "kx"){
       double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      surface = new ConeSurface( ConeSurface::X, args.at(1), args.at(0), arg3 );
+      surface = new ConeSurface( X, args.at(1), args.at(0), arg3 );
     } 
     else if( mnemonic == "ky"){
       double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      surface = new ConeSurface( ConeSurface::Y, args.at(1), args.at(0), arg3 );
+      surface = new ConeSurface( Y, args.at(1), args.at(0), arg3 );
     }
     else if( mnemonic == "kz"){
       double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      surface = new ConeSurface( ConeSurface::Z, args.at(1), args.at(0), arg3 );
+      surface = new ConeSurface( Z, args.at(1), args.at(0), arg3 );
     }
     else if( mnemonic == "k/x" ){
       double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      surface = new ConeSurface( ConeSurface::X, args.at(3), Vector3d(args),  arg5 );
+      surface = new ConeSurface( X, args.at(3), Vector3d(args),  arg5 );
     }
     else if( mnemonic == "k/y" ){
       double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      surface = new ConeSurface( ConeSurface::Y, args.at(3), Vector3d(args),  arg5 );
+      surface = new ConeSurface( Y, args.at(3), Vector3d(args),  arg5 );
     }
     else if( mnemonic == "k/z" ){
       double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      surface = new ConeSurface( ConeSurface::Z, args.at(3), Vector3d(args),  arg5 );
+      surface = new ConeSurface( Z, args.at(3), Vector3d(args),  arg5 );
     }
 #endif /*HAVE_IGEOM_CONE */
+    else if( mnemonic == "tx" ){
+      surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+    } 
+    else if( mnemonic == "ty" ){
+      surface = new TorusSurface( Y, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+    } 
+    else if( mnemonic == "tz" ){
+      surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+    }
+    else if( mnemonic == "box" ){
+      surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+    }
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
