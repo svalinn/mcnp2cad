@@ -93,12 +93,12 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     std:: cout << "  x = " << x << " y = " << y << " z = " << z << std::endl;
   }
 
-  if( std::abs(theta) <= DBL_EPSILON ){ 
+  if( std::fabs(theta) <= DBL_EPSILON ){ 
     // theta is 0 or extremely close to it, so let's say there's no rotation after all.
     has_rot = false; 
     if( OPT_DEBUG ) std::cout << "  (0) "; // endl comes below
   }
-  else if( std::abs( theta - M_PI ) <= DBL_EPSILON ){
+  else if( std::fabs( theta - M_PI ) <= DBL_EPSILON ){
     // theta is pi (180 degrees) or extremely close to it
     // find the column of mat with the largest diagonal
     int col = 0;

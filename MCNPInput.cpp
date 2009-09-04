@@ -887,12 +887,15 @@ protected:
 
   void get_next(){
 
+    bool comment; 
     do{
+      
       if(!std::getline(input, next_line)){
 	has_next = false;
       }
       else{
-	
+
+	comment = false;
 	next_line_idx++;
 
 	// strip trailing carriage return, if any
@@ -908,9 +911,18 @@ protected:
 	// accept them.
 	next_line.append(" ");
 
+	// We want to find "c " within the first five
+	// columns, but not if the c has anything other than a space before it.
+	size_t idx = next_line.find("c ");
+	if( idx < 5 ){
+	  if( idx == 0 || next_line.at(idx-1) == ' '){
+	    comment = true;
+	    std::cout << "Discarding: " << next_line << std::endl;
+	  }
+	}
       }
     }
-    while( has_next && (next_line.find("c ") < 5 ));
+    while( has_next && comment );
     // iterate until next_line is not a comment line.
 
   }

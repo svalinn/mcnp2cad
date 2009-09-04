@@ -66,7 +66,7 @@ public:
     // this is a funny situation, since planes are technically infinte...
     // in order to have a sane answer, we just return the offset from the origin.
     // (multiplied by root 3, which was done in the old converter, why?)
-    return sqrt(3.0) *  std::abs(offset);
+    return sqrt(3.0) *  std::fabs(offset);
   }
 
 protected:
@@ -193,7 +193,11 @@ protected:
   virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
 
     double height = (center.length() + world_size);
-    double base_radius = height * tan( theta / 2 );
+
+    // based on the textual descriptions in the manual, I think the following expression should be 
+    // height * tan ( theta / 2 ) -- unless "opening angle" refers to only half the apex angle
+    // of the cylinder.  This implementation seems to be more correct in examples I can check against.
+    double base_radius = height * tan( theta );
 
     int igm_result;
 
