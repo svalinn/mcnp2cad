@@ -1,0 +1,15 @@
+test rotoinversion (improper rotation)
+1 0 -1
+2 0 -2  trcl=3
+3 0 -3  trcl=3
+4 0 -4  trcl=3
+
+1 3 box -10 0 0 2 0 0 0 2 0 0 0 2
+2 cy .5
+3 cx .5
+4 cz .5
+
+c example transform taken from en.wikipedia.org/wiki/Orthogonal_matrix
+c Should cause a 90-degree rotation about axis (0,-3/5,4/5)
+tr3 0 0 0 0 .8 .6 -.8 -.36 .48 -.60 .48 -.64
+

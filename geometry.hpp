@@ -103,6 +103,7 @@ protected:
   Vector3d translation;
   bool has_rot;
   double theta; Vector3d axis;
+  bool invert;
 
   void set_rots_from_matrix( double raw_matrix[9], enum mat_format  );
 
@@ -114,6 +115,7 @@ public:
 
   const Vector3d& getTranslation() const { return translation; }
   bool hasRot() const{ return has_rot; }
+  bool hasInversion() const{ return invert; }
   double getTheta() const { return theta; }
   const Vector3d& getAxis() const { return axis; }
   void print( std::ostream& str ) const;

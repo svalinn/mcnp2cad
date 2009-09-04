@@ -51,6 +51,76 @@ static iBase_EntityHandle embedWithinWorld( bool positive, iGeom_Instance& igm, 
 }
 
 
+
+iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e ) {
+  
+  int igm_result;
+  if( t.hasRot()  ){
+    const Vector3d& axis = t.getAxis();
+    iGeom_rotateEnt( igm, e, t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "applying rotation" );
+  }
+  
+  if( t.hasInversion() ){
+      //TODO: ask about the right way to do this.  Rotate seems to work, but I don't really know why...
+      iGeom_rotateEnt( igm, e, 180, 0, 0, 0, &igm_result );
+
+    /*if( !t.hasRot() ){
+      iGeom_reflectEnt( igm, e, 0, 0, 1, &igm_result );
+      iGeom_reflectEnt( igm, e, 0, 1, 0, &igm_result );
+      iGeom_reflectEnt( igm, e, 1, 0, 0, &igm_result );
+    }
+    else{
+      const Vector3d& axis = t.getAxis();
+      iGeom_reflectEnt( igm, e, axis.v[0], axis.v[1], axis.v[2], &igm_result );
+      }*/
+
+      CHECK_IGEOM( igm_result, "inverting for transformation" );
+    }
+
+
+  const Vector3d& translation = t.getTranslation();
+  iGeom_moveEnt( igm, e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
+  CHECK_IGEOM( igm_result, "applying translation" );
+  
+  return e;
+}
+
+iBase_EntityHandle applyReverseTransform( const Transform& tx, iGeom_Instance& igm, iBase_EntityHandle& e ) {
+  
+  int igm_result;
+  Transform rev_t = tx.reverse();
+
+  const Vector3d& translation = rev_t.getTranslation();
+  iGeom_moveEnt( igm, e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
+  CHECK_IGEOM( igm_result, "applying reverse translation" );
+
+  if( rev_t.hasInversion() ){
+    iGeom_rotateEnt( igm, e, 180, 0, 0, 0, &igm_result );
+    CHECK_IGEOM( igm_result, "inverting for reverse transformation" );
+  }
+
+  if( rev_t.hasRot() ){
+    const Vector3d& axis = rev_t.getAxis();
+    iGeom_rotateEnt( igm, e, rev_t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "applying rotation" );
+  }
+  
+  
+  return e;
+}
+
+
+iBase_EntityHandle SurfaceVolume::define( bool positive, iGeom_Instance& igm, double world_size ){
+  iBase_EntityHandle handle = this->getHandle( positive, igm, world_size );
+  if( transform ){
+    handle = applyTransform( *transform, igm, handle );
+  }
+  return handle;
+}
+
+
+
 class PlaneSurface : public SurfaceVolume { 
 
 protected:
@@ -344,34 +414,29 @@ protected:
 };
 
 
+static Transform axesImage( const Vector3d& v1, const Vector3d& v2, const Vector3d &v3, const Vector3d& translation = Vector3d() )
+{
+  Vector3d x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
+  Vector3d a1 = v1.normalize(), a2 = v2.normalize(), a3 = v3.normalize();
+    
+  double rot_matrix[9] = 
+    { a1.dot(x), a1.dot(y), a1.dot(z),
+      a2.dot(x), a2.dot(y), a2.dot(z),
+      a3.dot(x), a3.dot(y), a3.dot(z) };
+  
+  return Transform( rot_matrix, translation );
+}
+
 class BoxVolume : public SurfaceVolume {
 
 protected:
   Vector3d dimensions;
   Transform transform;
-  bool invert;
 
 public:
   BoxVolume( const Vector3d& corner, const Vector3d& v1, const Vector3d& v2, const Vector3d& v3 ) :
-    dimensions( v1.length(), v2.length(), v3.length() ), invert(false)
-  {
-    Vector3d x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
-    Vector3d a1 = v1.normalize(), a2 = v2.normalize(), a3 = v3.normalize();
-    
-    double rot_matrix[9] = 
-      { a1.dot(x), a1.dot(y), a1.dot(z),
-	a2.dot(x), a2.dot(y), a2.dot(z),
-	a3.dot(x), a3.dot(y), a3.dot(z) };
-
-    if( matrix_det(rot_matrix) < 0 ){
-      // negative determinant-- we have an improper rotation (rotation + inversion)
-      if( OPT_DEBUG ){ std::cout << " inverting box" << std::endl; }
-      invert = true;
-      for( int i = 0; i < 9; ++i){ rot_matrix[i] = -rot_matrix[i]; }
-    }
-    
-    transform = Transform( rot_matrix, corner );
-  }
+    dimensions( v1.length(), v2.length(), v3.length() ), transform( axesImage(v1,v2,v3,corner) )
+  {}
   
   virtual double getFarthestExtentFromOrigin ( ) const {
     return transform.getTranslation().length() + dimensions.length();
@@ -391,22 +456,7 @@ protected:
     iGeom_moveEnt( igm, box, halfdim.v[0], halfdim.v[1], halfdim.v[2], &igm_result );
     CHECK_IGEOM( igm_result, "moving box (halfdim)" );
 
-    if( transform.hasRot() ){
-      const Vector3d& axis = transform.getAxis();
-      iGeom_rotateEnt( igm, box, transform.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
-      CHECK_IGEOM( igm_result, "rotating box" );
-    }
-    if( invert ){
-      //TODO: ask about the right way to do this.  Rotate seems to work, but I don't really know why...
-      iGeom_rotateEnt( igm, box, 180, 0, 0, 0, &igm_result );
-      //iGeom_reflectEnt( igm, box, 0, 0, 0, &igm_result );
-      CHECK_IGEOM( igm_result, "inverting box" );
-    }
-
-    const Vector3d& v = transform.getTranslation();
-    iGeom_moveEnt( igm, box, v.v[0], v.v[1], v.v[2], &igm_result );
-    CHECK_IGEOM( igm_result, "moving box (xform)" );
-
+    box = applyTransform( transform, igm, box );
     iBase_EntityHandle final_box = embedWithinWorld( positive, igm, world_size, box, false );
 
     return final_box;
@@ -419,7 +469,9 @@ protected:
 
 
 
+//class RccVolume : public SurfaceVolume {
 
+//};
 
 
 

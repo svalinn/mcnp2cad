@@ -61,8 +61,16 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     std::cout << "  det = " << det << std::endl;
   }
 
-  if( fabs( matrix_det(raw_matrix)-1 ) > DBL_EPSILON ){
-    std::cout << "Warning: determinant of rotation matrix " << det << " != 1" << std::endl;
+  if( det < 0.0 ){
+    // negative determinant-> this transformation contains a reflection.
+    invert = true;
+    det *= -1;
+    for( int i = 0; i < 9; i++){  mat[i/3][i%3] = -mat[i/3][i%3]; } 
+    if( OPT_DEBUG ) std::cout << "  negative determinant => improper rotation (adding inversion)" << std::endl;
+  }
+  
+  if( fabs( det - 1.0 ) > DBL_EPSILON ){
+    std::cout << "Warning: determinant of rotation matrix " << det << " != +-1" << std::endl;
   }
 
   /* Older, more straightforward approach:
@@ -96,6 +104,7 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
   if( std::fabs(theta) <= DBL_EPSILON ){ 
     // theta is 0 or extremely close to it, so let's say there's no rotation after all.
     has_rot = false; 
+    axis = Vector3d(); // zero vector
     if( OPT_DEBUG ) std::cout << "  (0) "; // endl comes below
   }
   else if( std::fabs( theta - M_PI ) <= DBL_EPSILON ){
@@ -105,10 +114,10 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     if( mat[1][1] > mat[col][col] ){ col = 1; }
     if( mat[2][2] > mat[col][col] ){ col = 2; }
 
-    axis.v[0] = sqrt( (mat[col][col]+1)/2 ); 
-    double denom = 2*axis.v[0];
-    axis.v[1] = mat[col][(col+1)%3] / denom;
-    axis.v[2] = mat[col][(col+2)%3] / denom;
+    axis.v[col] = sqrt( (mat[col][col]+1)/2 ); 
+    double denom = 2*axis.v[col];
+    axis.v[(col+1)%3] = mat[col][(col+1)%3] / denom;
+    axis.v[(col+2)%3] = mat[col][(col+2)%3] / denom;
 
     if( OPT_DEBUG ) std::cout << "  (180) "; // endl comes below
 
@@ -129,13 +138,13 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
 }
 
 Transform::Transform( double rot[9], const Vector3d& trans, enum mat_format f ) :
-  translation(trans), has_rot(true)
+  translation(trans), has_rot(true), invert(false)
 {
   set_rots_from_matrix( rot, f );
 }
 
 Transform::Transform( const std::vector< double >& inputs,  bool degree_format_p, enum mat_format f ) : 
-  has_rot(false)
+  has_rot(false), invert(false)
 {
   
   size_t num_inputs = inputs.size();
@@ -188,6 +197,7 @@ Transform Transform::reverse() const {
   Transform t;
   t.translation = -this->translation;
   t.has_rot = this->has_rot;
+  t.invert = this->invert;
   t.axis = -this->axis;
   t.theta = this->theta;
   return t;
@@ -197,6 +207,9 @@ void Transform::print( std::ostream& str ) const{
   str << "[trans " << translation;
   if(has_rot){
     str << "(" << theta << ":" << axis << ")";
+  }
+  if(invert){
+    str << "(I)";
   }
   str << "]";
 }

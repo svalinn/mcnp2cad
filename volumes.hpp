@@ -44,6 +44,12 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v = NULL );
 extern 
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ); 
 
+extern
+iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e );
+
+extern
+iBase_EntityHandle applyReverseTransform( const Transform& tx, iGeom_Instance& igm, iBase_EntityHandle& e ) ;
+
 
 
 

@@ -117,54 +117,6 @@ static bool boundBoxesIntersect( iGeom_Instance igm, iBase_EntityHandle h1, iBas
 
 
 
-iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e ) {
-  
-  int igm_result;
-  if( t.hasRot() ){
-    const Vector3d& axis = t.getAxis();
-    iGeom_rotateEnt( igm, e, t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
-    CHECK_IGEOM( igm_result, "applying rotation" );
-  }
-  
-  const Vector3d& translation = t.getTranslation();
-  iGeom_moveEnt( igm, e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
-  CHECK_IGEOM( igm_result, "applying translation" );
-  
-  return e;
-}
-
-iBase_EntityHandle applyReverseTransform( const Transform& tx, iGeom_Instance& igm, iBase_EntityHandle& e ) {
-  
-  int igm_result;
-  Transform rev_t = tx.reverse();
-
-  const Vector3d& translation = rev_t.getTranslation();
-  iGeom_moveEnt( igm, e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
-  CHECK_IGEOM( igm_result, "applying reverse translation" );
-
-  if( rev_t.hasRot() ){
-    const Vector3d& axis = rev_t.getAxis();
-    iGeom_rotateEnt( igm, e, rev_t.getTheta(), axis.v[0], axis.v[1], axis.v[2], &igm_result );
-    CHECK_IGEOM( igm_result, "applying rotation" );
-  }
-  
-  
-  return e;
-}
-
-
-iBase_EntityHandle SurfaceVolume::define( bool positive, iGeom_Instance& igm, double world_size ){
-  iBase_EntityHandle handle = this->getHandle( positive, igm, world_size );
-  if( transform ){
-    handle = applyTransform( *transform, igm, handle );
-  }
-  return handle;
-}
-
-
-
-
-
 class GeometryContext {
 
 protected:

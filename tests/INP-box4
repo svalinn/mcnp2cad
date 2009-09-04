@@ -1,0 +1,29 @@
+Tests boxes in axis orientations
+c cells
+ 10 0 -10 fill 3 trcl 5
+ 1 0 -1 u 3
+ 2 0 -2 u 3
+ 3 0 -3 u 3
+ 4 0 -4 u 3
+ 5 0 -5 u 3
+ 6 0 -6 u 3
+ 7 0 -7 u 3
+ 8 0 -8 u 3
+
+c surfaces
+1  box 0 0 0  2 0 0  0  2 0  0 0  2
+2  box 0 0 0  2 0 0  0  2 0  0 0 -2
+3  box 0 0 0  2 0 0  0 -2 0  0 0  2
+4  box 0 0 0  2 0 0  0 -2 0  0 0 -2
+5  box 0 0 0 -2 0 0  0  2 0  0 0  2
+6  box 0 0 0 -2 0 0  0  2 0  0 0 -2
+7  box 0 0 0 -2 0 0  0 -2 0  0 0  2
+8  box 0 0 0 -2 0 0  0 -2 0  0 0 -2
+c 10 box 2 2 2 -4 0 0  0 -4 0  0 0 -4
+c For some reason a tightly-bounded container over surfaces 1-8
+c causes ACIS to issues errors and produce some garbage.  
+c That's annoying.  Since we're here to tests boxes,
+c just create a slightly larger container than necessary.
+10 rpp -2.1 2.1 -2.1 2.1 -2.1 2.1
+
+tr5*  -1 -1 -1   40 130 90 50 40 90 90 90 0
