@@ -1,5 +1,6 @@
 #include <iostream>
 #include <map>
+#include <cfloat>
 
 #include <cassert>
 
@@ -414,6 +415,7 @@ protected:
 };
 
 
+
 static Transform axesImage( const Vector3d& v1, const Vector3d& v2, const Vector3d &v3, const Vector3d& translation = Vector3d() )
 {
   Vector3d x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
@@ -426,6 +428,27 @@ static Transform axesImage( const Vector3d& v1, const Vector3d& v2, const Vector
   
   return Transform( rot_matrix, translation );
 }
+
+static Transform imageZAxisTo( const Vector3d& v, const Vector3d& translation = Vector3d() ){
+  // approach: find two vectors perpendicular to v, then use axesImage.
+  Vector3d a = v.normalize();
+
+  Vector3d x(1, 0, 0);
+  Vector3d b = x.cross( v.normalize() );
+  
+  if( b.length() < DBL_EPSILON ){
+    // v is indistinguishable from the x axis
+    b = Vector3d(0, -1, 0);
+    std::cout << "Changing v " << std::endl;
+  }
+
+  Vector3d c = b.cross( v.normalize() );
+  return axesImage( c, b, a, translation );
+  
+
+}
+
+
 
 class BoxVolume : public SurfaceVolume {
 
@@ -465,13 +488,78 @@ protected:
 };
 
 
+class RppVolume : public SurfaceVolume {
+
+protected:
+  Vector3d dimensions;
+  Vector3d center_offset;
+
+public:
+  RppVolume( const Vector3d& lower, const Vector3d& upper ) 
+  {
+    for( int i = 0; i < 3; ++i ){
+      dimensions.v[i]    = upper.v[i] - lower.v[i];
+      center_offset.v[i] = (upper.v[i]+lower.v[i]) / 2.0;
+    }
+  }
+  
+  virtual double getFarthestExtentFromOrigin ( ) const {
+    return dimensions.length() + center_offset.length();
+  }
+  
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+
+    int igm_result;
+    iBase_EntityHandle rpp;
+
+    iGeom_createBrick( igm, dimensions.v[0], dimensions.v[1], dimensions.v[2], &rpp, &igm_result );
+    CHECK_IGEOM( igm_result, "making rpp" );
+
+    iGeom_moveEnt( igm, rpp, center_offset.v[0], center_offset.v[1], center_offset.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "moving rpp" );
+
+    iBase_EntityHandle final_rpp = embedWithinWorld( positive, igm, world_size, rpp, false );
+    return final_rpp;
+  }
+
+};
 
 
 
+class RccVolume : public SurfaceVolume {
 
-//class RccVolume : public SurfaceVolume {
+protected:
+  Vector3d base_center;
+  Transform transform;
+  double length, radius;
 
-//};
+public:
+  RccVolume( const Vector3d& center_p, const Vector3d& axis, double radius_p ) :
+    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), radius(radius_p) 
+  {}
+
+  virtual double getFarthestExtentFromOrigin ( ) const {
+    return base_center.length() + length + radius;
+  }
+
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+    int igm_result;
+    iBase_EntityHandle rcc;
+
+    iGeom_createCylinder( igm, length, radius, 0, &rcc, &igm_result );
+    CHECK_IGEOM( igm_result, "creating rcc" );
+    
+    iGeom_moveEnt( igm, rcc, 0, 0, length / 2.0, &igm_result );
+    CHECK_IGEOM( igm_result, "moving rcc" );
+
+    rcc = applyTransform( transform, igm, rcc );
+    iBase_EntityHandle final_rcc = embedWithinWorld( positive, igm, world_size, rcc, false );
+    return final_rcc;
+  }
+
+};
 
 
 
@@ -606,6 +694,12 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
     }
     else if( mnemonic == "box" ){
       surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+    }
+    else if( mnemonic == "rpp" ){
+      surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
+    }
+    else if( mnemonic == "rcc" ){
+      surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
     }
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
