@@ -917,7 +917,6 @@ protected:
 	if( idx < 5 ){
 	  if( idx == 0 || next_line.at(idx-1) == ' '){
 	    comment = true;
-	    std::cout << "Discarding: " << next_line << std::endl;
 	  }
 	}
       }
