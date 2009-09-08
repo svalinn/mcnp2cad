@@ -64,17 +64,17 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
   
   if( t.hasInversion() ){
       //TODO: ask about the right way to do this.  Rotate seems to work, but I don't really know why...
-      iGeom_rotateEnt( igm, e, 180, 0, 0, 0, &igm_result );
+      //iGeom_rotateEnt( igm, e, 180, 0, 0, 0, &igm_result );
 
-    /*if( !t.hasRot() ){
+    //if( !t.hasRot() ){
       iGeom_reflectEnt( igm, e, 0, 0, 1, &igm_result );
       iGeom_reflectEnt( igm, e, 0, 1, 0, &igm_result );
       iGeom_reflectEnt( igm, e, 1, 0, 0, &igm_result );
-    }
-    else{
-      const Vector3d& axis = t.getAxis();
-      iGeom_reflectEnt( igm, e, axis.v[0], axis.v[1], axis.v[2], &igm_result );
-      }*/
+      //}
+      //else{
+      //   const Vector3d& axis = t.getAxis();
+      //   iGeom_reflectEnt( igm, e, axis.v[0], axis.v[1], axis.v[2], &igm_result );
+      //   }
 
       CHECK_IGEOM( igm_result, "inverting for transformation" );
     }
@@ -421,11 +421,14 @@ static Transform axesImage( const Vector3d& v1, const Vector3d& v2, const Vector
   Vector3d x(1, 0, 0), y(0, 1, 0), z(0, 0, 1);
   Vector3d a1 = v1.normalize(), a2 = v2.normalize(), a3 = v3.normalize();
     
+  if( OPT_DEBUG ) std::cout << "Axes image: " << a1 << " : " << a2 << " : " << a3 << std::endl;
+
   double rot_matrix[9] = 
-    { a1.dot(x), a1.dot(y), a1.dot(z),
-      a2.dot(x), a2.dot(y), a2.dot(z),
-      a3.dot(x), a3.dot(y), a3.dot(z) };
+    { a1.dot(x), a2.dot(x), a3.dot(x),
+      a1.dot(y), a2.dot(y), a3.dot(y),
+      a1.dot(z), a2.dot(z), a3.dot(z) };
   
+
   return Transform( rot_matrix, translation );
 }
 
@@ -526,6 +529,47 @@ protected:
 };
 
 
+class RecVolume : public SurfaceVolume { 
+
+protected:
+  Vector3d base_center;
+  Transform transform;
+  double length, radius1, radius2;
+
+public:
+  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, const Vector3d& v2 ) :
+    base_center( center_p ), transform( axesImage( v1, v2, axis, center_p ) ), 
+    length( axis.length() ), radius1( v1.length() ), radius2( v2.length() )
+  {}
+
+  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, double length2 ) :
+    base_center( center_p ), transform( axesImage( v1, v1.cross(axis), axis, center_p ) ), 
+    length( axis.length() ), radius1( v1.length() ), radius2( length2 )
+  {}
+
+  virtual double getFarthestExtentFromOrigin ( ) const {
+    return base_center.length() + length + std::max( radius1, radius2 );
+  }
+
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+    int igm_result;
+    iBase_EntityHandle rec;
+    
+    iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );
+    CHECK_IGEOM( igm_result, "creating rec" );
+    
+
+    double movement_factor = length / 2.0;
+    iGeom_moveEnt( igm, rec, 0, 0, movement_factor, &igm_result );
+    CHECK_IGEOM( igm_result, "moving rec" );
+    
+    rec = applyTransform( transform, igm, rec );
+    iBase_EntityHandle final_rec = embedWithinWorld( positive, igm, world_size, rec, false );
+    return final_rec;
+  }
+};
+
 
 class RccVolume : public SurfaceVolume {
 
@@ -551,7 +595,8 @@ protected:
     iGeom_createCylinder( igm, length, radius, 0, &rcc, &igm_result );
     CHECK_IGEOM( igm_result, "creating rcc" );
     
-    iGeom_moveEnt( igm, rcc, 0, 0, length / 2.0, &igm_result );
+    double movement_factor = length / 2.0;
+    iGeom_moveEnt( igm, rcc, 0, 0, movement_factor, &igm_result );
     CHECK_IGEOM( igm_result, "moving rcc" );
 
     rcc = applyTransform( transform, igm, rcc );
@@ -561,6 +606,43 @@ protected:
 
 };
 
+
+#ifdef HAVE_IGEOM_CONE
+class TrcVolume : public SurfaceVolume { 
+
+protected:
+  Vector3d base_center;
+  Transform transform;
+  double length, radius1, radius2;
+
+public:
+  TrcVolume( const Vector3d& center_p, const Vector3d& axis, double radius1_p, double radius2_p ) :
+    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), 
+    radius1(radius1_p), radius2(radius2_p) 
+  {}
+
+  virtual double getFarthestExtentFromOrigin ( ) const {
+    return base_center.length() + length + std::max(radius1,radius2);
+  }
+
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+    int igm_result;
+    iBase_EntityHandle trc;
+
+    iGeom_createCone( igm, length, radius1, 0, radius2, &trc, &igm_result );
+    CHECK_IGEOM( igm_result, "creating trc" );
+    
+    iGeom_moveEnt( igm, trc, 0, 0, length / 2.0, &igm_result );
+    CHECK_IGEOM( igm_result, "moving trc" );
+
+    trc = applyTransform( transform, igm, trc );
+    iBase_EntityHandle final_trc = embedWithinWorld( positive, igm, world_size, trc, false );
+    return final_trc;
+  }
+
+};
+#endif
 
 
 class VolumeCache{
@@ -682,6 +764,9 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
       double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
       surface = new ConeSurface( Z, args.at(3), Vector3d(args),  arg5 );
     }
+    else if( mnemonic == "trc" ){
+      surface = new TrcVolume( Vector3d(args), Vector3d(args,3), args.at(6), args.at(7) );
+    }
 #endif /*HAVE_IGEOM_CONE */
     else if( mnemonic == "tx" ){
       surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
@@ -700,6 +785,14 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
     }
     else if( mnemonic == "rcc" ){
       surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
+    }
+    else if( mnemonic == "rec" ){
+      if( args.size() == 10 ){
+	surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9) );
+      }
+      else{
+	surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+      }
     }
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );

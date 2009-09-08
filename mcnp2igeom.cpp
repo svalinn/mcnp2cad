@@ -197,7 +197,7 @@ void GeometryContext::setMaterialsAsGroups( ){
   
   iGeom_getTagSizeBytes( igm, name_tag, &name_tag_maxlength, &igm_result );
   CHECK_IGEOM( igm_result, "Querying NAME tag length" );
-  std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
+  if( OPT_DEBUG ) std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
 
   for( std::map<iBase_EntityHandle,material_t>::iterator i = material_map.begin(); i != material_map.end(); ++i ){
     std::map< material_t, iBase_EntitySetHandle>::iterator j = groups.find((*i).second);
@@ -207,7 +207,8 @@ void GeometryContext::setMaterialsAsGroups( ){
       iBase_EntitySetHandle set;
       iGeom_createEntSet( igm, 0, &set, &igm_result );
       CHECK_IGEOM( igm_result, "Creating a new entity set " );
-      std::cout << "New set " << set << std::endl;
+      
+      if( OPT_DEBUG ) std::cout << "New entset " << set << std::endl;
 
       last_set = set;
 
@@ -243,6 +244,8 @@ void GeometryContext::setMaterialsAsGroups( ){
       CHECK_IGEOM( igm_result, "Naming an entity set" );
 
   }
+
+  std::cout << "Created " << groups.size() << " material groups." << std::endl;
 
 }
 

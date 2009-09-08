@@ -971,6 +971,36 @@ public:
 
 };
 
+/** 
+ * Append a single token to the given list of tokens.
+ * The token is assumed to be lowercase, free of comments, and non-blank.  
+ * This function is for handling shortcut
+ * syntax, e.g. 1 4r, which should translate into four copies of the token 1
+ */
+void appendToTokenList( const std::string& token, token_list_t& tokens ){
+  if( token.find_first_of("123456789") == 0 && token.at(token.length()-1) == 'r' ){
+    // token starts with a number and ends with r: treat as repeat syntax.
+    const char* string = token.c_str();
+    char* p;
+    int num = strtol( string, &p, 10 );
+    if( (p - string) != static_cast<int>(token.length()) - 1 ){
+      // oops, this isn't repeat format after all
+      tokens.push_back(token);
+      return;
+    }
+
+    if( OPT_DEBUG ) { std::cout << "Repeat syntax: " << token << " repeats " 
+				<< tokens.back() << " " << num << " times." << std::endl; }
+
+    for( int i = 0; i < num; ++i){
+      const std::string& last_tok = tokens.back();
+      tokens.push_back( last_tok );
+    }
+  }
+  else{
+    tokens.push_back(token);
+  }
+}
 
 void tokenizeLine( std::string line, token_list_t& tokens, const char* extra_separators = "" ){
   
@@ -996,14 +1026,14 @@ void tokenizeLine( std::string line, token_list_t& tokens, const char* extra_sep
       if(idx > 0){
 	// this token had some data before the $
 	t.resize(idx);
-	tokens.push_back(t);
+	appendToTokenList( t, tokens );
       }
       break;
     }
 
     // if the token is nontrivial, save it
     // necessary because stringstream may return a "" at the end of lines.
-    if(t.length() > 0)  tokens.push_back(t);
+    if(t.length() > 0)  appendToTokenList( t, tokens );
   }
 
 }
@@ -1037,11 +1067,11 @@ void InputDeck::parseCells( LineExtractor& lines ){
 
     tokenizeLine(line, token_buffer, "=");
     
-    if( lines.peekLine().find("     ") == 0){
+    if( token_buffer.at(token_buffer.size()-1) == "&" ){
+      token_buffer.pop_back(); 
       continue;
     }
-    else if( token_buffer.at(token_buffer.size()-1) == "&" ){
-      token_buffer.pop_back();
+    else if( lines.peekLine().find("     ") == 0){
       continue;
     }
 
@@ -1097,14 +1127,14 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
 
     tokenizeLine(line, token_buffer );
     
-    if( lines.peekLine().find("     ") == 0){
-      continue;
-    }
-    else if( token_buffer.at(token_buffer.size()-1) == "&" ){
+    if( token_buffer.at(token_buffer.size()-1) == "&" ){
       token_buffer.pop_back();
       continue;
     }
-
+    else if( lines.peekLine().find("     ") == 0){
+      continue;
+    }
+   
     SurfaceCard* s = new SurfaceCard(*this, token_buffer);
 
     if( OPT_VERBOSE) s->print(std::cout);
@@ -1126,11 +1156,11 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
 
     tokenizeLine(line, token_buffer );
     
-    if( lines.hasLine() && lines.peekLine().find("     ") == 0){
-      continue;
-    }
-    else if( token_buffer.at(token_buffer.size()-1) == "&" ){
+    if( token_buffer.at(token_buffer.size()-1) == "&" ){
       token_buffer.pop_back();
+      continue;
+    }    
+    else if( lines.hasLine() && lines.peekLine().find("     ") == 0){
       continue;
     }
     else if( token_buffer.at(0) == "#" ){
