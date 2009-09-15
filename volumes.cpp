@@ -16,6 +16,9 @@ static Vector3d origin(0,0,0);
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
   iBase_EntityHandle world_sphere;
   int igm_result;
+  // Note: I tried using createBrick instead of createSphere to bound the universe with a box
+  // instead of a sphere.  This worked but led to a substantial increase in run times and
+  // memory usage, so should be avoided.
   iGeom_createSphere( igm, world_size, &world_sphere, &igm_result);
   CHECK_IGEOM( igm_result, "making world sphere" );
   return world_sphere;

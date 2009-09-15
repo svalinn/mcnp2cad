@@ -156,7 +156,8 @@ public:
   std::string uprefix() { 
     return std::string( universe_depth, ' ' );
   }
-
+						
+  iBase_EntityHandle createGraveyard();
   void createGeometry( );
 
 };
@@ -695,6 +696,36 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
  
 }
 
+iBase_EntityHandle GeometryContext::createGraveyard( ) {
+  iBase_EntityHandle inner, outer, graveyard, inner_copy = NULL;
+  int igm_result;
+
+  if( opt.make_graveyard ){
+    
+    double inner_size = 2.0 * world_size;
+    iGeom_createBrick( igm, inner_size, inner_size, inner_size, &inner, &igm_result );
+    CHECK_IGEOM( igm_result, "Making graveyard" );
+    
+    iGeom_copyEnt( igm, inner, &inner_copy, &igm_result );
+    CHECK_IGEOM( igm_result, "Copying graveyard" );
+    
+    double outer_size = 2.0 * ( world_size + (world_size / 100.0) );
+    iGeom_createBrick( igm, outer_size, outer_size, outer_size, &outer, &igm_result );
+    CHECK_IGEOM( igm_result, "Making outer graveyard" );
+
+    iGeom_subtractEnts( igm, outer, inner, &graveyard, &igm_result );
+    CHECK_IGEOM( igm_result, "subtracting graveyard" );
+
+    // reset world size to a sphere that bounds the inner shell of this graveyard
+    world_size *= sqrt(3.0);
+
+    if( OPT_DEBUG ) std::cout << "Spherical world size for graveyard: " << world_size << std::endl;
+  }
+  
+  return inner_copy;
+
+}
+
 void GeometryContext::createGeometry( ){
 
   int igm_result;
@@ -720,9 +751,11 @@ void GeometryContext::createGeometry( ){
 
   std::cout << "World size: " << world_size << " (trs added " << translation_addition << ")" << std::endl;
 
+  iBase_EntityHandle graveyard = createGraveyard(); // will be null if -g wasn't specified on command line
+
   std::cout << "Defining geometry..." << std::endl;
 
-  entity_collection_t defined_cells = defineUniverse( 0 );
+  entity_collection_t defined_cells = defineUniverse( 0, graveyard );
 
   size_t count = defined_cells.size();
   iBase_EntityHandle *cell_array = new iBase_EntityHandle[ count ];
@@ -730,6 +763,7 @@ void GeometryContext::createGeometry( ){
     cell_array[i] = defined_cells[i];
   }
 
+  
 
   if( opt.tag_materials ){
     if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
@@ -800,6 +834,7 @@ int main(int argc, char* argv[]){
   // set default options
   opt.verbose = opt.debug = false;
   opt.tag_materials = false;
+  opt.make_graveyard = false;
   opt.input_file = NULL;
   opt.output_file = "out.sat";
   opt.igeom_init_options = "";
@@ -845,6 +880,9 @@ int main(int argc, char* argv[]){
     }
     else if( arg == "-m" ){
       opt.tag_materials = true;
+    }
+    else if( arg == "-g" ){
+      opt.make_graveyard = true;
     }
     else if( arg == "-D" ){
       opt.debug   = true;
@@ -937,6 +975,7 @@ void printHelp( const char* progname, std::ostream& out ){
     "  -o OUTPUT             Give name of output file (default: " << OPT_DEFAULT_OUTPUT_FILENAME << ")\n" <<
     "  -t VALUE              Give tolerance for merge step\n" << 
     "  -m                    Tag materials using group names\n" << 
+    "  -g                    Bound the geometry with a `graveyard' bounding box\n" << 
     "  -v                    Verbose output\n" <<
     "  -D                    Debugging (super-verbose) output\n" <<
     "  -Di                   Debugging output for MCNP parsing phase only\n" <<
