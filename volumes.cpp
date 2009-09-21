@@ -648,6 +648,76 @@ protected:
 #endif
 
 
+class HexVolume : public SurfaceVolume { 
+
+protected:
+  Vector3d base_center;
+  Vector3d heightV, RV, SV, TV; 
+  //Transform transform;
+
+public:
+  HexVolume( const Vector3d& center_p, const Vector3d& h_p, const Vector3d& r_p, 
+	     const Vector3d& s_p, const Vector3d& t_p ) :
+    base_center(center_p), heightV(h_p), RV(r_p), SV(s_p), TV(t_p)
+  {}
+
+  HexVolume( const Vector3d& center_p, const Vector3d& h_p, const Vector3d& r_p ) :
+    base_center(center_p), heightV(h_p), RV(r_p), SV( r_p.rotate_about(h_p,60.0) ), TV( r_p.rotate_about(h_p,120.0) )
+  {
+    if( OPT_DEBUG ){ 
+      std::cout << "Inferred vectors for 9-args HEX/RHP:" << RV << SV << TV << std::endl;
+    }
+  }
+
+  virtual double getFarthestExtentFromOrigin ( ) const { 
+    double hex_max = std::max( RV.length(), std::max( SV.length(), TV.length() ) );
+    return base_center.length() + heightV.length() + hex_max; 
+  }
+
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+    int igm_result;
+    iBase_EntityHandle hex;
+
+    hex = makeWorldSphere( igm, world_size );
+
+    Vector3d b = - heightV.normalize();
+    iGeom_sectionEnt( igm, hex, b.v[0], b.v[1], b.v[2], 0, true, &hex, &igm_result );
+    CHECK_IGEOM( igm_result, "Sectioning world for a hex (1)" );
+
+    b = -b;
+    iGeom_sectionEnt( igm, hex, b.v[0], b.v[1], b.v[2], heightV.length(), true, &hex, &igm_result );
+    CHECK_IGEOM( igm_result, "Sectioning world for a hex (2)" );
+
+
+    
+    const Vector3d* vec[3] = {&RV, &SV, &TV};
+    for( int i = 0; i < 3; ++i ){
+      Vector3d v = *(vec[i]);
+      double length = v.length(); 
+      v = v.normalize();
+      
+      iGeom_sectionEnt( igm, hex, v.v[0], v.v[1], v.v[2], length, true, &hex, &igm_result );
+      CHECK_IGEOM( igm_result, "Sectioning world for a hex (3)" );
+      
+      v = -v;
+      iGeom_sectionEnt( igm, hex, v.v[0], v.v[1], v.v[2], length, true, &hex, &igm_result );
+      CHECK_IGEOM( igm_result, "Sectioning world for a hex (4)" );
+      
+
+    }
+
+    iGeom_moveEnt( igm, hex, base_center.v[0], base_center.v[1], base_center.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "Moving hex" );
+
+    iBase_EntityHandle final_hex = embedWithinWorld( positive, igm, world_size, hex, false );
+    return final_hex;
+
+  }
+
+};
+
+
 class VolumeCache{
 
 protected:
@@ -795,6 +865,14 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
       }
       else{
 	surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+      }
+    }
+    else if( mnemonic == "hex" || mnemonic == "rhp" ){
+      if( args.size() == 9 ){
+	surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
+      }
+      else{
+	surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
       }
     }
     else{

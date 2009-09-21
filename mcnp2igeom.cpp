@@ -136,7 +136,7 @@ public:
     igm(igm_p), deck(deck_p), world_size(0.0), universe_depth(0)
   {}
 
-  bool defineLatticeNode( const Lattice& lattice, int lattice_universe, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
+  bool defineLatticeNode( CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
 			  int x, int y, int z, entity_collection_t& accum );
   
 
@@ -271,8 +271,7 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
 
   std::cout << "Map sanity check: root set size = " << size << " (" << num_regions << ")" << std::endl;
   std::cout << "Cell count: " << count << std::endl;
-  if( static_cast<unsigned>(size) != count ){ std::cout << "WARNING: sizes differ; there may be gremlins in your geometry." << std::endl; }
-
+  
   std::cout << "Map sanity check: cells with material properties set = " << material_map.size() << std::endl;
 
   // sanity conditions: all the keys in material_map are in the cells list
@@ -297,10 +296,12 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
 }
 
 
-bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_universe,
-					  iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
+bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
 					  int x, int y, int z, entity_collection_t& accum )
 {
+  const Lattice& lattice = cell.getLattice();
+  int lattice_universe =   cell.getUniverse();
+
   const FillNode* fn = &(lattice.getFillForNode( x, y, z ));				
   Transform t = lattice.getTxForNode( x, y, z );	
   int igm_result;
@@ -326,9 +327,12 @@ bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_un
     return true;
   }
   else if( fn->getFillingUniverse() == lattice_universe ){
+    // this node is just a translated copy of the origin element in the lattice
+    setMaterial( cell_copy, cell.getMat(), cell.getRho() );
     node_subcells.push_back( cell_copy );
   }
   else{
+    // this node has an embedded universe
 
     iBase_EntityHandle cell_copy_unmoved;
     iGeom_copyEnt( igm, cell_shell, &cell_copy_unmoved, &igm_result );
@@ -343,6 +347,7 @@ bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_un
 
   }
 
+  // bound the node with the enclosing lattice shell
   bool success = false;
   for( size_t i = 0; i < node_subcells.size(); ++i ){
     iBase_EntityHandle lattice_shell_copy;
@@ -350,6 +355,7 @@ bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_un
 
     iBase_EntityHandle result;
     if( intersectIfPossible( igm, lattice_shell_copy, node_subcells[i], &result, true ) ){
+      updateMaps( node_subcells[i], result );
       if( OPT_DEBUG ) std::cout << " node defined successfully" << std::endl;
       accum.push_back( result );
       success = true;
@@ -357,6 +363,7 @@ bool GeometryContext::defineLatticeNode(  const Lattice& lattice, int lattice_un
     else{ 
       // lattice_shell_copy and node_subcells[i] were deleted by intersectIfPossible(),
       // so there's no need to delete them explicitly
+      updateMaps( node_subcells[i], NULL );
       if( OPT_DEBUG ) std::cout << " node failed intersection" << std::endl;
     }
   }
@@ -465,7 +472,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 
 	    if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
 
-	    /* bool success = */ defineLatticeNode( lattice, cell.getUniverse(), cell_shell, lattice_shell, i, j, k, subcells );
+	    /* bool success = */ defineLatticeNode( cell, cell_shell, lattice_shell, i, j, k, subcells );
 
 	    if( num_dims < 3 ) break; // from z loop
 	  }
@@ -493,7 +500,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 	  
 	  if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
 
-	  bool success = defineLatticeNode( lattice, cell.getUniverse(), cell_shell, lattice_shell, x, y, z, subcells );
+	  bool success = defineLatticeNode( cell, cell_shell, lattice_shell, x, y, z, subcells );
 	  if( success ) done = false;
 
 	}	

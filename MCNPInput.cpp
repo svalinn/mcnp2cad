@@ -404,13 +404,25 @@ protected:
     Vector3d v1, v2, v3;
 
     std::vector< std::pair<Vector3d, double> > planes;
-    for( unsigned int i = 0; i < surfaceCards.size(); ++i){
-      planes.push_back( surfaceCards.at(i).first->getPlaneParams() );
-      if( surfaceCards.at(i).second == true ){ planes[i].first = -planes[i].first; }
-      if( OPT_DEBUG ) std::cout << " plane " << i << " normal = " << planes[i].first  << std::endl;
+
+    if( surfaceCards.size() == 1 ){ 
+      planes = surfaceCards.at(0).first->getMacrobodyPlaneParams();
+      if( surfaceCards.at(0).second != false ){
+	std::cerr << "Warning: macrobody lattice with positive sense, will proceed as if it was negative.";
+      }
+    }
+    else{
+      for( unsigned int i = 0; i < surfaceCards.size(); ++i){
+	planes.push_back( surfaceCards.at(i).first->getPlaneParams() );
+	if( surfaceCards.at(i).second == true ){ planes[i].first = -planes[i].first; }
+      }
     }
 
-
+    if( OPT_DEBUG ){
+      for( unsigned int i = 0; i < planes.size(); ++i){
+	std::cout << " plane " << i << " normal = " << planes[i].first << " d = " << planes[i].second  << std::endl;
+      }
+    }
     if( lat_type == HEXAHEDRAL ){
       assert( planes.size() == 2 || planes.size() == 4 || planes.size() == 6 );
       if( planes.size() == 2 ){
@@ -823,6 +835,65 @@ std::pair<Vector3d,double> SurfaceCard::getPlaneParams() const {
   else{
     throw std::runtime_error("Tried to get plane normal of non-plane surface!");
   }
+}
+
+std::vector< std::pair<Vector3d, double> > SurfaceCard::getMacrobodyPlaneParams() const {
+  
+  std::vector< std::pair< Vector3d, double> > ret;
+  if( mnemonic == "box" ){
+    Vector3d corner( args );
+    const Vector3d v[3] = {Vector3d(args,3), Vector3d(args,6), Vector3d(args,9)};
+
+    // face order: v1 -v1 v2 -v2 v3 -v3
+    for( int i = 0; i < 3; ++i ){
+      Vector3d p = corner + v[i];
+      ret.push_back( std::make_pair( v[i].normalize(), v[i].projection( p ).length() ) );
+      ret.push_back( std::make_pair( -v[i].normalize(), v[i].projection( p ).length()-v[i].length() ) );
+    }
+
+  }
+  else if( mnemonic == "rpp" ){
+    Vector3d min( args.at(0), args.at(2), args.at(4) );
+    Vector3d max( args.at(1), args.at(3), args.at(5) );
+
+    for( int i = 0; i < 3; ++i ){
+      Vector3d v; v.v[i] = 1;
+      ret.push_back( std::make_pair( v.normalize(), max.v[i] ));
+      ret.push_back( std::make_pair(-v.normalize(), min.v[i] ));
+    }
+
+  }
+  else if( mnemonic == "hex" || mnemonic == "rhp" ){
+
+    Vector3d vertex( args ), height( args,3 ), RV( args, 6 ), SV, TV;
+    if( args.size() == 9 ){
+      SV = RV.rotate_about(height, 60); TV = RV.rotate_about(height, 120);
+    }
+    else{
+      SV = Vector3d( args, 9 ); TV = Vector3d( args, 12 );
+    }
+    
+    double len = RV.projection( vertex+RV ).length();
+    ret.push_back( std::make_pair( RV.normalize(), len ) );
+    ret.push_back( std::make_pair(-RV.normalize(), len - 2.0 * RV.length() ));
+    
+    len = SV.projection( vertex+SV ).length();
+    ret.push_back( std::make_pair( SV.normalize(), len ) );
+    ret.push_back( std::make_pair(-SV.normalize(), len - 2.0 * SV.length() ));
+
+    len = TV.projection( vertex+TV ).length();
+    ret.push_back( std::make_pair( TV.normalize(), len ) );
+    ret.push_back( std::make_pair(-TV.normalize(), len - 2.0 * TV.length() ));
+
+    len = height.projection( vertex+height ).length();
+    ret.push_back( std::make_pair( height.normalize(), len ) );
+    ret.push_back( std::make_pair(-height.normalize(), len - height.length() ));
+
+  }
+  else{ 
+    throw std::runtime_error("Tried to get macrobody plane noramls of unsupported surface!" );
+  }
+  return ret;
 }
 
 

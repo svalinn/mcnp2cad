@@ -86,6 +86,20 @@ public:
     return c;
   }
 
+  Vector3d rotate_about( const Vector3d& v_p, double theta_p, bool degrees = true ) const {
+    Vector3d v = v_p.normalize();
+    double theta = theta_p;
+    if( degrees ) { theta *= M_PI / 180.0; }
+    double cos_t = cos( theta );
+    Vector3d ret = scale(cos_t) + v.scale((1.0-cos_t)*(dot(v))) + cross(v).scale( sin(theta) );
+    return ret;
+  }
+
+  /// project v onto this vector, return the result
+  Vector3d projection( const Vector3d& v ) const {
+    return scale( this->dot(v) / this->dot(*this) );
+  }
+
 };
 
 std::ostream& operator<<(std::ostream& str, const Vector3d& v );

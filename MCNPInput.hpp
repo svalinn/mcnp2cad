@@ -104,6 +104,7 @@ public:
 
 
   std::pair<Vector3d,double> getPlaneParams() const;
+  std::vector< std::pair<Vector3d, double> > getMacrobodyPlaneParams() const;
 };
 
 /**
