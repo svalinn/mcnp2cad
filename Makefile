@@ -12,7 +12,7 @@ CXXSOURCES = mcnp2igeom.cpp MCNPInput.cpp volumes.o geometry.cpp
 CXXOBJS = mcnp2igeom.o MCNPInput.o volumes.o geometry.o
 
 # Remove HAVE_IGEOM_CONE from the next line if using old iGeom implementation
-CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
+CXXFLAGS = -O2 -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
 
 mcnp2igeom: ${CXXOBJS} Makefile
 	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} 

@@ -737,6 +737,7 @@ void GeometryContext::createGeometry( ){
 
   int igm_result;
  
+  InputDeck::cell_card_list    cells     = deck.getCells();
   InputDeck::surface_card_list surfaces  = deck.getSurfaces();
   InputDeck::data_card_list    datacards = deck.getDataCards();
 
@@ -745,6 +746,8 @@ void GeometryContext::createGeometry( ){
       world_size = std::max( world_size, makeSurface( *i ).getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
   }
+
+  // translations can extend the size of the world
   double translation_addition = 0;
   for( InputDeck::data_card_list::iterator i = datacards.begin(); i!=datacards.end(); ++i){
     DataCard* c = *i;
@@ -753,6 +756,24 @@ void GeometryContext::createGeometry( ){
       translation_addition = std::max (translation_addition, tform_len );
     }
   }
+
+  for( InputDeck::cell_card_list::iterator i = cells.begin(); i!=cells.end(); ++i){
+    CellCard* c = *i;
+      // translations can come from TRCL data
+    if( c->getTrcl().hasData() ){
+      double tform_len = c->getTrcl().getData().getTranslation().length();
+      translation_addition = std::max( translation_addition, tform_len );
+    }
+    // translations can also come from fill nodes.  This implementation does *not* take
+    // lattices into account, as they are assumed to be contained within other regions.
+    if( c->hasFill() && c->getFill().getOriginNode().hasTransform() ){
+      double tform_len = c->getFill().getOriginNode().getTransform().getTranslation().length();
+      translation_addition = std::max( translation_addition, tform_len );
+    }
+	 
+  }
+
+
   world_size += translation_addition;
   world_size *= 1.2;
 
