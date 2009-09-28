@@ -1,5 +1,31 @@
-Help with running the MCNP to iGeom/CAD converter can be found by running
-the program with the -h flag.  
+MCNP to iGeom/CAD converter: a program to extract the geomtery from MCNP 
+input files and write it out using any ITAPS iGeom backend. The program is
+currently maintained by Steve Jackson (sjackson@cae.wisc.edu); bug reports
+are appreciated.
+
+
+Compiling (with CGM):
+
+At present, a user must edit the top line of the Makefile so that CGM_BASE_DIR
+points to a valid installation of the CGM library.
+
+If the CGM is older and lacks the iGeom_createCone() function, the user 
+must also remove the -DHAVE_IGEOM_CONE argument from the CXXFLAGS in the 
+Makefile.  In the future we should support detection of the cone function
+through an autoconf-like method.
+
+
+Running:
+
+The program requires a single command-line argument: the path to an MCNP
+input file.  Optionally, the -o flag can be used to specify the file to
+which output should be written.
+
+Help on other command-line flags is available by invoking the program with
+the -h (or --help) flag.
+
+
+Unsupported Features: 
 
 * Unsupported features that could be added easily:
 ** More direct control over the size of the sphere/graveyard in which
@@ -31,3 +57,4 @@ the program with the -h flag.
 ** Robust error detection and reporting for ill-formed MCNP inputs.
 ** Support for jump (nJ) syntax: requires knowledge of default values in 
    many possible contexts
+

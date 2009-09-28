@@ -1,22 +1,21 @@
 #CGM_BASE_DIR = /home/cnerg/opt/CGMA
 CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM-testing3
-CUBIT_BASE_DIR = /home/cnerg/opt/cubit10.2/64
 
 
-#include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
+include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
-LDFLAGS = -L${CGM_BASE_DIR}/lib -L${CUBIT_BASE_DIR}/bin -liGeom -lcgm -lcubiti19 -Wl,-rpath=${CUBIT_BASE_DIR}/bin
 
-IGEOM_CPPFLAGS = -I${CGM_BASE_DIR}/include 
-CXXSOURCES = mcnp2igeom.cpp MCNPInput.cpp volumes.o geometry.cpp
+CXXSOURCES = mcnp2igeom.cpp MCNPInput.cpp volumes.cpp geometry.cpp
 CXXOBJS = mcnp2igeom.o MCNPInput.o volumes.o geometry.o
 
 # Remove HAVE_IGEOM_CONE from the next line if using old iGeom implementation
 CXXFLAGS = -O2 -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
 
+
+LDFLAGS = ${IGEOM_LIBS} -Wl,"${IGEOM_LTFLAGS}"
+
 mcnp2igeom: ${CXXOBJS} Makefile
 	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} 
-# ${IGEOM_LIBS}
 
 
 geometry.o: geometry.cpp geometry.hpp dataref.hpp
