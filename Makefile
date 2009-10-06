@@ -1,5 +1,5 @@
 #CGM_BASE_DIR = /home/cnerg/opt/CGMA
-CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM-testing3
+CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/cubit
 
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
@@ -9,7 +9,7 @@ CXXSOURCES = mcnp2igeom.cpp MCNPInput.cpp volumes.cpp geometry.cpp
 CXXOBJS = mcnp2igeom.o MCNPInput.o volumes.o geometry.o
 
 # Remove HAVE_IGEOM_CONE from the next line if using old iGeom implementation
-CXXFLAGS = -O2 -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
+CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
 
 
 LDFLAGS = ${IGEOM_LIBS} -Wl,"${IGEOM_LTFLAGS}"

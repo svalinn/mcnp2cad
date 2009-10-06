@@ -17,6 +17,10 @@
 #include "volumes.hpp"
 
 #ifdef USING_CGMA
+
+#include <RefEntityFactory.hpp>
+#include <Body.hpp>
+
 #include <CubitMessage.hpp>
 
 static bool CGMA_opt_inhibit_intersect_errs = false;
@@ -152,6 +156,9 @@ public:
 
   bool mapSanityCheck( iBase_EntityHandle* cells, size_t count );
   void setMaterialsAsGroups( );
+#ifdef USING_CGMA
+  void setMaterialsAsGroups_hack( std::ostream& output );
+#endif
 
   std::string uprefix() { 
     return std::string( universe_depth, ' ' );
@@ -219,8 +226,27 @@ void GeometryContext::setMaterialsAsGroups( ){
     }
 
     //add *i.first (an entity) to *j.second (an entity set) 
+    // under CGMA, get the volumes that *i.first contains
+    // TEMPORARY: changed to ifNdef to get old behavior
+#ifndef USING_CGMA
+    {
+      Body& b = dynamic_cast<Body&>( *reinterpret_cast<RefEntity*>((*i).first) );
+      DLIList<RefVolume*> vols;
+      b.ref_volumes(vols);
+      std::cout << "Body has " << vols.size() << " volumes." << std::endl;
+      for( int k = vols.size(); k--; ){
+	std::cout << k << std::endl;
+	RefVolume* v = vols.get_and_step(); std::cout << "VolID: " << v->id() << std::endl;
+	iGeom_addEntToSet( igm, reinterpret_cast<iBase_EntityHandle>(v), /*(*i).first,*/ (*j).second, &igm_result );
+	std::cout << v << " added to " << (*j).second << std::endl;
+	CHECK_IGEOM( igm_result, "Adding volume to material set" );
+      }
+    }
+
+#else
     iGeom_addEntToSet( igm, (*i).first, (*j).second, &igm_result );
     CHECK_IGEOM( igm_result, "Adding entity to material set" );
+#endif
 
     //iGeom_addPrntChld( igm, &((*j).second), (void**)&((*i).first), &igm_result );
     //CHECK_IGEOM( igm_result, "Adding entity as child" );
@@ -249,6 +275,68 @@ void GeometryContext::setMaterialsAsGroups( ){
   std::cout << "Created " << groups.size() << " material groups." << std::endl;
 
 }
+
+#ifdef USING_CGMA
+void GeometryContext::setMaterialsAsGroups_hack( std::ostream& output ){
+  
+  typedef std::vector<int>* grouplist_t;
+
+  std::map< material_t, grouplist_t > groups;
+
+  for( std::map<iBase_EntityHandle,material_t>::iterator i = material_map.begin(); i != material_map.end(); ++i ){
+    std::map< material_t, grouplist_t>::iterator j = groups.find((*i).second);
+
+    if( j == groups.end() ){ 
+      // create a new named entity set corresponding to the material *i.second, and name it
+      groups[(*i).second] = new std::vector<int>();
+      j = groups.find((*i).second); 
+      assert( j != groups.end() );
+    }
+
+    //add *i.first (an entity) to *j.second (an entity set) 
+    // under CGMA, get the volumes that *i.first contains
+    {
+      Body& b = dynamic_cast<Body&>( *reinterpret_cast<RefEntity*>((*i).first) );
+      DLIList<RefVolume*> vols;
+      b.ref_volumes(vols);
+      std::cout << "Body has " << vols.size() << " volumes." << std::endl;
+      for( int k = vols.size(); k--; ){
+	RefVolume* v = vols.get_and_step(); std::cout << "VolID: " << v->id() << std::endl;
+	(*j).second->push_back(v->id());
+      }
+    }
+
+    if( OPT_DEBUG ){ std::cout << "Added " << (*i).first << " to set at " << (*j).second << std::endl; }
+
+  }
+
+  for(  std::map< material_t, grouplist_t>::iterator i = groups.begin(); i != groups.end(); ++i){
+    
+    std::string name;
+    std::stringstream formatter;
+    formatter << "mat_" << (*i).first.first << "_rho_" << (*i).first.second;
+    formatter >> name;
+    formatter.str("");
+
+    if( OPT_DEBUG ){ std::cout << "Creating material group " << name << " (" << (*i).second << ")" << std::endl; }
+    
+    grouplist_t group = (*i).second;
+    std::string command = std::string("group \"") + name + std::string("\" add volume ");
+    
+    char buf[64];
+    for( unsigned int j = 0; j < group->size(); ++j){
+      snprintf( buf, 64, "%d ", group->at(j) );
+      command += buf;
+    }
+    
+    output << command << std::endl;
+
+  }
+
+  std::cout << "Created " << groups.size() << " material groups." << std::endl;
+
+}
+#endif /* define setMaterialsAsGroups_hack() only when USING_CGMA */
 
 bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){ 
   bool good = true;
@@ -791,12 +879,23 @@ void GeometryContext::createGeometry( ){
     cell_array[i] = defined_cells[i];
   }
 
-  
+#ifdef USING_CGMA
+  {
+    RefEntityFactory::instance()->compress_ref_ids("volume", false );
+  }
+#endif
+
 
   if( opt.tag_materials ){
     if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
+#ifdef USING_CGMA
+    std::ofstream out("groups.out");
+    setMaterialsAsGroups_hack(out);
+#else
     setMaterialsAsGroups();
+#endif
   }
+  
 
   std::cout << "Imprinting all...\t\t\t" << std::flush;
   iGeom_imprintEnts( igm, cell_array, count, &igm_result );
@@ -811,6 +910,8 @@ void GeometryContext::createGeometry( ){
   iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
   CHECK_IGEOM( igm_result, "Merging all cells" );
   std::cout << " done." << std::endl;
+
+
 
   std::string outName = opt.output_file;
   std::cout << "Saving file \"" << outName << "\"...\t\t\t" << std::flush;
