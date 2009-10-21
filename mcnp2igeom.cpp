@@ -299,9 +299,9 @@ void GeometryContext::setMaterialsAsGroups_hack( std::ostream& output ){
       Body& b = dynamic_cast<Body&>( *reinterpret_cast<RefEntity*>((*i).first) );
       DLIList<RefVolume*> vols;
       b.ref_volumes(vols);
-      std::cout << "Body has " << vols.size() << " volumes." << std::endl;
+      //std::cout << "Body has " << vols.size() << " volumes." << std::endl;
       for( int k = vols.size(); k--; ){
-	RefVolume* v = vols.get_and_step(); std::cout << "VolID: " << v->id() << std::endl;
+	RefVolume* v = vols.get_and_step(); //std::cout << "VolID: " << v->id() << std::endl;
 	(*j).second->push_back(v->id());
       }
     }
@@ -881,6 +881,7 @@ void GeometryContext::createGeometry( ){
 
 #ifdef USING_CGMA
   {
+    RefEntityFactory::instance()->compress_ref_ids("surface", false );
     RefEntityFactory::instance()->compress_ref_ids("volume", false );
   }
 #endif
