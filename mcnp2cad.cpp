@@ -406,7 +406,15 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
     std::pair<iBase_EntityHandle,const GroupName*> kv = *i;
     bool check = allRegions.find( kv.first ) != allRegions.end();
     if( !check ){
-      std::cout << kv.first << " is not in all regions!" << std::endl;
+      if( kv.second->getName() == "graveyard" ){
+	// small hack here: the graveyard cell, if present, is never 
+	// added to the cell list passed to this function.
+	// So this case is not actually a sanity check failure.
+	check = true;
+      }
+      else {
+	std::cout << kv.first << " is not in all regions!" << std::endl;
+      }
     }
     good = good && check;
   }
