@@ -124,16 +124,47 @@ static bool boundBoxesIntersect( iGeom_Instance igm, iBase_EntityHandle h1, iBas
 class GeometryContext {
 
 protected:
+  class GroupName{ 
+  protected:
+    std::string name;
+  public:
+    GroupName( ) : name("") {}
+    GroupName( std::string name_p ):
+      name(name_p)
+    {}
+    virtual ~GroupName(){}
+    virtual const std::string& getName() const { return name; }
+    
+    struct name_compare{ 
+      bool operator()( const GroupName* g1, const GroupName* g2 ) const{
+	return g1->name < g2->name;
+      }
+    };
+  };
+  
+  class MaterialName : public GroupName {
+    
+  public:
+    MaterialName(int mat, double rho)
+    {
+      std::stringstream formatter;
+      formatter << "mat_" << mat << "_rho_" << rho;
+      formatter >> name;
+    }
+    
+  };
+  
+protected:
   iGeom_Instance& igm;
   InputDeck& deck;
   double world_size;
   int universe_depth;
 
-  typedef std::pair<int, double> material_t;
-  static material_t make_mat( int i, double d ){ return std::make_pair(i,d); }
+  //typedef std::pair<int, double> material_t;
+  //static material_t make_mat( int i, double d ){ return std::make_pair(i,d); }
 
-  std::set< material_t > material_ids;
-  std::map<iBase_EntityHandle, material_t > material_map;
+  std::set< const GroupName*, GroupName::name_compare > group_names; 
+  std::map<iBase_EntityHandle, const GroupName* > naming_map;
 
 public:
   GeometryContext( iGeom_Instance& igm_p, InputDeck& deck_p ) :
@@ -151,6 +182,8 @@ public:
   entity_collection_t defineUniverse( int universe, iBase_EntityHandle container, const Transform* transform );
   
 
+  void setVolumeName( iBase_EntityHandle cell, const GroupName* name );
+  void setVolumeName( iBase_EntityHandle cell, const std::string& cellname );
   void setMaterial( iBase_EntityHandle cell, int material, double density );
   void updateMaps ( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell );
 
@@ -169,31 +202,40 @@ public:
 
 };
 
+void GeometryContext::setVolumeName( iBase_EntityHandle cell, const GroupName* name ){
+  group_names.insert( name );
+  naming_map.insert ( std::make_pair(cell, name) );
+
+  if( OPT_DEBUG ){ std::cout << uprefix() 
+			     << "Updated cell with new material, num groups now " 
+			     << group_names.size() << std::endl; }
+}
+
+void GeometryContext::setVolumeName( iBase_EntityHandle cell, const std::string& cellname ){
+  GroupName* name = new GroupName( cellname );
+  return setVolumeName( cell, name );
+}
+
 void GeometryContext::setMaterial( iBase_EntityHandle cell, int material, double density ){
-
-  
-  material_t mat = make_mat( material, density );
-  material_map.insert( std::make_pair( cell, mat ) );
-  material_ids.insert( mat );
-
-  if( OPT_DEBUG ){ std::cout << uprefix() << "Updated cell with new material, num materials now " << material_ids.size() << std::endl; }
+  GroupName* name = new MaterialName( material, density );
+  return setVolumeName( cell, name );
 }
 
 void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell ){
 
  
-  if( material_map.find( old_cell ) != material_map.end() ){
+  if( naming_map.find( old_cell ) != naming_map.end() ){
     if( new_cell != NULL ){
-      material_map[new_cell] = material_map[old_cell];
+      naming_map[new_cell] = naming_map[old_cell];
     }
-    material_map.erase( old_cell);
+    naming_map.erase( old_cell);
   }
 }
 
 void GeometryContext::setMaterialsAsGroups( ){
   int igm_result;
   
-  std::map< material_t, iBase_EntitySetHandle> groups;
+  std::map< const GroupName*, iBase_EntitySetHandle> groups;
 
   std::string name_tag_id = "NAME";
   int name_tag_maxlength = 64;
@@ -207,8 +249,8 @@ void GeometryContext::setMaterialsAsGroups( ){
   CHECK_IGEOM( igm_result, "Querying NAME tag length" );
   if( OPT_DEBUG ) std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
 
-  for( std::map<iBase_EntityHandle,material_t>::iterator i = material_map.begin(); i != material_map.end(); ++i ){
-    std::map< material_t, iBase_EntitySetHandle>::iterator j = groups.find((*i).second);
+  for( std::map<iBase_EntityHandle,const GroupName*>::iterator i = naming_map.begin(); i != naming_map.end(); ++i ){
+    std::map< const GroupName*, iBase_EntitySetHandle>::iterator j = groups.find((*i).second);
 
     if( j == groups.end() ){ 
       // create a new named entity set corresponding to the material *i.second, and name it
@@ -254,21 +296,18 @@ void GeometryContext::setMaterialsAsGroups( ){
 
   }
 
-  for(  std::map< material_t, iBase_EntitySetHandle>::iterator i = groups.begin(); i != groups.end(); ++i){
+  for(  std::map< const GroupName*, iBase_EntitySetHandle>::iterator i = groups.begin(); i != groups.end(); ++i){
     
-    std::string name;
-      std::stringstream formatter;
-      formatter << "mat_" << (*i).first.first << "_rho_" << (*i).first.second;
-      formatter >> name;
-      
-      if( name.length() > static_cast<unsigned>(name_tag_maxlength) ){
-	name.resize( name_tag_maxlength -1 );
-      }
+    std::string name = (*i).first->getName();
+    
+    if( name.length() > static_cast<unsigned>(name_tag_maxlength) ){
+      name.resize( name_tag_maxlength -1 );
+    }
 
-      if( OPT_DEBUG ){ std::cout << "Creating material group " << name << " (" << (*i).second << ")" << std::endl; }
-
-      iGeom_setEntSetData( igm, (*i).second, name_tag, name.c_str(), name.length(), &igm_result );
-      CHECK_IGEOM( igm_result, "Naming an entity set" );
+    if( OPT_DEBUG ){ std::cout << "Creating material group " << name << " (" << (*i).second << ")" << std::endl; }
+    
+    iGeom_setEntSetData( igm, (*i).second, name_tag, name.c_str(), name.length(), &igm_result );
+    CHECK_IGEOM( igm_result, "Naming an entity set" );
 
   }
 
@@ -281,10 +320,10 @@ void GeometryContext::setMaterialsAsGroups_hack( std::ostream& output ){
   
   typedef std::vector<int>* grouplist_t;
 
-  std::map< material_t, grouplist_t > groups;
+  std::map< const GroupName*, grouplist_t > groups;
 
-  for( std::map<iBase_EntityHandle,material_t>::iterator i = material_map.begin(); i != material_map.end(); ++i ){
-    std::map< material_t, grouplist_t>::iterator j = groups.find((*i).second);
+  for( std::map<iBase_EntityHandle,const GroupName*>::iterator i = naming_map.begin(); i != naming_map.end(); ++i ){
+    std::map< const GroupName*, grouplist_t>::iterator j = groups.find((*i).second);
 
     if( j == groups.end() ){ 
       // create a new named entity set corresponding to the material *i.second, and name it
@@ -310,14 +349,9 @@ void GeometryContext::setMaterialsAsGroups_hack( std::ostream& output ){
 
   }
 
-  for(  std::map< material_t, grouplist_t>::iterator i = groups.begin(); i != groups.end(); ++i){
+  for(  std::map< const GroupName*, grouplist_t>::iterator i = groups.begin(); i != groups.end(); ++i){
     
-    std::string name;
-    std::stringstream formatter;
-    formatter << "mat_" << (*i).first.first << "_rho_" << (*i).first.second;
-    formatter >> name;
-    formatter.str("");
-
+    std::string name = (*i).first->getName();
     if( OPT_DEBUG ){ std::cout << "Creating material group " << name << " (" << (*i).second << ")" << std::endl; }
     
     grouplist_t group = (*i).second;
@@ -360,7 +394,7 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
   std::cout << "Map sanity check: root set size = " << size << " (" << num_regions << ")" << std::endl;
   std::cout << "Cell count: " << count << std::endl;
   
-  std::cout << "Map sanity check: cells with material properties set = " << material_map.size() << std::endl;
+  std::cout << "Map sanity check: cells with name/material properties set = " << naming_map.size() << std::endl;
 
   // sanity conditions: all the keys in material_map are in the cells list
   std::set< iBase_EntityHandle > allRegions;
@@ -368,8 +402,8 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
     allRegions.insert( cells[i] );
   }
   
-  for( std::map<iBase_EntityHandle,material_t>::iterator i = material_map.begin(); i!=material_map.end(); ++i){
-    std::pair<iBase_EntityHandle,material_t> kv = *i;
+  for( std::map<iBase_EntityHandle,const GroupName*>::iterator i = naming_map.begin(); i!=naming_map.end(); ++i){
+    std::pair<iBase_EntityHandle,const GroupName*> kv = *i;
     bool check = allRegions.find( kv.first ) != allRegions.end();
     if( !check ){
       std::cout << kv.first << " is not in all regions!" << std::endl;
@@ -791,6 +825,10 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
  
 }
 
+/**
+ * Create the graveyard bounding shell.  Return a copy of the inner surface of the 
+ * shell, to be used as the strict bounding box of all geometry.
+ */
 iBase_EntityHandle GeometryContext::createGraveyard( ) {
   iBase_EntityHandle inner, outer, graveyard, inner_copy = NULL;
   int igm_result;
@@ -811,9 +849,10 @@ iBase_EntityHandle GeometryContext::createGraveyard( ) {
     iGeom_subtractEnts( igm, outer, inner, &graveyard, &igm_result );
     CHECK_IGEOM( igm_result, "subtracting graveyard" );
 
+    setVolumeName( graveyard, "graveyard" );
+
     // reset world size to a sphere that bounds the inner shell of this graveyard
     world_size *= sqrt(3.0);
-
     if( OPT_DEBUG ) std::cout << "Spherical world size for graveyard: " << world_size << std::endl;
   }
   
@@ -890,8 +929,10 @@ void GeometryContext::createGeometry( ){
   if( opt.tag_materials ){
     if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
 #ifdef USING_CGMA
-    std::ofstream out("groups.out");
+    std::string groupfile_name = "groups.out";
+    std::ofstream out(groupfile_name.c_str());
     setMaterialsAsGroups_hack(out);
+    std::cout << "Wrote group journal file: " << groupfile_name << std::endl;
 #else
     setMaterialsAsGroups();
 #endif
