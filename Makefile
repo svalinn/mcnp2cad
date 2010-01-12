@@ -12,7 +12,7 @@ CXXOBJS = mcnp2cad.o MCNPInput.o volumes.o geometry.o
 CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
 
 
-LDFLAGS = ${IGEOM_LIBS} -Wl,"${IGEOM_LTFLAGS}"
+LDFLAGS = ${IGEOM_LIBS} 
 
 mcnp2cad: ${CXXOBJS} Makefile
 	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} 
