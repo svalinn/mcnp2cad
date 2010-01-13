@@ -44,7 +44,6 @@ Unsupported Features:
 * Unsupported features that could be added easily:
 ** More direct control over the size of the sphere/graveyard in which
    the geometry sits
-** Support 9-argument form of the P (plane) surface
 ** Support for interpolation (nI/nILOG) and multiplication (nM) syntax.
 ** Remove dependence on exceptions: the code makes use of exceptions to abort
    itself under internal error situations, but it would be straightforward to

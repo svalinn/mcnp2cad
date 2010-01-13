@@ -777,13 +777,50 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
       surface = new SphereSurface( Vector3d( args ), args.at(3) );
     }
     else if( mnemonic == "p"){
-      if( args.size() > 4 ){
-	std::cerr << "Warning: surface of type P with more than 4 parameters." << std::endl;
-	std::cerr << "         This surface type is unsupported; will proceed as if only 4 parameters given,\n";
-	std::cerr << "         but the result will probably be incorrect!" << std::endl;
+      if( args.size() == 4 ){
+	// plane given as ABCD coefficients (Ax+By+Cz-D=0)
+	Vector3d v(args);
+	surface = new PlaneSurface( v, args.at(3)/v.length() );
       }
-      Vector3d v(args);
-      surface = new PlaneSurface( v, args.at(3)/v.length() );
+      else if( args.size() == 9 ){
+	// plane is given at three points in space
+	Vector3d v1(args), v2(args,3), v3(args,6);
+
+	// ordering of the points is arbitrary, but make sure v1 is furthest from origin.
+	if( v1.length() < v2.length() ){
+	  std::swap( v1, v2 );
+	}
+	if( v1.length() < v3.length() ){
+	  std::swap( v1, v3 );
+	}
+
+	// the normal (up to reversal) of the plane 
+	// The normal may need to be reversed to ensure that the origin
+	// has negative sense, as required by MCNP
+	Vector3d normal = v1.add(-v2).cross( v1.add(-v3) ).normalize();
+
+	// If a ray started from the origin and followed the normal vector,
+	// p is the point where it intersects the plane
+	Vector3d p = normal.scale( v1.dot(normal) );
+
+	// cos of the angle between v1 and normal 
+	double angle = normal.dot( v1.normalize() );
+	
+	// invert the normal if the angle is > 90 degrees, which indicates
+	// that reversal is required.
+	if( angle < 0 ){
+	  normal   = -normal;
+	}
+
+	//std::cout << normal << " " << p.length() << " : " << angle << std::endl;
+	surface = new PlaneSurface( normal, p.length() );
+
+
+      }
+      else{ 
+	throw std::runtime_error( "P surface with unsupported number of params" );
+      }
+
     }
     else if( mnemonic == "px"){
       surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
