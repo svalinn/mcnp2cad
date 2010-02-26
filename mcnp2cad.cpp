@@ -63,7 +63,7 @@ public:
   }
 };
 
-#endif
+#endif /* USING_CGMA */
 
 typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
@@ -755,8 +755,9 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
 }
 
 /**
- * Create the graveyard bounding shell.  Return a copy of the inner surface of the 
- * shell, to be used as the strict bounding box of all geometry.
+ * Create the graveyard bounding cell.  The actual graveyard is not returned, but rather
+ * stored within the iGeom instance.  A copy of the inner surface of the graveyard cell
+ * is returned, to be used as the boundary of all further geometry.
  */
 iBase_EntityHandle GeometryContext::createGraveyard( ) {
   iBase_EntityHandle inner, outer, graveyard, inner_copy = NULL;
@@ -835,11 +836,11 @@ void GeometryContext::createGeometry( ){
 
   std::cout << "World size: " << world_size << " (trs added " << translation_addition << ")" << std::endl;
 
-  iBase_EntityHandle graveyard = createGraveyard(); // will be null if -g wasn't specified on command line
+  iBase_EntityHandle graveyard_boundary = createGraveyard(); // will be null if -g wasn't specified on command line
 
   std::cout << "Defining geometry..." << std::endl;
 
-  entity_collection_t defined_cells = defineUniverse( 0, graveyard );
+  entity_collection_t defined_cells = defineUniverse( 0, graveyard_boundary );
 
   size_t count = defined_cells.size();
   iBase_EntityHandle *cell_array = new iBase_EntityHandle[ count ];

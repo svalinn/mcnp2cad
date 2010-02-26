@@ -1,6 +1,6 @@
 #CGM_BASE_DIR = /home/cnerg/opt/CGMA
 CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/acis
-
+#CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/occ
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
@@ -15,7 +15,9 @@ CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
 LDFLAGS = ${IGEOM_LIBS} 
 
 mcnp2cad: ${CXXOBJS} Makefile
-	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} 
+	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS} ${LDFLAGS}
+# The following may be more convenient than the above on Linux
+#	libtool --mode=link ${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS}  ${LDFLAGS} 
 
 
 geometry.o: geometry.cpp geometry.hpp dataref.hpp
