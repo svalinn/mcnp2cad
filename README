@@ -73,3 +73,13 @@ Unsupported Features:
 ** Support for jump (nJ) syntax: requires knowledge of default values in 
    many possible contexts
 
+
+Compiling a 32-bit mcnp2cad: 
+
+Users on 64-bit Linux may need to compile a 32-bit version of this program 
+under certain conditions-- for example, if only a 32-bit copy of Cubit 10.2 
+is available.  This is a two-step process:
+* Ensure that CGM is built for 32-bit by configuring it with the --enable-32bit 
+  flag, and
+* Add -m32 to the CXXFLAGS in the mcnp2cad Makefile.
+
