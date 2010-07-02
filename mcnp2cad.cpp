@@ -153,6 +153,18 @@ protected:
     }
     
   };
+
+  class VolumeIDName : public GroupName {
+    
+  public:
+    VolumeIDName(int ident)
+    {
+      std::stringstream formatter;
+      formatter << "MCNP_ID_" << ident;
+      formatter >> name;
+    }
+    
+  };
   
 protected:
   iGeom_Instance& igm;
@@ -184,7 +196,8 @@ public:
 
   void setVolumeName( iBase_EntityHandle cell, const GroupName* name );
   void setVolumeName( iBase_EntityHandle cell, const std::string& cellname );
-  void setMaterial( iBase_EntityHandle cell, int material, double density );
+  void setVolumeID( iBase_EntityHandle cell, int ident);
+  void setMaterial( iBase_EntityHandle cell, int materialw, double density );
   void updateMaps ( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell );
 
   bool mapSanityCheck( iBase_EntityHandle* cells, size_t count );
@@ -216,6 +229,35 @@ void GeometryContext::setVolumeName( iBase_EntityHandle cell, const std::string&
 void GeometryContext::setMaterial( iBase_EntityHandle cell, int material, double density ){
   GroupName* name = new MaterialName( material, density );
   return setVolumeName( cell, name );
+}
+
+void GeometryContext::setVolumeID( iBase_EntityHandle cell, int ident ){
+  
+  int igm_result;
+
+  std::string name_tag_id = "NAME";
+  int name_tag_maxlength = 64;
+  iBase_TagHandle name_tag;
+
+  iGeom_getTagHandle( igm, name_tag_id.c_str(), &name_tag, &igm_result, name_tag_id.length() );
+  CHECK_IGEOM( igm_result, "Looking up NAME tag" );
+  
+  iGeom_getTagSizeBytes( igm, name_tag, &name_tag_maxlength, &igm_result );
+  CHECK_IGEOM( igm_result, "Querying NAME tag length" );
+  if( OPT_DEBUG ) std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
+
+  std::string name = VolumeIDName(ident).getName();
+  
+  if( name.length() > static_cast<unsigned>(name_tag_maxlength) ){
+    name.resize( name_tag_maxlength -1 );
+  }
+  
+  if( OPT_VERBOSE ){ std::cout << "Naming volume " << name <<  std::endl; }
+  
+  iGeom_setData( igm, cell, name_tag, name.c_str(), name.length(), &igm_result );
+  CHECK_IGEOM( igm_result, "Naming an entity set" );
+  
+  
 }
 
 void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell ){
@@ -464,6 +506,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 
   if( !cell.hasFill() && !cell.isLattice() ){
     // nothing inside this cell
+    setVolumeID(cell_shell, cell.getIdent());
     if( cell.getMat() != 0 ){ setMaterial( cell_shell, cell.getMat(), cell.getRho() ); }
     return entity_collection_t(1, cell_shell );
   }

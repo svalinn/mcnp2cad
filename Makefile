@@ -1,5 +1,5 @@
-#CGM_BASE_DIR = /home/cnerg/opt/CGMA
-CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/acis
+CGM_BASE_DIR = /home/cnerg/opt/CGMA
+#CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/acis
 #CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/occ
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc

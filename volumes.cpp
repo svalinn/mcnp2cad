@@ -912,6 +912,72 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
 	surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
       }
     }
+    else if( mnemonic == "x" ) {
+      switch (args.size()) {
+      case 2: // plane
+	surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+	break;
+      case 4: // either plane, cylinder or cone
+	if ( args.at(0) == args.at(2) ) // plane
+	  surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+	else if (args.at(1) == args.at(3)) // cylinder
+	  surface = new CylinderSurface( X, args.at(1) );
+	else // cone
+	  {
+	    double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+	    double apex_p = args.at(0) - args.at(1)/m;
+	    surface = new ConeSurface( X, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	  }
+	break;
+      default:
+	throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+	break;
+      }
+    }
+    else if( mnemonic == "y" ) {
+      switch (args.size()) {
+      case 2: // plane
+	surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
+	break;
+      case 4: // either plane, cylinder or cone
+	if ( args.at(0) == args.at(2) ) // plane
+	  surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
+	else if (args.at(1) == args.at(3)) // cylinder
+	  surface = new CylinderSurface( Y, args.at(1) );
+	else // cone
+	  {
+	    double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+	    double apex_p = args.at(0) - args.at(1)/m;
+	    surface = new ConeSurface( Y, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	  }
+	break;
+      default:
+	throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+	break;
+      }
+    }
+    else if( mnemonic == "z" ) {
+      switch (args.size()) {
+      case 2: // plane
+	surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+	break;
+      case 4: // either plane, cylinder or cone
+	if ( args.at(0) == args.at(2) ) // plane
+	  surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+	else if (args.at(1) == args.at(3)) // cylinder
+	  surface = new CylinderSurface( Z, args.at(1) );
+	else // cone
+	  {
+	    double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+	    double apex_p = args.at(0) - args.at(1)/m;
+	    surface = new ConeSurface( Z, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	  }
+	break;
+      default:
+	throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+	break;
+      }
+    }
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
@@ -920,13 +986,13 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
       const Transform& transform = card->getTransform().getData();
       surface->setTransform( &transform );
     }
-
+    
     cache.insert( card, surface );
     return *surface;
-
+    
   }
-
-
+  
+  
 }
 
 
