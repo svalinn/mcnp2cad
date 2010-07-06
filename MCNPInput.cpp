@@ -716,6 +716,8 @@ protected:
       geom = host->geom;
       universe = host->universe;
       lat_type = host->lat_type;
+      material = host->material;
+      rho = host->rho;
 
       if( host->trcl->hasData()){
 	trcl = host->trcl->clone();
