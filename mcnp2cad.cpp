@@ -7,6 +7,7 @@
 #include <set>
 #include <map>
 #include <sstream>
+#include <algorithm>
 
 #include <cassert>
 
@@ -123,60 +124,103 @@ static bool boundBoxesIntersect( iGeom_Instance igm, iBase_EntityHandle h1, iBas
 
 class GeometryContext {
 
+  /** 
+   * Metadata and naming: 
+   * The NamedGroup and NamedEntity mappings are used to keep track of metadata
+   * on particular entity handles that map to MCNP cells.  
+   * EntityHandles change frequently as CSG operations are performed on volumes,
+   * so these mappings must be updated, by calling updateMaps(), whenever an 
+   * EntityHandle changes.
+   */
+
 protected:
-  class GroupName{ 
+
+  std::string materialName( int mat, int rho ){
+    std::string ret;
+    std::stringstream formatter;
+    formatter << "mat_" << mat << "_rho_" << rho;
+    formatter >> ret;
+    return ret;
+  }
+
+  class NamedGroup {
   protected:
     std::string name;
+    entity_collection_t entities;
   public:
-    GroupName( ) : name("") {}
-    GroupName( std::string name_p ):
+    NamedGroup( ) : name("") {}
+    NamedGroup( std::string name_p ):
       name(name_p)
     {}
-    virtual ~GroupName(){}
-    virtual const std::string& getName() const { return name; }
-    
-    struct name_compare{ 
-      bool operator()( const GroupName* g1, const GroupName* g2 ) const{
-	return g1->name < g2->name;
-      }
-    };
-  };
-  
-  class MaterialName : public GroupName {
-    
-  public:
-    MaterialName(int mat, double rho)
-    {
-      std::stringstream formatter;
-      formatter << "mat_" << mat << "_rho_" << rho;
-      formatter >> name;
+
+    const std::string& getName() const { return name; }
+    const entity_collection_t& getEntities() const { return entities; }
+
+    void add( iBase_EntityHandle new_handle ){
+      entities.push_back(new_handle);
     }
-    
+
+    void update( iBase_EntityHandle old_h, iBase_EntityHandle new_h ){
+      entity_collection_t::iterator i = std::find( entities.begin(), entities.end(), old_h );
+      if( i != entities.end() ){
+	if( new_h ){
+	  *i = new_h;
+	}
+	else {
+	  entities.erase( i );
+	}
+      }
+    }
+
+    bool contains( iBase_EntityHandle handle ) const {
+      return std::find( entities.begin(), entities.end(), handle ) != entities.end(); 
+    }
+
   };
 
-  class VolumeIDName : public GroupName {
-    
+  class NamedEntity { 
+  protected:
+    iBase_EntityHandle handle;
+    std::string name;
   public:
-    VolumeIDName(int ident)
-    {
-      std::stringstream formatter;
-      formatter << "MCNP_ID_" << ident;
-      formatter >> name;
+    NamedEntity( iBase_EntityHandle handle_p, std::string name_p = "" ):
+      handle(handle_p), name(name_p)
+    {}
+    virtual ~NamedEntity(){}
+
+    const std::string& getName() const { return name; }
+    iBase_EntityHandle getHandle() const{ return handle; }
+
+    void update( iBase_EntityHandle old_h, iBase_EntityHandle new_h ){
+      if(old_h == handle)
+	handle = new_h;
     }
     
+    static NamedEntity* makeCellIDName( iBase_EntityHandle h, int ident ){
+      NamedEntity* e = new NamedEntity(h);
+      std::stringstream formatter;
+      formatter << "MCNP_ID_" << ident;
+      formatter >> e->name;
+      return e;
+    }
+
   };
-  
+
 protected:
   iGeom_Instance& igm;
   InputDeck& deck;
   double world_size;
   int universe_depth;
 
-  //typedef std::pair<int, double> material_t;
-  //static material_t make_mat( int i, double d ){ return std::make_pair(i,d); }
+  std::map< std::string, NamedGroup* > named_groups;
+  std::vector< NamedEntity* > named_cells;
 
-  std::set< const GroupName*, GroupName::name_compare > group_names; 
-  std::map<iBase_EntityHandle, const GroupName* > naming_map;
+  NamedGroup* getNamedGroup( const std::string& name ){
+    if( named_groups.find( name ) == named_groups.end() ){
+      named_groups[ name ] = new NamedGroup( name );
+    }
+    return named_groups[ name ];
+  }
 
 public:
   GeometryContext( iGeom_Instance& igm_p, InputDeck& deck_p ) :
@@ -194,14 +238,15 @@ public:
   entity_collection_t defineUniverse( int universe, iBase_EntityHandle container, const Transform* transform );
   
 
-  void setVolumeName( iBase_EntityHandle cell, const GroupName* name );
-  void setVolumeName( iBase_EntityHandle cell, const std::string& cellname );
-  void setVolumeID( iBase_EntityHandle cell, int ident);
-  void setMaterial( iBase_EntityHandle cell, int materialw, double density );
+  void addToVolumeGroup( iBase_EntityHandle cell, const std::string& groupname );
+  void setVolumeCellID( iBase_EntityHandle cell, int ident);
+  void setMaterial( iBase_EntityHandle cell, int material, double density );
   void updateMaps ( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell );
 
   bool mapSanityCheck( iBase_EntityHandle* cells, size_t count );
-  void setMaterialsAsGroups( );
+
+  void tagMaterialsAsGroups( );
+  void tagCellIDsAsEntNames();
 
   std::string uprefix() { 
     return std::string( universe_depth, ' ' );
@@ -212,74 +257,50 @@ public:
 
 };
 
-void GeometryContext::setVolumeName( iBase_EntityHandle cell, const GroupName* name ){
-  group_names.insert( name );
-  naming_map.insert ( std::make_pair(cell, name) );
+void GeometryContext::addToVolumeGroup( iBase_EntityHandle cell, const std::string& name ){
+
+  NamedGroup* group = getNamedGroup( name );
+  group->add( cell );
 
   if( OPT_DEBUG ){ std::cout << uprefix() 
 			     << "Updated cell with new material, num groups now " 
-			     << group_names.size() << std::endl; }
-}
-
-void GeometryContext::setVolumeName( iBase_EntityHandle cell, const std::string& cellname ){
-  GroupName* name = new GroupName( cellname );
-  return setVolumeName( cell, name );
+			     << named_groups.size() << std::endl; }
 }
 
 void GeometryContext::setMaterial( iBase_EntityHandle cell, int material, double density ){
-  GroupName* name = new MaterialName( material, density );
-  return setVolumeName( cell, name );
+  return addToVolumeGroup( cell, materialName(material,density) );
 }
 
-void GeometryContext::setVolumeID( iBase_EntityHandle cell, int ident ){
-  
-  int igm_result;
+void GeometryContext::setVolumeCellID( iBase_EntityHandle cell, int ident ){
 
-  std::string name_tag_id = "NAME";
-  int name_tag_maxlength = 64;
-  iBase_TagHandle name_tag;
+  named_cells.push_back( NamedEntity::makeCellIDName(cell, ident) );
 
-  iGeom_getTagHandle( igm, name_tag_id.c_str(), &name_tag, &igm_result, name_tag_id.length() );
-  CHECK_IGEOM( igm_result, "Looking up NAME tag" );
-  
-  iGeom_getTagSizeBytes( igm, name_tag, &name_tag_maxlength, &igm_result );
-  CHECK_IGEOM( igm_result, "Querying NAME tag length" );
-  if( OPT_DEBUG ) std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
-
-  std::string name = VolumeIDName(ident).getName();
-  
-  if( name.length() > static_cast<unsigned>(name_tag_maxlength) ){
-    name.resize( name_tag_maxlength -1 );
-  }
-  
-  if( OPT_VERBOSE ){ std::cout << "Naming volume " << name <<  std::endl; }
-  
-  iGeom_setData( igm, cell, name_tag, name.c_str(), name.length(), &igm_result );
-  CHECK_IGEOM( igm_result, "Naming an entity set" );
-  
-  
 }
 
 void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell ){
 
- 
-  if( naming_map.find( old_cell ) != naming_map.end() ){
-    if( new_cell != NULL ){
-      naming_map[new_cell] = naming_map[old_cell];
-    }
-    naming_map.erase( old_cell);
+  for( std::map<std::string,NamedGroup*>::iterator i = named_groups.begin();
+       i != named_groups.end(); ++i )
+  {
+    NamedGroup* group = (*i).second;
+    group->update( old_cell, new_cell );
   }
+
+  for( std::vector< NamedEntity* >::iterator i = named_cells.begin(); 
+       i != named_cells.end(); ++i )
+  {
+    (*i)->update( old_cell, new_cell );
+  }
+
 }
 
-void GeometryContext::setMaterialsAsGroups( ){
+void GeometryContext::tagMaterialsAsGroups( ){
+
   int igm_result;
   
-  std::map< const GroupName*, iBase_EntitySetHandle, GroupName::name_compare > groups;
-
   std::string name_tag_id = "NAME";
   int name_tag_maxlength = 64;
   iBase_TagHandle name_tag;
-  iBase_EntitySetHandle last_set;
 
   iGeom_getTagHandle( igm, name_tag_id.c_str(), &name_tag, &igm_result, name_tag_id.length() );
   CHECK_IGEOM( igm_result, "Looking up NAME tag" );
@@ -288,52 +309,72 @@ void GeometryContext::setMaterialsAsGroups( ){
   CHECK_IGEOM( igm_result, "Querying NAME tag length" );
   if( OPT_DEBUG ) std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
 
-  for( std::map<iBase_EntityHandle,const GroupName*>::iterator i = naming_map.begin(); i != naming_map.end(); ++i ){
-    std::map< const GroupName*, iBase_EntitySetHandle, GroupName::name_compare >::iterator j = groups.find((*i).second);
+  for( std::map<std::string,NamedGroup*>::iterator i = named_groups.begin(); i != named_groups.end(); ++i ){
 
-    if( j == groups.end() ){ 
-      // create a new named entity set corresponding to the material *i.second, and name it
-      iBase_EntitySetHandle set;
-      iGeom_createEntSet( igm, 0, &set, &igm_result );
-      CHECK_IGEOM( igm_result, "Creating a new entity set " );
-      
-      if( OPT_DEBUG ) std::cout << "New entset " << set << std::endl;
-
-      last_set = set;
-
-      groups[(*i).second] = set;
-      j = groups.find((*i).second); 
-      assert( j != groups.end() );
+    NamedGroup* group = (*i).second;
+    if(OPT_VERBOSE){ 
+      std::cout << "Creating material group " << group->getName() << " of size " << group->getEntities().size() << std::endl;
     }
 
-    //add *i.first (an entity) to *j.second (an entity set) 
-    iGeom_addEntToSet( igm, (*i).first, (*j).second, &igm_result );
-    CHECK_IGEOM( igm_result, "Adding entity to material set" );
-
-    //iGeom_addPrntChld( igm, &((*j).second), (void**)&((*i).first), &igm_result );
-    //CHECK_IGEOM( igm_result, "Adding entity as child" );
-    if( OPT_DEBUG ){ std::cout << "Added " << (*i).first << " to set at " << (*j).second << std::endl; }
-
-  }
-
-  for(  std::map< const GroupName*, iBase_EntitySetHandle, GroupName::name_compare >::iterator i = groups.begin(); i != groups.end(); ++i){
+    iBase_EntitySetHandle set;
+    iGeom_createEntSet( igm, 0, &set, &igm_result );
+    CHECK_IGEOM( igm_result, "Creating a new entity set " );
     
-    std::string name = (*i).first->getName();
-    
-    if( name.length() > static_cast<unsigned>(name_tag_maxlength) ){
-      name.resize( name_tag_maxlength -1 );
+    const entity_collection_t& group_list = group->getEntities();
+    for( entity_collection_t::const_iterator j = group_list.begin(); j != group_list.end(); ++j ){
+      iGeom_addEntToSet( igm, *j, set, &igm_result );
+      CHECK_IGEOM( igm_result, "Adding entity to material set" );
     }
 
-    if( OPT_VERBOSE ){ std::cout << "Creating material group " << name << " (" << (*i).second << ")" << std::endl; }
+    std::string name = group->getName();
+    if( name.length() > (unsigned)name_tag_maxlength ){
+      name.resize( name_tag_maxlength - 1);
+      std::cerr << "Warning: trimmed material name " << group->getName() 
+		<< " to length " << name_tag_maxlength << std::endl;
+    }
+
+    iGeom_setEntSetData( igm, set, name_tag, name.c_str(), name.length(), &igm_result );
+    CHECK_IGEOM( igm_result, "Naming a material group's EntitySet" );
     
-    iGeom_setEntSetData( igm, (*i).second, name_tag, name.c_str(), name.length(), &igm_result );
-    CHECK_IGEOM( igm_result, "Naming an entity set" );
-
   }
-
-  std::cout << "Created " << groups.size() << " material groups." << std::endl;
 
 }
+
+void GeometryContext::tagCellIDsAsEntNames(){
+  
+  int igm_result;
+
+  std::string name_tag_id = "NAME";
+  int name_tag_maxlength = 64;
+  iBase_TagHandle name_tag;
+
+  iGeom_getTagHandle( igm, name_tag_id.c_str(), &name_tag, &igm_result, name_tag_id.length() );
+  CHECK_IGEOM( igm_result, "Looking up NAME tag" );
+  
+  iGeom_getTagSizeBytes( igm, name_tag, &name_tag_maxlength, &igm_result );
+  CHECK_IGEOM( igm_result, "Querying NAME tag length" );
+  if( OPT_DEBUG ) std::cout << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
+
+
+  if( OPT_VERBOSE ){ std::cout << "Naming " << named_cells.size() << " volumes." <<  std::endl; }
+
+  for( std::vector< NamedEntity* >::iterator i = named_cells.begin(); i!=named_cells.end(); ++i){
+    std::string name = (*i)->getName();
+    iBase_EntityHandle entity = (*i)->getHandle();
+
+    if( name.length() > (unsigned)name_tag_maxlength ){
+      name.resize( name_tag_maxlength - 1);
+      std::cerr << "Warning: trimmed entity name " << (*i)->getName() 
+		<< " to length " << name_tag_maxlength << std::endl;
+    }
+
+    
+    iGeom_setData( igm, entity, name_tag, name.c_str(), name.length(), &igm_result );
+    CHECK_IGEOM( igm_result, "Naming an NamedEntity" );
+  }
+
+}
+
 
 bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){ 
   bool good = true;
@@ -357,30 +398,33 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
   std::cout << "Map sanity check: root set size = " << size << " (" << num_regions << ")" << std::endl;
   std::cout << "Cell count: " << count << std::endl;
   
-  std::cout << "Map sanity check: cells with name/material properties set = " << naming_map.size() << std::endl;
-
-  // sanity conditions: all the keys in material_map are in the cells list
+  // sanity conditions: all the entityhandles in the naming lists are part of the cells list
   std::set< iBase_EntityHandle > allRegions;
   for( size_t i = 0; i < count; ++i ){
     allRegions.insert( cells[i] );
   }
   
-  for( std::map<iBase_EntityHandle,const GroupName*>::iterator i = naming_map.begin(); i!=naming_map.end(); ++i){
-    std::pair<iBase_EntityHandle,const GroupName*> kv = *i;
-    bool check = allRegions.find( kv.first ) != allRegions.end();
-    if( !check ){
-      if( kv.second->getName() == "graveyard" ){
-	// small hack here: the graveyard cell, if present, is never 
-	// added the cell list passed to this function.
-	// so this is not actually a sanity check failure.
-	check = true;
+  int named_group_volume_count = 0;
+  for( std::map<std::string, NamedGroup*>::iterator i = named_groups.begin(); i!=named_groups.end(); ++i){
+    NamedGroup* group = (*i).second;
+    named_group_volume_count += group->getEntities().size();
+
+    // graveyard cells are not present in allRegions
+    if( group->getName() == "graveyard" )
+      continue;
+
+    entity_collection_t group_cells = group->getEntities();
+    
+    for( entity_collection_t::iterator j = group_cells.begin(); j != group_cells.end(); ++j ){
+      bool check = allRegions.find( *j ) != allRegions.end();
+      if( ! check ){
+	std::cout << "Entity handle " << *j << " is not in allRegions!" << std::endl;
       }
-      else {
-	std::cout << kv.first << " is not in all regions!" << std::endl;
-      }
+      good = good && check;
     }
-    good = good && check;
   }
+
+  std::cout << "Num EntityHandles in NamedGroups: " << named_group_volume_count << std::endl;
 
   if( good ){ std::cout << "Map sanity check: pass!"  << std::endl; }
   else{ std::cout << "WARNING: Failed map sanity check!" << std::endl; }
@@ -421,7 +465,8 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
   }
   else if( fn->getFillingUniverse() == lattice_universe ){
     // this node is just a translated copy of the origin element in the lattice
-    setMaterial( cell_copy, cell.getMat(), cell.getRho() );
+    setVolumeCellID(cell_copy, cell.getIdent());
+    if( cell.getMat() != 0 ){ setMaterial( cell_copy, cell.getMat(), cell.getRho() ); }
     node_subcells.push_back( cell_copy );
   }
   else{
@@ -506,7 +551,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 
   if( !cell.hasFill() && !cell.isLattice() ){
     // nothing inside this cell
-    setVolumeID(cell_shell, cell.getIdent());
+    setVolumeCellID(cell_shell, cell.getIdent());
     if( cell.getMat() != 0 ){ setMaterial( cell_shell, cell.getMat(), cell.getRho() ); }
     return entity_collection_t(1, cell_shell );
   }
@@ -765,7 +810,6 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
 	  if( OPT_DEBUG ) std::cout << " ok." <<  std::endl;
 	}
 	else{
-	  updateMaps( subcells[i], NULL );
 	  subcell_removed = true;
 	}
 
@@ -779,6 +823,7 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
       }
       
       if( subcell_removed ){
+	updateMaps( subcells[i], NULL );
 	subcells.erase( subcells.begin()+i );
 	i--;
 	if( OPT_DEBUG ) std::cout << " removed." << std::endl;
@@ -822,7 +867,7 @@ iBase_EntityHandle GeometryContext::createGraveyard( ) {
     iGeom_subtractEnts( igm, outer, inner, &graveyard, &igm_result );
     CHECK_IGEOM( igm_result, "subtracting graveyard" );
 
-    setVolumeName( graveyard, "graveyard" );
+    addToVolumeGroup( graveyard, "graveyard" );
 
     // reset world size to a sphere that bounds the inner shell of this graveyard
     world_size *= sqrt(3.0);
@@ -901,7 +946,11 @@ void GeometryContext::createGeometry( ){
 
   if( opt.tag_materials ){
     if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
-    setMaterialsAsGroups();
+    tagMaterialsAsGroups();
+  }
+
+  if( opt.tag_cell_IDs ){
+    tagCellIDsAsEntNames();
   }
   
 
@@ -971,6 +1020,7 @@ int main(int argc, char* argv[]){
   // set default options
   opt.verbose = opt.debug = false;
   opt.tag_materials = false;
+  opt.tag_cell_IDs = false;
   opt.make_graveyard = false;
   opt.input_file = NULL;
   opt.output_file = "out.sat";
@@ -1017,6 +1067,9 @@ int main(int argc, char* argv[]){
     }
     else if( arg == "-m" ){
       opt.tag_materials = true;
+    }
+    else if( arg == "-n" ){
+      opt.tag_cell_IDs = true;
     }
     else if( arg == "-g" ){
       opt.make_graveyard = true;
@@ -1111,7 +1164,8 @@ void printHelp( const char* progname, std::ostream& out ){
     "  -h, --help            Show this message and exit\n" <<
     "  -o OUTPUT             Give name of output file (default: " << OPT_DEFAULT_OUTPUT_FILENAME << ")\n" <<
     "  -t VALUE              Give tolerance for merge step\n" << 
-    "  -m                    Tag materials using group names\n" << 
+    "  -m                    Tag materials using group names\n" <<
+    "  -n                    Tag MCNP cell numbers as entity names\n" << 
     "  -g                    Bound the geometry with a `graveyard' bounding box\n" << 
     "  -v                    Verbose output\n" <<
     "  -D                    Debugging (super-verbose) output\n" <<

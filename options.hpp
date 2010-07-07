@@ -6,6 +6,7 @@ struct program_option_struct{
   bool debug;
 
   bool tag_materials;
+  bool tag_cell_IDs;
   bool make_graveyard;
   
   const char* output_file;

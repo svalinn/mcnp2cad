@@ -122,8 +122,8 @@ protected:
   void set_rots_from_matrix( double raw_matrix[9], enum mat_format  );
 
 public:
-  Transform():translation(),has_rot(false){}
-  Transform( const Vector3d& v ):translation(v),has_rot(false){}
+  Transform():translation(),has_rot(false),invert(false){}
+  Transform( const Vector3d& v ):translation(v),has_rot(false),invert(false){}
   Transform( const std::vector< double >& inputs, bool degree_format_p = false, enum mat_format = FORTRAN_STYLE );
   Transform( double rot[9], const Vector3d& trans,  enum mat_format = C_STYLE );
 
