@@ -191,11 +191,10 @@ protected:
     const std::string& getName() const { return name; }
     iBase_EntityHandle getHandle() const{ return handle; }
 
-    void update( iBase_EntityHandle old_h, iBase_EntityHandle new_h ){
-      if(old_h == handle)
-	handle = new_h;
+    void setHandle( iBase_EntityHandle new_h ) {
+      handle = new_h;
     }
-    
+
     static NamedEntity* makeCellIDName( iBase_EntityHandle h, int ident ){
       NamedEntity* e = new NamedEntity(h);
       std::stringstream formatter;
@@ -279,6 +278,7 @@ void GeometryContext::setVolumeCellID( iBase_EntityHandle cell, int ident ){
 
 void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell ){
 
+  /* update named_groups.  handling of new_cell == NULL case is performed within NamedGroup class */
   for( std::map<std::string,NamedGroup*>::iterator i = named_groups.begin();
        i != named_groups.end(); ++i )
   {
@@ -286,10 +286,31 @@ void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandl
     group->update( old_cell, new_cell );
   }
 
-  for( std::vector< NamedEntity* >::iterator i = named_cells.begin(); 
-       i != named_cells.end(); ++i )
-  {
-    (*i)->update( old_cell, new_cell );
+  /* update named entities.*/
+  if( new_cell != NULL ){
+    for( std::vector< NamedEntity* >::iterator i = named_cells.begin(); 
+	 i != named_cells.end(); ++i )
+      {
+	NamedEntity* ne = *i;
+	if( ne->getHandle() == old_cell ){
+	  ne->setHandle( new_cell );
+	}
+      }
+  }
+  else{ /* new_cell == NULL (i.e. cell has disappeared) */
+
+    // this case is expected to be uncommon in most geometries, so the fact that erasing
+    // from a std::vector is slow should not be a problem.
+    std::vector< NamedEntity* >::iterator i = named_cells.begin();
+    while( i != named_cells.end() ){
+      if( (*i)->getHandle() == old_cell ){
+	delete (*i);
+	named_cells.erase(i);
+      }
+      else{
+	++i;
+      }
+    }
   }
 
 }
@@ -368,6 +389,7 @@ void GeometryContext::tagCellIDsAsEntNames(){
 		<< " to length " << name_tag_maxlength << std::endl;
     }
 
+    if( entity == NULL ){ std::cerr << "Error: NULL in named_cells" << std::endl; continue; }
     
     iGeom_setData( igm, entity, name_tag, name.c_str(), name.length(), &igm_result );
     CHECK_IGEOM( igm_result, "Naming an NamedEntity" );
