@@ -135,7 +135,7 @@ class GeometryContext {
 
 protected:
 
-  std::string materialName( int mat, int rho ){
+  std::string materialName( int mat, double rho ){
     std::string ret;
     std::stringstream formatter;
     formatter << "mat_" << mat << "_rho_" << rho;
