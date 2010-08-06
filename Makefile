@@ -1,4 +1,4 @@
-CGM_BASE_DIR = /home/cnerg/opt/CGMA
+CGM_BASE_DIR = /home/cnerg/opt/CGMA/opt-acis-64
 #CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/acis
 #CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/occ
 

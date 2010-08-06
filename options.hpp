@@ -8,6 +8,8 @@ struct program_option_struct{
   bool tag_materials;
   bool tag_cell_IDs;
   bool make_graveyard;
+  bool imprint_geom;
+  bool merge_geom;
   
   const char* output_file;
   const char* input_file;

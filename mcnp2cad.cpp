@@ -976,20 +976,24 @@ void GeometryContext::createGeometry( ){
   }
   
 
-  std::cout << "Imprinting all...\t\t\t" << std::flush;
-  iGeom_imprintEnts( igm, cell_array, count, &igm_result );
-  CHECK_IGEOM( igm_result, "Imprinting all cells" );
-  std::cout << " done." << std::endl;
+  if ( opt.imprint_geom ) {
+    std::cout << "Imprinting all...\t\t\t" << std::flush;
+    iGeom_imprintEnts( igm, cell_array, count, &igm_result );
+    CHECK_IGEOM( igm_result, "Imprinting all cells" );
+    std::cout << " done." << std::endl;
+    
+    double tolerance = world_size / 1.0e7;
+    if( opt.override_tolerance ){
+      tolerance = opt.specific_tolerance;
+    }
 
-  double tolerance = world_size / 1.0e7;
-  if( opt.override_tolerance ){
-    tolerance = opt.specific_tolerance;
+    if ( opt.merge_geom ) {
+      std::cout << "Merging, tolerance=" << tolerance << "...\t\t" << std::flush;
+      iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
+      CHECK_IGEOM( igm_result, "Merging all cells" );
+      std::cout << " done." << std::endl;
+    }
   }
-  std::cout << "Merging, tolerance=" << tolerance << "...\t\t" << std::flush;
-  iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
-  CHECK_IGEOM( igm_result, "Merging all cells" );
-  std::cout << " done." << std::endl;
-
 
 
   std::string outName = opt.output_file;
@@ -1041,9 +1045,11 @@ int main(int argc, char* argv[]){
 
   // set default options
   opt.verbose = opt.debug = false;
-  opt.tag_materials = false;
-  opt.tag_cell_IDs = false;
-  opt.make_graveyard = false;
+  opt.tag_materials = true;
+  opt.tag_cell_IDs = true;
+  opt.make_graveyard = true;
+  opt.imprint_geom = true;
+  opt.merge_geom = true;
   opt.input_file = NULL;
   opt.output_file = "out.sat";
   opt.igeom_init_options = "";
@@ -1090,11 +1096,32 @@ int main(int argc, char* argv[]){
     else if( arg == "-m" ){
       opt.tag_materials = true;
     }
+    else if( arg == "-M" ){
+      opt.tag_materials = false;
+    }
     else if( arg == "-n" ){
       opt.tag_cell_IDs = true;
     }
+    else if( arg == "-N" ){
+      opt.tag_cell_IDs = false;
+    }
     else if( arg == "-g" ){
       opt.make_graveyard = true;
+    }
+    else if( arg == "-G" ){
+      opt.make_graveyard = false;
+    }
+    else if( arg == "-i" ){
+      opt.imprint_geom = true;
+    }
+    else if( arg == "-I" ){
+      opt.imprint_geom = false;
+    }
+    else if( arg == "-e" ){
+      opt.merge_geom = true;
+    }
+    else if( arg == "-E" ){
+      opt.merge_geom = false;
     }
     else if( arg == "-D" ){
       opt.debug   = true;
@@ -1125,6 +1152,10 @@ int main(int argc, char* argv[]){
       opt.input_file = argv[i];
     }
 
+  }
+
+  if( opt.merge_geom && !opt.imprint_geom ) {
+    std::cerr << "Warning: cannot merge geometry without imprinting" << std::endl;
   }
 
   if( opt.input_file == NULL ){
@@ -1186,9 +1217,16 @@ void printHelp( const char* progname, std::ostream& out ){
     "  -h, --help            Show this message and exit\n" <<
     "  -o OUTPUT             Give name of output file (default: " << OPT_DEFAULT_OUTPUT_FILENAME << ")\n" <<
     "  -t VALUE              Give tolerance for merge step\n" << 
-    "  -m                    Tag materials using group names\n" <<
-    "  -n                    Tag MCNP cell numbers as entity names\n" << 
-    "  -g                    Bound the geometry with a `graveyard' bounding box\n" << 
+    "  -m                    Tag materials using group names [default]\n" <<
+    "  -M                    DO NOT Tag materials using group names\n" <<
+    "  -n                    Tag MCNP cell numbers as entity names [default]\n" << 
+    "  -N                    DO NOT Tag MCNP cell numbers as entity names\n" << 
+    "  -g                    Bound the geometry with a `graveyard' bounding box [default]\n" << 
+    "  -G                    DO NOT Bound the geometry with a `graveyard' bounding box\n" << 
+    "  -i                    Imprint the geometry [default]\n" <<
+    "  -I                    DO NOT Imprint the geometry\n"<<
+    "  -e                    Merge the geometry (requires Imprinting) [default]\n" <<
+    "  -E                    DO NOT Merge the geometry\n"<<
     "  -v                    Verbose output\n" <<
     "  -D                    Debugging (super-verbose) output\n" <<
     "  -Di                   Debugging output for MCNP parsing phase only\n" <<
