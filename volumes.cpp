@@ -445,7 +445,7 @@ static Transform imageZAxisTo( const Vector3d& v, const Vector3d& translation = 
   if( b.length() < DBL_EPSILON ){
     // v is indistinguishable from the x axis
     b = Vector3d(0, -1, 0);
-    std::cout << "Changing v " << std::endl;
+    if( OPT_DEBUG ) std::cout << "imageZAxisTo: Changing v " << std::endl;
   }
 
   Vector3d c = b.cross( v.normalize() );

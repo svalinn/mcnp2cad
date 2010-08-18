@@ -548,24 +548,50 @@ protected:
       }
       else if( token == "fill" || token == "*fill" ){
 
-	 bool degree_format = (token[0] == '*');
+	bool degree_format = (token[0] == '*');
 
 	std::string next_token = *(++i);
-	if( next_token.find(":") != next_token.npos ){ // explicit lattice grid exists
+
+	// an explicit lattice grid exists if 
+	// * the next token contains a colon, or
+	// * the token after it exists and starts with a colon
+	bool explicit_grid = next_token.find(":") != next_token.npos; 
+	explicit_grid = explicit_grid || (i+1 != data.end() && (*(i+1)).at(0) == ':' );
+
+	if( explicit_grid ){
+
+	  // convert the grid specifiers (x1:x2, y1:y2, z1:z2) into three spaceless strings for easier parsing
+	  std::string gridspec[3];
+	  for( int dim = 0; dim < 3; ++dim ){
+
+	    std::string spec;
+
+	    // add tokens to the spec string until it contains a colon but does not end with one
+	    do{
+	      spec += *i;
+	      i++;
+	    }
+	    while( spec.find(":") == spec.npos || spec.at(spec.length()-1) == ':' );
+	    
+	    if(OPT_DEBUG) std::cout << "gridspec[" << dim << "]: " << spec << std::endl;
+	    gridspec[dim] = spec;
+
+	  }
+
 	  irange ranges[3];
 	  const char* range_str;
 	  char *p;
 	  
 	  int num_elements = 1;
 	  for( int dim = 0; dim < 3; ++dim ){
-	    range_str = (*i).c_str();
+	    range_str = gridspec[dim].c_str();
 	    ranges[dim].first  = strtol(range_str, &p, 10);
 	    ranges[dim].second = strtol(p+1, NULL, 10); 
 	    
 	    if( ranges[dim].second != ranges[dim].first ){
 	      num_elements *= ( ranges[dim].second - ranges[dim].first )+1;
 	    }
-	    i++;
+
 	  }
 
 	  std::vector<FillNode> elements;
@@ -1131,6 +1157,32 @@ InputDeck::~InputDeck(){
   
 }
 
+/* handle line continuations: return true if the next line should be treated as part of 
+ * the current line */
+bool InputDeck::do_line_continuation( LineExtractor& lines, token_list_t& token_buffer ){
+
+  /* check for final character being & */
+  std::string last_token = token_buffer.at(token_buffer.size()-1);
+  if( last_token.at(last_token.length()-1) == '&' ){
+
+    if( last_token.length() == 1 ){
+      token_buffer.pop_back();
+    }
+    else{
+      last_token.resize(last_token.length()-1);
+      token_buffer.at(token_buffer.size()-1).swap( last_token );
+    }
+    
+    return true;
+  } 
+  /* check for next line beginning with five spaces */
+  else if( lines.hasLine() && lines.peekLine().find("     ") == 0){
+    return true;
+  }
+  
+  return false;
+}
+
 void InputDeck::parseCells( LineExtractor& lines ){
 
   std::string line;
@@ -1140,11 +1192,7 @@ void InputDeck::parseCells( LineExtractor& lines ){
 
     tokenizeLine(line, token_buffer, "=");
     
-    if( token_buffer.at(token_buffer.size()-1) == "&" ){
-      token_buffer.pop_back(); 
-      continue;
-    }
-    else if( lines.peekLine().find("     ") == 0){
+    if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
 
@@ -1200,11 +1248,7 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
 
     tokenizeLine(line, token_buffer );
     
-    if( token_buffer.at(token_buffer.size()-1) == "&" ){
-      token_buffer.pop_back();
-      continue;
-    }
-    else if( lines.peekLine().find("     ") == 0){
+    if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
    
@@ -1229,11 +1273,7 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
 
     tokenizeLine(line, token_buffer );
     
-    if( token_buffer.at(token_buffer.size()-1) == "&" ){
-      token_buffer.pop_back();
-      continue;
-    }    
-    else if( lines.hasLine() && lines.peekLine().find("     ") == 0){
+    if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
     else if( token_buffer.at(0) == "#" ){

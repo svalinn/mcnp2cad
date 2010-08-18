@@ -146,6 +146,7 @@ protected:
   std::map<int, SurfaceCard*> surface_map;
   std::map< DataCard::id_t, DataCard*> datacard_map;
 
+  bool do_line_continuation( LineExtractor& lines, token_list_t& token_buffer );
   void parseTitle( LineExtractor& lines );
   void parseCells( LineExtractor& lines );
   void parseSurfaces( LineExtractor& lines );
