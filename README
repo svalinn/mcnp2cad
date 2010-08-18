@@ -33,10 +33,11 @@ format based on the extension of the output file name; .sat is recommended.
 Help on other command-line flags is available by invoking the program with
 the -h (or --help) flag.  
 
-Users preparing input geometries for DAGMC should use the -m flag (which 
-tags volumes with their associated material properties) and the -g flag 
-(which creates a DAGMC 'graveyard' boundary volume).
-
+Users preparing input geometries for DAGMC should be aware of the -m flag 
+(which tags volumes with their associated material properties) and 
+the -g flag  (which creates a DAGMC 'graveyard' boundary volume).  These 
+features are enabled by default. Users who are only interested in visualization 
+may want to use the -G flag to turn the graveyard volume off.
 
 
 Unsupported Features: 
