@@ -33,12 +33,10 @@ format based on the extension of the output file name; .sat is recommended.
 Help on other command-line flags is available by invoking the program with
 the -h (or --help) flag.  
 
-Users preparing input geometries for DAGMC should be aware of the -m flag 
-(which tags volumes with their associated material properties) and 
-the -g flag  (which creates a DAGMC 'graveyard' boundary volume).  These 
-features are enabled by default. Users who are only interested in visualization 
-may want to use the -G flag to turn the graveyard volume off.
-
+The program will, by default, create a boundary volume named "graveyard"
+around all created geometry.  This volume is needed for DAGMC analysis,
+but users who are only interested in visualization may want to use the -G
+flag to turn the graveyard volume off. 
 
 Unsupported Features: 
 
@@ -69,7 +67,8 @@ Unsupported Features:
 
 * Unsupported features that would require major additions to iGeom and/or 
   a major additional development effort:
-** General support for SQ, GQ, X, Y, and Z surfaces.
+** General support for SQ, GQ, X, Y, and Z surfaces.  (Simple X,Y,Z surfaces
+   are already supported.)
 ** Robust error detection and reporting for ill-formed MCNP inputs.
 ** Support for jump (nJ) syntax: requires knowledge of default values in 
    many possible contexts

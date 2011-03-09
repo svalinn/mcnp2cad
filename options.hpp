@@ -1,6 +1,8 @@
 #ifndef MCNP2IGEOM_OPTIONS_H
 #define MCNP2IGEOM_OPTIONS_H
 
+#include <string>
+
 struct program_option_struct{
   bool verbose;
   bool debug;
@@ -11,10 +13,10 @@ struct program_option_struct{
   bool imprint_geom;
   bool merge_geom;
   
-  const char* output_file;
-  const char* input_file;
+  std::string output_file;
+  std::string input_file;
   
-  const char* igeom_init_options;
+  std::string igeom_init_options;
 
   bool override_tolerance;
   double specific_tolerance;

@@ -16,6 +16,7 @@
 #include "MCNPInput.hpp"
 #include "options.hpp"
 #include "volumes.hpp"
+#include "ProgOptions.hpp"
 
 #ifdef USING_CGMA
 
@@ -1030,19 +1031,6 @@ double makedouble_strict( const char* string ) ;
 
 int main(int argc, char* argv[]){
 
-
-  if( argc < 2 ){
-    printHelp( argv[0], std::cout );
-    return 0;
-  }
-
-
-#ifdef USING_CGMA
-  // turn off informational messages by default
-  // they can be re-enabled with the -Cv flag.
-  CubitMessage::instance()->set_info_flag( false );
-#endif
-
   // set default options
   opt.verbose = opt.debug = false;
   opt.tag_materials = true;
@@ -1050,121 +1038,79 @@ int main(int argc, char* argv[]){
   opt.make_graveyard = true;
   opt.imprint_geom = true;
   opt.merge_geom = true;
-  opt.input_file = NULL;
-  opt.output_file = "out.sat";
+  opt.input_file = "";
+  opt.output_file = OPT_DEFAULT_OUTPUT_FILENAME;
   opt.igeom_init_options = "";
   opt.override_tolerance = false;
 
   bool DiFlag = false, DoFlag = false;
-  
-  for( int i = 1; i < argc; ++i){
-    std::string arg = argv[i];
-    if( arg == "-h" || arg == "--help" ){
-      printHelp( argv[0], std::cout );
-      return 0;
-    }
-    else if( arg == "-o" ){
-      if( i+1 >= argc ){
-	std::cerr << "Error: -o option requires an argument" << std::endl;
-	printHelp( argv[0], std::cerr );
-	return 1;
-      }
-      else{
-	opt.output_file = argv[i+1];
-	i++;
-      }
-    }
-    else if( arg == "-t" ){
-      
-      if( i+1 >= argc ){
-	std::cerr << "Error: -t option requires an argument" << std::endl;
-	printHelp( argv[0], std::cerr );
-	return 1;
-      }
-      else{
-	double tol = makedouble_strict( argv[i+1] );
-	if( tol <= 0.0 || tol > .1 ){
-	  std::cerr << "Warning: you seem to have specified an unusual tolerance (" << tol << ")." << std::endl;
-	}
-	opt.override_tolerance = true;
-	opt.specific_tolerance = tol;
-      }
-    }
-    else if( arg == "-v" ){
-      opt.verbose = true;
-    }
-    else if( arg == "-m" ){
-      opt.tag_materials = true;
-    }
-    else if( arg == "-M" ){
-      opt.tag_materials = false;
-    }
-    else if( arg == "-n" ){
-      opt.tag_cell_IDs = true;
-    }
-    else if( arg == "-N" ){
-      opt.tag_cell_IDs = false;
-    }
-    else if( arg == "-g" ){
-      opt.make_graveyard = true;
-    }
-    else if( arg == "-G" ){
-      opt.make_graveyard = false;
-    }
-    else if( arg == "-i" ){
-      opt.imprint_geom = true;
-    }
-    else if( arg == "-I" ){
-      opt.imprint_geom = false;
-    }
-    else if( arg == "-e" ){
-      opt.merge_geom = true;
-    }
-    else if( arg == "-E" ){
-      opt.merge_geom = false;
-    }
-    else if( arg == "-D" ){
-      opt.debug   = true;
-    }
-    else if( arg == "-Do" ){
-      DoFlag = true;
-    }
-    else if (arg == "-Di" ){
-      DiFlag = true;
-    }
-#ifdef USING_CGMA
-    else if (arg == "-Cv" ){
-      CubitMessage::instance()->set_info_flag( true );
-    }
-    else if (arg == "-Cq" ){
-      CubitMessage::instance()->set_warning_flag( false );
-    }
-    else if( arg == "-CIq" ){
-      CGMA_opt_inhibit_intersect_errs = true;
-    }
-#endif
-    else if ( arg[0] == '-'){ 
-      std::cerr << "Error: unknown option  \"" << arg << "\"" << std::endl;
-      printHelp( argv[0], std::cerr );
-      return 1;
-    }
-    else{
-      opt.input_file = argv[i];
-    }
 
+  ProgOptions po("mcnp2cad: An MCNP geometry to CAD file converter");
+  po.addOpt<void>("verbose,v", "Verbose output", &opt.verbose );
+  po.addOpt<void>("debug,D", "Debugging (very verbose) output", &opt.debug );
+  po.addOpt<void>("Di", "Debug output for MCNP parsing phase only", &DiFlag);
+  po.addOpt<void>("Do","Debug output for iGeom output phase only", &DoFlag);
+
+  po.addOptionHelpHeading( "Options controlling CAD output:" );
+  po.addOpt<std::string>(",o", "Give name of output file. Default: " + opt.output_file, &opt.output_file );
+  po.addOpt<double>("tol,t", "Specify a tolerance for merging surfaces", &opt.specific_tolerance );
+  po.addOpt<void>("skip-mats,M", "Do not tag materials using group names", 
+                  &opt.tag_materials, po.add_cancel_opt | po.store_false );
+  po.addOpt<void>("skip-nums,N", "Do not tag cell numbers using body names",
+                  &opt.tag_cell_IDs, po.add_cancel_opt | po.store_false );
+  po.addOpt<void>("skip-merge,E", "Do not merge the geometry",
+                  &opt.merge_geom, po.add_cancel_opt | po.store_false );
+  po.addOpt<void>("skip-imprint,I", "Do not imprint the geometry; implies skip-merge",
+                  &opt.imprint_geom, po.add_cancel_opt | po.store_false );
+  po.addOpt<void>("skip-graveyard,G", "Do not bound the geometry with a `graveyard' bounding box",
+                  &opt.make_graveyard, po.add_cancel_opt | po.store_false );
+
+#ifdef USING_CGMA
+  po.addOptionHelpHeading ("Options controlling CGM library:");
+  po.addOpt<void>("Cv", "Verbose messages from CGM" );
+  po.addOpt<void>("Cq", "Silence warning messages from CGM" );
+  po.addOpt<void>("CIq","Silence ERROR messages from CGM when doing intersect tests.");
+  po.addOptionHelpHeading( "         (May be useful for infinite lattices, but use cautiously)" );
+#endif
+
+  po.addRequiredArg( "input_file", "Path to MCNP geometry input file", &opt.input_file );
+
+  po.parseCommandLine( argc, argv );
+
+  if( po.numOptSet( "tol,t" ) ){
+    opt.override_tolerance = true;
+    if( opt.specific_tolerance <= 0.0 || opt.specific_tolerance > .1 ){
+      std::cerr << "Warning: you seem to have specified an unusual tolerance (" 
+                << opt.specific_tolerance << ")." << std::endl;
+    }
   }
+
+#ifdef USING_CGMA
+
+  // Enable the info_flag only if --Cv is requested
+  if(po.numOptSet( "Cv" )){
+    CubitMessage::instance()->set_info_flag( true );
+  }
+  else{
+    CubitMessage::instance()->set_info_flag( false );
+  }
+
+  // Silence warnings if --Cq is set
+  if(po.numOptSet( "Cq" )){    
+    CubitMessage::instance()->set_warning_flag( false );
+  }
+
+  // Enable silent intersection errors if --CIq is set
+  if(po.numOptSet( "CIq" )){
+    CGMA_opt_inhibit_intersect_errs = true;
+  }
+#endif
 
   if( opt.merge_geom && !opt.imprint_geom ) {
-    std::cerr << "Warning: cannot merge geometry without imprinting" << std::endl;
+    std::cerr << "Warning: cannot merge geometry without imprinting, will skip merge too." << std::endl;
   }
 
-  if( opt.input_file == NULL ){
-    std::cerr << "Error: no input file given" << std::endl;
-    printHelp( argv[0], std::cerr );
-    return 1;
-  }
-  
-  std::ifstream input(opt.input_file, std::ios::in );
+  std::ifstream input(opt.input_file.c_str(), std::ios::in );
   if( !input.is_open() ){
     std::cerr << "Error: couldn't open file \"" << opt.input_file << "\"" << std::endl;
     return 1;
@@ -1193,7 +1139,7 @@ int main(int argc, char* argv[]){
   iGeom_Instance igm;
   int igm_result; 
 
-  iGeom_newGeom( opt.igeom_init_options, &igm, &igm_result, std::string(opt.igeom_init_options).length() );
+  iGeom_newGeom( opt.igeom_init_options.c_str(), &igm, &igm_result, opt.igeom_init_options.length() );
   CHECK_IGEOM( igm_result, "Initializing iGeom");
 
   GeometryContext context( igm, deck );
@@ -1201,42 +1147,10 @@ int main(int argc, char* argv[]){
   
 #ifdef USING_CGMA
   if( CGMA_opt_inhibit_intersect_errs && SilentCubitMessageHandler::num_dropped_errors > 0){
-    std::cout << "-CIq: supressed " << SilentCubitMessageHandler::num_dropped_errors << " intersection errors." << std::endl;
+    std::cout << "--CIq: supressed " << SilentCubitMessageHandler::num_dropped_errors << " intersection errors." << std::endl;
   }
 #endif 
 
   return 0;
     
-}
-
-void printHelp( const char* progname, std::ostream& out ){
-  
-  out << "\nusage: " << progname << " [options] input_file\n" << std::endl;
-  out << "options:\n";
-  out << 
-    "  -h, --help            Show this message and exit\n" <<
-    "  -o OUTPUT             Give name of output file (default: " << OPT_DEFAULT_OUTPUT_FILENAME << ")\n" <<
-    "  -t VALUE              Give tolerance for merge step\n" << 
-    "  -m                    Tag materials using group names [default]\n" <<
-    "  -M                    DO NOT Tag materials using group names\n" <<
-    "  -n                    Tag MCNP cell numbers as entity names [default]\n" << 
-    "  -N                    DO NOT Tag MCNP cell numbers as entity names\n" << 
-    "  -g                    Bound the geometry with a `graveyard' bounding box [default]\n" << 
-    "  -G                    DO NOT Bound the geometry with a `graveyard' bounding box\n" << 
-    "  -i                    Imprint the geometry [default]\n" <<
-    "  -I                    DO NOT Imprint the geometry\n"<<
-    "  -e                    Merge the geometry (requires Imprinting) [default]\n" <<
-    "  -E                    DO NOT Merge the geometry\n"<<
-    "  -v                    Verbose output\n" <<
-    "  -D                    Debugging (super-verbose) output\n" <<
-    "  -Di                   Debugging output for MCNP parsing phase only\n" <<
-    "  -Do                   Debugging output for iGeom output phase only\n" << 
-#ifdef USING_CGMA
-    "  -Cv                   Allow verbose messages from CGM library\n" <<
-    "  -Cq                   Silence warning message from CGM library\n" << 
-    "  -CIq                  Silence ERROR messages from CGM library when during intersect tests.\n" <<
-    "                        (May be useful for infinite lattices, but use cautiously)\n" << 
-#endif
-    std::endl;
-
 }
