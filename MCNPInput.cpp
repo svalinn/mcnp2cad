@@ -247,7 +247,7 @@ protected:
   }
   
   static bool is_num_token( geom_list_entry_t t ){
-    return t.first == CELLNUM || t.first == SURFNUM;
+    return t.first == CELLNUM || t.first == SURFNUM || t.first == MBODYFACET;
   }
   
   static bool is_op_token( geom_list_entry_t t ){
@@ -315,10 +315,31 @@ protected:
 	  bool is_cell = geom.size() && ((geom.at(geom.size()-1)).first == COMPLEMENT);
 	  IMPLICIT_INTERSECT();
 	  assert(isdigit(cj) || cj == '+' || cj == '-' );
-	  size_t end = token.find_first_not_of("1234567890-+",j);
+	  size_t end = token.find_first_not_of("1234567890-+.",j);
 	  assert(j != end);
-	  int num = strtol( std::string(token, j, end-j).c_str(), NULL, 10 );
-	  geom.push_back( make_geom_entry( is_cell ? CELLNUM : SURFNUM, num ));
+
+	  std::string numstr( token, j, end-j );
+	  const char* numstr_c = numstr.c_str();
+	  char* p;
+	  int num = strtol( numstr_c, &p, 10 );
+
+	  if( *p == '.' ){
+	    // This is a macrobody facet
+	    assert( !is_cell );
+
+	    int facet = strtol( p+1, NULL, 10 );
+	    assert( facet > 0 && facet <= 8 );
+
+	    // storage of macrobody facets: multiply cell number by ten, add facet number
+	    num *= 10;
+	    // don't add a positive facet number to a negative cell numer
+	    num += (num > 0) ? facet : -facet;
+	    geom.push_back( make_geom_entry( MBODYFACET, num ) );
+	  }
+	  else{
+	    geom.push_back( make_geom_entry( is_cell ? CELLNUM : SURFNUM, num ));
+	  }
+
 	  j += (end-j);
 	  break;
 #undef IMPLICIT_INTERSECT
@@ -781,6 +802,11 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
   case CellCard::INTERSECT:  str << "*"; break;
   case CellCard::SURFNUM:    str << t.second; break;
   case CellCard::CELLNUM:    str << "c" << t.second; break;
+  case CellCard::MBODYFACET: 
+    int cell = t.second / 10;
+    int facet = abs(t.second) - (abs(cell)*10);
+    str << cell << "." << facet;
+    break;
   }
   return str;
 }
@@ -919,7 +945,7 @@ std::vector< std::pair<Vector3d, double> > SurfaceCard::getMacrobodyPlaneParams(
 
   }
   else{ 
-    throw std::runtime_error("Tried to get macrobody plane noramls of unsupported surface!" );
+    throw std::runtime_error("Tried to get macrobody plane normals of unsupported surface!" );
   }
   return ret;
 }

@@ -41,7 +41,10 @@ class Fill;
 class CellCard : public Card {
 
 public:
-  enum geom_token_t {INTERSECT, UNION, COMPLEMENT, LPAREN, RPAREN, CELLNUM, SURFNUM};
+  enum geom_token_t {INTERSECT, UNION, COMPLEMENT, LPAREN, RPAREN, CELLNUM, SURFNUM, MBODYFACET};
+  // for CELLNUM and SURFNUM the second item in the geom_list_entry is the given number 
+  // (possibly negative for surfaces)
+  // for MBODYFACET it is  (cell number*10 + facet number) * sense (where sense=1 or -1)
   typedef std::pair<enum geom_token_t, int> geom_list_entry_t;
   typedef std::vector<geom_list_entry_t> geom_list_t;
 

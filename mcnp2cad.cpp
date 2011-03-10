@@ -718,6 +718,14 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
 	catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
       }
       break;
+    case CellCard::MBODYFACET:
+      {
+	int cellnum = std::abs(token.second) / 10;
+	int facet = std::abs(token.second) - (cellnum*10);
+	std::cerr << "Attempting to define facet " << facet << " of cell " << cellnum << std::endl;
+	throw std::runtime_error( "Macrobody facets are not yet supported by mcnp2cad." );
+      }
+      break;
     case CellCard::INTERSECT:
       {
 	assert( stack.size() >= 2 );
