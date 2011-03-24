@@ -1,5 +1,5 @@
-#ifndef MCNP2IGEOM_VOLUMES_H
-#define MCNP2IGEOM_VOLUMES_H
+#ifndef MCNP2CAD_VOLUMES_H
+#define MCNP2CAD_VOLUMES_H
 
 #include <cstdlib>
 #include "iGeom.h"
@@ -66,4 +66,4 @@ static char m_buf[CHECK_BUF_SIZE];
     std::cerr << " * " << m_buf << std::endl;				\
      } } while(0) 
 
-#endif /* MCNP2IGEOM_VOLUMES_H */
+#endif /* MCNP2CAD_VOLUMES_H */

@@ -1,5 +1,5 @@
-#ifndef MCNP2IGEOM_GEOMETRY_H
-#define MCNP2IGEOM_GEOMETRY_H
+#ifndef MCNP2CAD_GEOMETRY_H
+#define MCNP2CAD_GEOMETRY_H
 
 #include <vector>
 #include <iosfwd>
@@ -250,4 +250,4 @@ public:
 };
 
 
-#endif /* MCNP2IGEOM_GEOMETRY_H */
+#endif /* MCNP2CAD_GEOMETRY_H */

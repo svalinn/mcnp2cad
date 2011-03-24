@@ -1,5 +1,5 @@
-#ifndef MCNP2IGEOM_DATA_REF_H
-#define MCNP2IGEOM_DATA_REF_H
+#ifndef MCNP2CAD_DATA_REF_H
+#define MCNP2CAD_DATA_REF_H
 
 // additional implemenentations of this class are defined in MCNPInput.cpp
 
@@ -97,4 +97,4 @@ public:
 
 
 
-#endif /* MCNP2IGEOM_DATA_REF_H */
+#endif /* MCNP2CAD_DATA_REF_H */

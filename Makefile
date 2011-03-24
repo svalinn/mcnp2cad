@@ -1,4 +1,4 @@
-CGM_BASE_DIR = /home/cnerg/opt/CGMA/opt-acis-64
+CGM_BASE_DIR = /filespace/groups/cnerg/opt/CGMA/opt-acis-c10
 #CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/acis
 #CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/occ
 
@@ -23,7 +23,8 @@ mcnp2cad: ${CXXOBJS} Makefile
 geometry.o: geometry.cpp geometry.hpp dataref.hpp
 volumes.o: volumes.cpp volumes.hpp geometry.hpp MCNPInput.hpp
 MCNPInput.o: MCNPInput.cpp MCNPInput.hpp geometry.hpp dataref.hpp options.hpp 
-mcnp2cad.o: mcnp2cad.cpp MCNPInput.hpp geometry.hpp dataref.hpp options.hpp volumes.hpp ProgOptions.hpp
+mcnp2cad.o: mcnp2cad.cpp MCNPInput.hpp geometry.hpp dataref.hpp \
+            options.hpp volumes.hpp ProgOptions.hpp version.hpp
 ProgOptions.o: ProgOptions.cpp ProgOptions.hpp
 
 .cpp.o:

@@ -596,6 +596,11 @@ bool ProgOptions::process_option( ProgOpt* opt, std::string arg, const char* val
     printHelp( std::cout );
     exit( EXIT_SUCCESS );
   }
+
+  if( opt->flags & halt_after_callback_flag ){
+    reinterpret_cast<void (*)(void)>(opt->storage)();
+    exit( EXIT_SUCCESS );
+  }
   
   if (opt->type != ProgOpt::FLAG) {
     if (!value)

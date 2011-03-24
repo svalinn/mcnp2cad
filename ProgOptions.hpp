@@ -68,6 +68,15 @@ public:
    */
   const static int rank_subst = 1<<3;
   
+  /** 
+   * Work like help_flag, except do somethign hacky as well:
+   * * Treat the storage pointer as a void (*)(void), and call it
+   * * Exit the program successfuly
+   * mcnp2cad uses this to print a version string; do *not* commit back to MOAB
+   * until a better solution to situations like this has been found.
+   */
+  const static int halt_after_callback_flag = 1<<4;
+
   ///unimplemented flag for required arguments that may be given multiple times
   //const static int accept_multiple;
 

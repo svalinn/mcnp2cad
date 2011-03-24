@@ -1,5 +1,5 @@
-#ifndef MCNP2IGEOM_OPTIONS_H
-#define MCNP2IGEOM_OPTIONS_H
+#ifndef MCNP2CAD_OPTIONS_H
+#define MCNP2CAD_OPTIONS_H
 
 #include <string>
 
@@ -29,4 +29,4 @@ extern struct program_option_struct opt;
 
 #define OPT_DEFAULT_OUTPUT_FILENAME "out.sat"
 
-#endif /* MCNP2IGEOM_OPTIONS_H */
+#endif /* MCNP2CAD_OPTIONS_H */

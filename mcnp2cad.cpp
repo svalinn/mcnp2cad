@@ -17,6 +17,8 @@
 #include "options.hpp"
 #include "volumes.hpp"
 #include "ProgOptions.hpp"
+#include "version.hpp"
+
 
 #ifdef USING_CGMA
 
@@ -1029,7 +1031,7 @@ void debugSurfaceDistances( InputDeck& deck, std::ostream& out = std::cout ){
   
 }
 
-void printHelp( const char* progname, std::ostream& out );
+void print_version();
 
 struct program_option_struct opt;
 
@@ -1054,6 +1056,9 @@ int main(int argc, char* argv[]){
   bool DiFlag = false, DoFlag = false;
 
   ProgOptions po("mcnp2cad: An MCNP geometry to CAD file converter");
+  // This flag relies on custom changes made to ProgOptions for mcnp2cad
+  po.addOpt<void>("version", "Print version number and exit", 
+                  reinterpret_cast<bool*>(print_version), po.halt_after_callback_flag );
   po.addOpt<void>("verbose,v", "Verbose output", &opt.verbose );
   po.addOpt<void>("debug,D", "Debugging (very verbose) output", &opt.debug );
   po.addOpt<void>("Di", "Debug output for MCNP parsing phase only", &DiFlag);
@@ -1161,4 +1166,12 @@ int main(int argc, char* argv[]){
 
   return 0;
     
+}
+
+void print_version( ){
+  std::cout << "mcnp2cad version " 
+      << MCNP2CAD_VERSION_MAJOR << "." 
+      << MCNP2CAD_VERSION_MINOR << "." 
+      << MCNP2CAD_VERSION_REV   << std::endl;
+  std::cout << "Compiled on " << __DATE__ << " at " << __TIME__ << std::endl;
 }
