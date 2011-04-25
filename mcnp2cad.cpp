@@ -254,7 +254,7 @@ public:
     return std::string( universe_depth, ' ' );
   }
 						
-  iBase_EntityHandle createGraveyard();
+  iBase_EntityHandle createGraveyard( iBase_EntityHandle& boundary );
   void createGeometry( );
 
 };
@@ -876,38 +876,35 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
 }
 
 /**
- * Create the graveyard bounding cell.  The actual graveyard is not returned, but rather
- * stored within the iGeom instance.  A copy of the inner surface of the graveyard cell
- * is returned, to be used as the boundary of all further geometry.
+ * Create the graveyard bounding cell.  The actual graveyard entity is returned.
+ * A copy of the inner surface of the graveyard cell
+ * is returned in the argument, to be used as the boundary of all further geometry.
  */
-iBase_EntityHandle GeometryContext::createGraveyard( ) {
-  iBase_EntityHandle inner, outer, graveyard, inner_copy = NULL;
+iBase_EntityHandle GeometryContext::createGraveyard( iBase_EntityHandle& inner_copy ) {
+  iBase_EntityHandle inner, outer, graveyard;
   int igm_result;
 
-  if( opt.make_graveyard ){
-    
-    double inner_size = 2.0 * world_size;
-    iGeom_createBrick( igm, inner_size, inner_size, inner_size, &inner, &igm_result );
-    CHECK_IGEOM( igm_result, "Making graveyard" );
-    
-    iGeom_copyEnt( igm, inner, &inner_copy, &igm_result );
-    CHECK_IGEOM( igm_result, "Copying graveyard" );
-    
-    double outer_size = 2.0 * ( world_size + (world_size / 50.0) );
-    iGeom_createBrick( igm, outer_size, outer_size, outer_size, &outer, &igm_result );
-    CHECK_IGEOM( igm_result, "Making outer graveyard" );
-
-    iGeom_subtractEnts( igm, outer, inner, &graveyard, &igm_result );
-    CHECK_IGEOM( igm_result, "subtracting graveyard" );
-
-    addToVolumeGroup( graveyard, "graveyard" );
-
-    // reset world size to a sphere that bounds the inner shell of this graveyard
-    world_size *= sqrt(3.0);
-    if( OPT_DEBUG ) std::cout << "Spherical world size for graveyard: " << world_size << std::endl;
-  }
+  double inner_size = 2.0 * world_size;
+  iGeom_createBrick( igm, inner_size, inner_size, inner_size, &inner, &igm_result );
+  CHECK_IGEOM( igm_result, "Making graveyard" );
   
-  return inner_copy;
+  iGeom_copyEnt( igm, inner, &inner_copy, &igm_result );
+  CHECK_IGEOM( igm_result, "Copying graveyard" );
+  
+  double outer_size = 2.0 * ( world_size + (world_size / 50.0) );
+  iGeom_createBrick( igm, outer_size, outer_size, outer_size, &outer, &igm_result );
+  CHECK_IGEOM( igm_result, "Making outer graveyard" );
+
+  iGeom_subtractEnts( igm, outer, inner, &graveyard, &igm_result );
+  CHECK_IGEOM( igm_result, "subtracting graveyard" );
+  
+  addToVolumeGroup( graveyard, "graveyard" );
+  
+  // reset world size to a sphere that bounds the inner shell of this graveyard
+  world_size *= sqrt(3.0);
+  if( OPT_DEBUG ) std::cout << "Spherical world size for graveyard: " << world_size << std::endl;
+  
+  return graveyard;
 
 }
 
@@ -957,11 +954,15 @@ void GeometryContext::createGeometry( ){
 
   std::cout << "World size: " << world_size << " (trs added " << translation_addition << ")" << std::endl;
 
-  iBase_EntityHandle graveyard_boundary = createGraveyard(); // will be null if -g wasn't specified on command line
+  iBase_EntityHandle graveyard = NULL, graveyard_boundary = NULL;
+  if( opt.make_graveyard ){
+    graveyard = createGraveyard ( graveyard_boundary ); 
+  }
 
   std::cout << "Defining geometry..." << std::endl;
 
   entity_collection_t defined_cells = defineUniverse( 0, graveyard_boundary );
+  if( graveyard ){ defined_cells.push_back(graveyard); }
 
   size_t count = defined_cells.size();
   iBase_EntityHandle *cell_array = new iBase_EntityHandle[ count ];
