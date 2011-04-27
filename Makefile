@@ -1,6 +1,5 @@
-CGM_BASE_DIR = /filespace/groups/cnerg/opt/CGMA/opt-acis-c10
-#CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/acis
-#CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/occ
+#CGM_BASE_DIR = /filespace/groups/cnerg/opt/CGMA/opt-acis-c12
+CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/cubit
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
@@ -9,7 +8,7 @@ CXXSOURCES = mcnp2cad.cpp MCNPInput.cpp volumes.cpp geometry.cpp ProgOptions.cpp
 CXXOBJS = mcnp2cad.o MCNPInput.o volumes.o geometry.o ProgOptions.o
 
 # Remove HAVE_IGEOM_CONE from the next line if using old iGeom implementation
-CXXFLAGS = -g -Wall -Wextra -Werror -DUSING_CGMA -DHAVE_IGEOM_CONE
+CXXFLAGS = -g -Wall -Wextra -DUSING_CGMA -DHAVE_IGEOM_CONE
 
 
 LDFLAGS = ${IGEOM_LIBS} 
