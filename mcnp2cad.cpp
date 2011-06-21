@@ -24,8 +24,9 @@
 
 #include <RefEntityFactory.hpp>
 #include <Body.hpp>
-
+#include <GeometryQueryTool.hpp>
 #include <CubitMessage.hpp>
+
 
 static bool CGMA_opt_inhibit_intersect_errs = false;
 
@@ -1081,6 +1082,8 @@ int main(int argc, char* argv[]){
 
 #ifdef USING_CGMA
   po.addOptionHelpHeading ("Options controlling CGM library:");
+  po.addOpt<int>("geomver","Override geometry export engine version");
+  po.addOptionHelpHeading ("    (use --geomver 1600 for backward compatibility w/ Cubit 10.2)");
   po.addOpt<void>("Cv", "Verbose messages from CGM" );
   po.addOpt<void>("Cq", "Silence warning messages from CGM" );
   po.addOpt<void>("CIq","Silence ERROR messages from CGM when doing intersect tests.");
@@ -1118,6 +1121,7 @@ int main(int argc, char* argv[]){
   if(po.numOptSet( "CIq" )){
     CGMA_opt_inhibit_intersect_errs = true;
   }
+
 #endif
 
   if( opt.merge_geom && !opt.imprint_geom ) {
@@ -1155,6 +1159,17 @@ int main(int argc, char* argv[]){
 
   iGeom_newGeom( opt.igeom_init_options.c_str(), &igm, &igm_result, opt.igeom_init_options.length() );
   CHECK_IGEOM( igm_result, "Initializing iGeom");
+
+#ifdef USING_CGMA
+  int export_vers;
+  if( po.getOpt( "geomver", &export_vers) ){
+    if( CUBIT_SUCCESS == GeometryQueryTool::instance()->set_export_allint_version( export_vers ) ){
+      std::cout << "Set export engine version to " << export_vers << std::endl; 
+    }
+    // on failure, an error message will be printed by CGM
+  }
+
+#endif
 
   GeometryContext context( igm, deck );
   context.createGeometry();
