@@ -1,0 +1,16 @@
+Version history:
+
+## 1.0.3 (2 August 2011) ##
+* Add --extra-effort (-e) flag for dealing with infinite lattices.
+
+## 1.0.2 (21 June 2011) ##
+* Add --geomver option
+* Update for compatibility with CGM 12 and (slightly) updated igeom API
+
+## 1.0.1 (25 May 2011) ##
+* Fix bug causing graveyard's inner sufaces to be left unmerged with
+  neighboring geometry surfaces
+
+## 1.0.0 (24 March 2011) ##
+* First version-numbered release
+
