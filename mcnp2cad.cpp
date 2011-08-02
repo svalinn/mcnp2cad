@@ -649,13 +649,18 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
     else{
 
       if( OPT_DEBUG ) std::cout << uprefix() << "Defining infinite lattice" << std::endl;
+      if( OPT_VERBOSE && opt.infinite_lattice_extra_effort ) 
+	std::cout << uprefix() << "Infinite lattice extra effort enabled." << std::endl;
 
-      bool done = false;
+      // when extra effort is enabled, initialize done_one to false;
+      // the code will keep trying to create lattice elements until at least one 
+      // element has been successfully created.
+      bool done = false, done_one = !opt.infinite_lattice_extra_effort;
       int radius = 0;
 
       while( !done ){
 	
-	done = true;
+	done = done_one;
 	std::vector<int_triple> shell = makeGridShellOfRadius(radius++, num_dims);
 
 	for( std::vector<int_triple>::iterator i = shell.begin(); i!=shell.end(); ++i){
@@ -666,7 +671,10 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 	  if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
 
 	  bool success = defineLatticeNode( cell, cell_shell, lattice_shell, x, y, z, subcells );
-	  if( success ) done = false;
+	  if( success ){
+	    done = false;
+	    done_one = true;
+	  }
 
 	}	
       }
@@ -1045,6 +1053,7 @@ int main(int argc, char* argv[]){
 
   // set default options
   opt.verbose = opt.debug = false;
+  opt.infinite_lattice_extra_effort = false;
   opt.tag_materials = true;
   opt.tag_cell_IDs = true;
   opt.make_graveyard = true;
@@ -1061,6 +1070,8 @@ int main(int argc, char* argv[]){
   // This flag relies on custom changes made to ProgOptions for mcnp2cad
   po.addOpt<void>("version", "Print version number and exit", 
                   reinterpret_cast<bool*>(print_version), po.halt_after_callback_flag );
+  po.addOpt<void>("extra-effort,e","Use extra effort to get infinite lattices right (may be slow)", 
+                  &opt.infinite_lattice_extra_effort );
   po.addOpt<void>("verbose,v", "Verbose output", &opt.verbose );
   po.addOpt<void>("debug,D", "Debugging (very verbose) output", &opt.debug );
   po.addOpt<void>("Di", "Debug output for MCNP parsing phase only", &DiFlag);

@@ -7,6 +7,7 @@ struct program_option_struct{
   bool verbose;
   bool debug;
 
+  bool infinite_lattice_extra_effort;
   bool tag_materials;
   bool tag_cell_IDs;
   bool make_graveyard;
