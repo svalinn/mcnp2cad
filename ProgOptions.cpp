@@ -528,12 +528,10 @@ bool ProgOptions::getOpt( const std::string& namestring, T* t ){
     error( "Option '" + namestring + "' looked up with incompatible type" );
   }
   
-  if (!t)
-    return true;
-
   // This call to evaluate is inefficient, because opt was already evaluated when it was parsed.
   if( opt->args.size() ){
-    evaluate( *opt, t, "" );
+    if (t)
+      evaluate( *opt, t, "" );
     return true;
   }
   else return false;
