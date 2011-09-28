@@ -1,5 +1,4 @@
-#CGM_BASE_DIR = /filespace/groups/cnerg/opt/CGMA/opt-acis-c12
-CGM_BASE_DIR = /local.hd/cnergg/sjackson/CGM/cubit
+CGM_BASE_DIR = /path/to/CGM/install
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
