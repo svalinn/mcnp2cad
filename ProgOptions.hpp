@@ -73,10 +73,8 @@ public:
    */
   static const int rank_subst = 1<<4;
 
-  /** mcnp2cad-specific option: when option is detected, call mcnp2cad_version and halt
-   *
-   */
-  static const int mcnp2cad_version_flag = 1<<24;
+  /// Set for a flag that, when detected, will call printVersion() and halt the program.
+  static const int version_flag = 1<<5;
   
   ///unimplemented flag for required arguments that may be given multiple times
   //const static int accept_multiple;
@@ -89,6 +87,16 @@ public:
   ProgOptions( const std::string& helptext = "",
                const std::string& briefdesc = "" );
   ~ProgOptions();
+
+  /** Specify the program version 
+   *
+   * Set the program version to a given string.  This will be printed when printVersion()
+   * is called.  
+   * @param version_string The version string
+   * @param addflag If true, a default '--version' option will be added.  If false, 
+   *        the version will be set, but no option will be added to the parser.
+   */ 
+  void setVersion( const std::string& version_string, bool addFlag = true );
 
   /** Specify a new command-line option
    *
@@ -169,6 +177,11 @@ public:
    */
   void printUsage( std::ostream& str = std::cout );
   
+  /**
+   * Print the version string to the given stream
+   */
+  void printVersion( std::ostream& str = std::cout );
+
   /**
    * Parse command-line inputs as given to main()
    */
@@ -264,6 +277,7 @@ protected:
   unsigned optional_args_position, max_optional_args;
   
   std::string progname;
+  std::string progversion;
   
     // if an option was specified with the int_flag, this
     // will contain the long name of the option

@@ -1041,7 +1041,7 @@ void debugSurfaceDistances( InputDeck& deck, std::ostream& out = std::cout ){
   
 }
 
-void mcnp2cad_version();
+std::string mcnp2cad_version();
 
 struct program_option_struct opt;
 
@@ -1067,9 +1067,8 @@ int main(int argc, char* argv[]){
   bool DiFlag = false, DoFlag = false;
 
   ProgOptions po("mcnp2cad: An MCNP geometry to CAD file converter");
-  // This flag relies on custom changes made to ProgOptions for mcnp2cad
-  po.addOpt<void>("version", "Print version number and exit", 
-                  NULL, po.mcnp2cad_version_flag );
+  po.setVersion( mcnp2cad_version() );
+
   po.addOpt<void>("extra-effort,e","Use extra effort to get infinite lattices right (may be slow)", 
                   &opt.infinite_lattice_extra_effort );
   po.addOpt<void>("verbose,v", "Verbose output", &opt.verbose );
@@ -1195,10 +1194,12 @@ int main(int argc, char* argv[]){
     
 }
 
-void mcnp2cad_version( ){
-  std::cout << "mcnp2cad version " 
+std::string mcnp2cad_version( ){
+  std::stringstream str;
+  str << "mcnp2cad version " 
       << MCNP2CAD_VERSION_MAJOR << "." 
       << MCNP2CAD_VERSION_MINOR << "." 
       << MCNP2CAD_VERSION_REV   << std::endl;
-  std::cout << "Compiled on " << __DATE__ << " at " << __TIME__ << std::endl;
+  str << "Compiled on " << __DATE__ << " at " << __TIME__ ;
+  return str.str();
 }

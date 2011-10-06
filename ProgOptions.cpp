@@ -106,6 +106,13 @@ void ProgOptions::get_namestrings( const std::string& namestring,
   
 }
 
+void ProgOptions::setVersion( const std::string& version_string, bool addFlag ){
+  progversion = version_string;
+  if( addFlag ){
+    addOpt<void>( "version", "Print version number and exit", version_flag );
+  }
+}
+
 
 
 template < typename T >
@@ -191,6 +198,10 @@ void ProgOptions::addOptionalArgs( unsigned max_count,
 
 void ProgOptions::addOptionHelpHeading( const std::string& s ){
   option_help_strings.push_back( std::make_pair( (ProgOpt*)NULL, s) );
+}
+
+void ProgOptions::printVersion( std::ostream& out ){
+  out << progversion << std::endl;
 }
 
 void ProgOptions::printHelp( std::ostream& out ){
@@ -640,13 +651,10 @@ bool ProgOptions::process_option( ProgOpt* opt, std::string arg, const char* val
     exit( EXIT_SUCCESS );
   }
 
-  // mcnp2cad-specific changes
-  extern void mcnp2cad_version();
-  if( opt->flags & mcnp2cad_version_flag ){
-    mcnp2cad_version();
+  if( opt->flags & version_flag ){
+    printVersion( std::cout );
     exit( EXIT_SUCCESS );
   }
-  // end mcnp2cad-specific changes
   
   if (opt->type != FLAG) {
     if (!value)
