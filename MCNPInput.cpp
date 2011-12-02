@@ -1203,7 +1203,10 @@ bool InputDeck::do_line_continuation( LineExtractor& lines, token_list_t& token_
   } 
   /* check for next line beginning with five spaces */
   else if( lines.hasLine() && lines.peekLine().find("     ") == 0){
-    return true;
+      /* but don't count it as a continuation if the line is entirely blank */
+      if( lines.peekLine().find_first_not_of(" \t\n") != std::string::npos ){
+          return true;
+      }
   }
   
   return false;
