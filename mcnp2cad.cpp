@@ -139,10 +139,20 @@ class GeometryContext {
 
 protected:
 
+  // TODO: this is slow, since it's called for all cells and constructs a string
+  // for each.  A lookup table would probably be faster.
   std::string materialName( int mat, double rho ){
     std::string ret;
     std::stringstream formatter;
     formatter << "mat_" << mat << "_rho_" << rho;
+    formatter >> ret;
+    return ret;
+  }
+
+  std::string importanceName( char impchar, double imp ){
+    std::string ret; 
+    std::stringstream formatter;
+    formatter << "imp." << impchar << "_" << imp;
     formatter >> ret;
     return ret;
   }
@@ -221,6 +231,8 @@ protected:
   NamedGroup* getNamedGroup( const std::string& name ){
     if( named_groups.find( name ) == named_groups.end() ){
       named_groups[ name ] = new NamedGroup( name );
+      if( OPT_DEBUG ) std::cout << "New named group: " << name 
+                                << "num groups now " << named_groups.size() << std::endl;
     }
     return named_groups[ name ];
   }
@@ -244,6 +256,7 @@ public:
   void addToVolumeGroup( iBase_EntityHandle cell, const std::string& groupname );
   void setVolumeCellID( iBase_EntityHandle cell, int ident);
   void setMaterial( iBase_EntityHandle cell, int material, double density );
+  void setImportances( iBase_EntityHandle cell, const std::map<char, double>& imps );
   void updateMaps ( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell );
 
   bool mapSanityCheck( iBase_EntityHandle* cells, size_t count );
@@ -266,12 +279,21 @@ void GeometryContext::addToVolumeGroup( iBase_EntityHandle cell, const std::stri
   group->add( cell );
 
   if( OPT_DEBUG ){ std::cout << uprefix() 
-			     << "Updated cell with new material, num groups now " 
-			     << named_groups.size() << std::endl; }
+			     << "Added cell to volgroup " << group->getName() << std::endl; }
 }
 
 void GeometryContext::setMaterial( iBase_EntityHandle cell, int material, double density ){
   return addToVolumeGroup( cell, materialName(material,density) );
+}
+
+void GeometryContext::setImportances( iBase_EntityHandle cell, const std::map<char, double>& imps ){
+    for( std::map<char, double>::const_iterator i = imps.begin();
+         i != imps.end(); ++i )
+    {
+        char impchar = (*i).first;
+        double imp = (*i).second;
+        addToVolumeGroup( cell, importanceName( impchar, imp ) );
+    }
 }
 
 void GeometryContext::setVolumeCellID( iBase_EntityHandle cell, int ident ){
@@ -321,6 +343,9 @@ void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandl
 
 void GeometryContext::tagMaterialsAsGroups( ){
 
+  // the NamedGroup system used to be used solely to create groups for material specification,
+  // but it has since been expanded for importance groups.  Some of the old messages that
+  // talk about material groups could be confusing.
   int igm_result;
   
   std::string name_tag_id = "NAME";
@@ -338,7 +363,7 @@ void GeometryContext::tagMaterialsAsGroups( ){
 
     NamedGroup* group = (*i).second;
     if(OPT_VERBOSE){ 
-      std::cout << "Creating material group " << group->getName() << " of size " << group->getEntities().size() << std::endl;
+      std::cout << "Creating volume group " << group->getName() << " of size " << group->getEntities().size() << std::endl;
     }
 
     iBase_EntitySetHandle set;
@@ -493,6 +518,7 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
     // this node is just a translated copy of the origin element in the lattice
     setVolumeCellID(cell_copy, cell.getIdent());
     if( cell.getMat() != 0 ){ setMaterial( cell_copy, cell.getMat(), cell.getRho() ); }
+    if( cell.getImportances().size() ){ setImportances( cell_copy, cell.getImportances()); }
     node_subcells.push_back( cell_copy );
   }
   else{
@@ -579,6 +605,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
     // nothing inside this cell
     setVolumeCellID(cell_shell, cell.getIdent());
     if( cell.getMat() != 0 ){ setMaterial( cell_shell, cell.getMat(), cell.getRho() ); }
+    if( cell.getImportances().size() ){ setImportances( cell_shell, cell.getImportances()); }
     return entity_collection_t(1, cell_shell );
   }
   else if(cell.hasFill() && !cell.isLattice()){

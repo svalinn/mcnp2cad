@@ -6,7 +6,6 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
-
 #include <cstdlib>
 
 /******************
@@ -545,91 +544,95 @@ protected:
       std::string token = *i;
 
       if( token == "trcl" || token == "*trcl" ){
-	bool degree_format = (token[0] == '*');
+        bool degree_format = (token[0] == '*');
 
-	i++;
-	trcl = parseTransform( parent_deck, i, degree_format );
+        i++;
+        trcl = parseTransform( parent_deck, i, degree_format );
 
       } // token == {*}trcl
 
       else if( token == "u" ){
-	universe = makeint(*(++i));
+        universe = makeint(*(++i));
       } // token == "u"
       else if ( token == "lat" ){
-	int lat_designator = makeint(*(++i));
-	assert( lat_designator >= 0 && lat_designator <= 2 );
-	lat_type = static_cast<lattice_type_t>(lat_designator);
-	if( OPT_DEBUG ) std::cout << "cell " << ident << " is lattice type " << lat_type << std::endl;
+        int lat_designator = makeint(*(++i));
+        assert( lat_designator >= 0 && lat_designator <= 2 );
+        lat_type = static_cast<lattice_type_t>(lat_designator);
+        if( OPT_DEBUG ) std::cout << "cell " << ident << " is lattice type " << lat_type << std::endl;
       }
       else if ( token == "mat" ){
-	material = makeint(*(++i));
+        material = makeint(*(++i));
       }
       else if ( token == "rho" ){
-	rho = makedouble(*(++i));
+        rho = makedouble(*(++i));
+      }
+      else if ( token.length() == 5 && token.substr(0,4) == "imp:" ){
+        double imp = makedouble(*(++i));
+        importances[token[4]] = imp;
       }
       else if( token == "fill" || token == "*fill" ){
 
-	bool degree_format = (token[0] == '*');
+        bool degree_format = (token[0] == '*');
 
-	std::string next_token = *(++i);
+        std::string next_token = *(++i);
 
-	// an explicit lattice grid exists if 
-	// * the next token contains a colon, or
-	// * the token after it exists and starts with a colon
-	bool explicit_grid = next_token.find(":") != next_token.npos; 
-	explicit_grid = explicit_grid || (i+1 != data.end() && (*(i+1)).at(0) == ':' );
+        // an explicit lattice grid exists if 
+        // * the next token contains a colon, or
+        // * the token after it exists and starts with a colon
+        bool explicit_grid = next_token.find(":") != next_token.npos; 
+        explicit_grid = explicit_grid || (i+1 != data.end() && (*(i+1)).at(0) == ':' );
 
-	if( explicit_grid ){
+        if( explicit_grid ){
 
-	  // convert the grid specifiers (x1:x2, y1:y2, z1:z2) into three spaceless strings for easier parsing
-	  std::string gridspec[3];
-	  for( int dim = 0; dim < 3; ++dim ){
+          // convert the grid specifiers (x1:x2, y1:y2, z1:z2) into three spaceless strings for easier parsing
+          std::string gridspec[3];
+          for( int dim = 0; dim < 3; ++dim ){
 
-	    std::string spec;
+            std::string spec;
 
-	    // add tokens to the spec string until it contains a colon but does not end with one
-	    do{
-	      spec += *i;
-	      i++;
-	    }
-	    while( spec.find(":") == spec.npos || spec.at(spec.length()-1) == ':' );
-	    
-	    if(OPT_DEBUG) std::cout << "gridspec[" << dim << "]: " << spec << std::endl;
-	    gridspec[dim] = spec;
+            // add tokens to the spec string until it contains a colon but does not end with one
+            do{
+              spec += *i;
+              i++;
+            }
+            while( spec.find(":") == spec.npos || spec.at(spec.length()-1) == ':' );
+            
+            if(OPT_DEBUG) std::cout << "gridspec[" << dim << "]: " << spec << std::endl;
+            gridspec[dim] = spec;
 
-	  }
+          }
 
-	  irange ranges[3];
-	  const char* range_str;
-	  char *p;
-	  
-	  int num_elements = 1;
-	  for( int dim = 0; dim < 3; ++dim ){
-	    range_str = gridspec[dim].c_str();
-	    ranges[dim].first  = strtol(range_str, &p, 10);
-	    ranges[dim].second = strtol(p+1, NULL, 10); 
-	    
-	    if( ranges[dim].second != ranges[dim].first ){
-	      num_elements *= ( ranges[dim].second - ranges[dim].first )+1;
-	    }
+          irange ranges[3];
+          const char* range_str;
+          char *p;
+          
+          int num_elements = 1;
+          for( int dim = 0; dim < 3; ++dim ){
+            range_str = gridspec[dim].c_str();
+            ranges[dim].first  = strtol(range_str, &p, 10);
+            ranges[dim].second = strtol(p+1, NULL, 10); 
+            
+            if( ranges[dim].second != ranges[dim].first ){
+              num_elements *= ( ranges[dim].second - ranges[dim].first )+1;
+            }
 
-	  }
+          }
 
-	  std::vector<FillNode> elements;
-	  for( int j = 0; j < num_elements; ++j ){
-	    elements.push_back( parseFillNode( parent_deck, i, data.end(), degree_format )  );
-	    i++;
-	  }
-	  i--;
+          std::vector<FillNode> elements;
+          for( int j = 0; j < num_elements; ++j ){
+            elements.push_back( parseFillNode( parent_deck, i, data.end(), degree_format )  );
+            i++;
+          }
+          i--;
 
-	  fill = new ImmediateRef< Fill >( Fill( ranges[0], ranges[1], ranges[2], elements) );
+          fill = new ImmediateRef< Fill >( Fill( ranges[0], ranges[1], ranges[2], elements) );
 
-	}
-	else{ // no explicit grid; fill card is a single fill node
-	  FillNode filler = parseFillNode( parent_deck, i, data.end(), degree_format );
-	  fill = new ImmediateRef< Fill >( Fill(filler) );
-	  
-	}
+        }
+        else{ // no explicit grid; fill card is a single fill node
+          FillNode filler = parseFillNode( parent_deck, i, data.end(), degree_format );
+          fill = new ImmediateRef< Fill >( Fill(filler) );
+          
+        }
       } // token == {*}fill
     }
 
@@ -647,6 +650,7 @@ protected:
   int ident;
   int material;
   double rho; // material density
+  std::map<char, double> importances;
 
   geom_list_t geom;
   token_list_t data;
@@ -748,6 +752,7 @@ public:
 
   virtual int getMat() const { return material; }
   virtual double getRho() const { return rho; }
+  virtual const std::map<char,double>& getImportances() const { return importances; }
 
   virtual void print( std::ostream& s ) const{
     s << "Cell " << ident << " geom " << geom << std::endl;
@@ -758,22 +763,23 @@ protected:
     if( likenbut ){
       CellCardImpl* host = dynamic_cast<CellCardImpl*>(parent_deck.lookup_cell_card( likeness_cell_n ));
       if(host->likenbut){
-	host->finish(); // infinite recursion if cells are circularly defined... but our users wouldn't do that, right?
+        host->finish(); // infinite recursion if cells are circularly defined... but our users wouldn't do that, right?
       }
       geom = host->geom;
       universe = host->universe;
       lat_type = host->lat_type;
       material = host->material;
       rho = host->rho;
+      importances = host->importances;
 
       if( host->trcl->hasData()){
-	trcl = host->trcl->clone();
+        trcl = host->trcl->clone();
       }
       if( host->hasFill()){
-	fill = host->fill->clone();
+        fill = host->fill->clone();
       }
       if( host->isLattice()){
-	lattice = host->lattice->clone();
+        lattice = host->lattice->clone();
       }
       makeData();
 
