@@ -1,5 +1,9 @@
 Version history:
 
+## 1.0.4 (6 March 2012) ##
+* Fix bug where lines of whitespace were treated as 
+  continuations of the preceding card
+
 ## 1.0.3 (2 August 2011) ##
 * Add --extra-effort (-e) flag for dealing with infinite lattices.
 
