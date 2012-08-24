@@ -1,5 +1,8 @@
 Version history:
 
+## 1.0.5 (24 August 2012) ##
+* Output cell importance groups in a manner similar to material groups.
+
 ## 1.0.4 (6 March 2012) ##
 * Fix bug where lines of whitespace were treated as 
   continuations of the preceding card

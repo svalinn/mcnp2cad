@@ -44,6 +44,7 @@ Unsupported Features:
 ** More direct control over the size of the sphere/graveyard in which
    the geometry sits
 ** Support for interpolation (nI/nILOG) and multiplication (nM) syntax.
+** Make the title card optional, as it apparently is in MCNP.
 
 * Could be added with effort:
 ** Correct handling of hexagonal prism lattices for lattices based on irregular
