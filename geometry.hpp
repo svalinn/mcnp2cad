@@ -140,6 +140,7 @@ public:
 
 std::ostream& operator<<(std::ostream& str, const Transform& t );
 
+/** A universe and a transformation */
 class FillNode {
 
 protected:
@@ -188,6 +189,7 @@ public:
 
 typedef std::pair<int,int> irange;
 
+/** A fill is a 3-dimensional grid of fill nodes */
 class Fill{
 
 protected:

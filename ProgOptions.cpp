@@ -1,3 +1,5 @@
+/* THIS FILE WAS COPIED FROM THE MOAB LIBRARY */
+
 #include <iostream>
 #include <sstream>
 #include <iomanip>

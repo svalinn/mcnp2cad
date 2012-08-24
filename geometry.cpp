@@ -105,7 +105,7 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     // theta is 0 or extremely close to it, so let's say there's no rotation after all.
     has_rot = false; 
     axis = Vector3d(); // zero vector
-    if( OPT_DEBUG ) std::cout << "  (0) "; // endl comes below
+    if( OPT_DEBUG ) std::cout << "  (0) "; // std::endl comes below
   }
   else if( std::fabs( theta - M_PI ) <= DBL_EPSILON ){
     // theta is pi (180 degrees) or extremely close to it
@@ -119,7 +119,7 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     axis.v[(col+1)%3] = mat[col][(col+1)%3] / denom;
     axis.v[(col+2)%3] = mat[col][(col+2)%3] / denom;
 
-    if( OPT_DEBUG ) std::cout << "  (180) "; // endl comes below
+    if( OPT_DEBUG ) std::cout << "  (180) "; // std::endl comes below
 
   }
   else{ 

@@ -99,7 +99,6 @@ public:
   SurfaceCard( InputDeck& deck, const token_list_t tokens );
 
   int getIdent() const { return ident; } 
-					     
   void print( std::ostream& s ) const ;
 
   const DataRef<Transform>& getTransform() const ; 

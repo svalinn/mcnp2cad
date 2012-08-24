@@ -1,6 +1,8 @@
 #ifndef MOAB_PROGRAM_OPTIONS_H
 #define MOAB_PROGRAM_OPTIONS_H
 
+/* THIS FILE WAS COPIED FROM THE MOAB LIBRARY */
+
 #include <vector>
 #include <map>
 #include <string>

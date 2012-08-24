@@ -270,7 +270,7 @@ protected:
 
     // based on the textual descriptions in the manual, I think the following expression should be 
     // height * tan ( theta / 2 ) -- unless "opening angle" refers to only half the apex angle
-    // of the cylinder.  This implementation seems to be more correct in examples I can check against.
+    // of the cylinder.  But this implementation seems to be more correct in examples I can check against.
     double base_radius = height * tan( theta );
 
     int igm_result;

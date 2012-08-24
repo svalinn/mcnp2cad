@@ -42,12 +42,11 @@ public:
  * HELPER FUNCTIONS
  ******************/
 
-static std::string& strlower( std::string& str ){
+static void strlower( std::string& str ){
   // convert to lowercase
   for(size_t i = 0; i < str.length(); ++i){
     str[i] = tolower( str.at(i) );
   }
-  return str;
 }
 
 
@@ -57,19 +56,6 @@ static int makeint( const std::string& token ){
   int ret = strtol(str, &end, 10);
   if( end != str+token.length() ){
     std::cerr << "Warning: string [" << token << "] did not convert to int as expected." << std::endl;
-  }
-  return ret;
-}
-
-double makedouble_strict( const char* string ) throw (std::runtime_error){
-
-  std::string sstr(string);
-  char* end;
-  double ret = strtod(string, &end);
-  if( end != string+sstr.length() ){
-    std::string err = "Bad double parameter: ";
-    err = err + string;
-    throw std::runtime_error( err );
   }
   return ret;
 }
@@ -95,6 +81,7 @@ static double makedouble( const std::string& token ){
   return ret;
 }
 
+/** parse the args of an MCNP geometry transform */
 static std::vector<double> makeTransformArgs( const token_list_t tokens ){
   std::vector<double> args;
   for( token_list_t::const_iterator i = tokens.begin(); i!=tokens.end(); ++i){
@@ -205,7 +192,7 @@ static FillNode parseFillNode( InputDeck& deck, token_list_t::iterator& i, const
 
 
   if( n < 0 ){
-    n = -n; // FIXME: handle negative universe numbers specially
+    n = -n; // TODO: handle negative universe numbers specially
   }
   
   return FillNode (n, t );
@@ -1036,9 +1023,9 @@ protected:
 	// convert to lowercase
 	strlower(next_line);
 
-	// Append a space, to catch blank comment lines (e.g. "c") that would otherwise not meet
+	// Append a space, to catch blank comment lines (e.g. "c\n") that would otherwise not meet
 	// the MCNP comment card spec ("a C anywhere in columns 1-5 followed by at least one blank.")
-	// I have seen lines like "c" or " c" as complete comment cards in practice, so MCNP must 
+	// I have seen lines like "c\n" or " c\n" as complete comment cards in practice, so MCNP must 
 	// accept them.
 	next_line.append(" ");
 
@@ -1259,8 +1246,8 @@ void InputDeck::parseTitle( LineExtractor& lines ){
     do{
       // nothing
     }
-    while( !isblank(lines.takeLine()) );
-	  
+    while( !isblank(lines.takeLine()) ) /*do nothing */;
+
     topLine = lines.takeLine(lineno);
   }
 

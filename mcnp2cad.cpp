@@ -20,6 +20,11 @@
 #include "version.hpp"
 
 
+/* mcnp2cad should be compatible with any implementation of the iGeom library.
+ * But when we know that CGM is the implementation of iGeom that we're using,
+ * we can do a few other useful things.  Those extra things are confined to this
+ * file and guarded by this macro.
+ */
 #ifdef USING_CGMA
 
 #include <RefEntityFactory.hpp>
@@ -72,6 +77,7 @@ public:
 
 typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
+// intersect two volumes that may or may not overlap; return true on success.
 static bool intersectIfPossible( iGeom_Instance igm, 
 				 iBase_EntityHandle h1, iBase_EntityHandle h2, iBase_EntityHandle* result, 
 				 bool delete_on_failure = true)
@@ -102,6 +108,8 @@ static bool intersectIfPossible( iGeom_Instance igm,
   }
 }
 
+// determine whether the bounding boxes of two volumes overlap.
+// this can save an expensive call to intersectIfPossible()
 static bool boundBoxesIntersect( iGeom_Instance igm, iBase_EntityHandle h1, iBase_EntityHandle h2 ){
 
   Vector3d h1_min, h1_max, h2_min, h2_max;
@@ -123,9 +131,9 @@ static bool boundBoxesIntersect( iGeom_Instance igm, iBase_EntityHandle h1, iBas
 
 }
 
-
-
-
+/**
+ * Contains geometry functions and the shared data members they all reference.
+ */
 class GeometryContext {
 
   /** 
@@ -139,8 +147,9 @@ class GeometryContext {
 
 protected:
 
-  // TODO: this is slow, since it's called for all cells and constructs a string
-  // for each.  A lookup table would probably be faster.
+  // note: this appears slow, since it's called for all cells and constructs a string
+  // for each.  A lookup table would probably be faster, but there are never more than
+  // a few thousand cells.
   std::string materialName( int mat, double rho ){
     std::string ret;
     std::stringstream formatter;
@@ -284,7 +293,7 @@ public:
   std::string uprefix() { 
     return std::string( universe_depth, ' ' );
   }
-						
+
   iBase_EntityHandle createGraveyard( iBase_EntityHandle& boundary );
   void createGeometry( );
 
@@ -306,6 +315,7 @@ void GeometryContext::setVolumeCellID( iBase_EntityHandle cell, int ident ){
 
 }
 
+/** Inform metadata system that a cell has changed handled, as from a CSG operation */
 void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell ){
 
   /* update named_groups.  handling of new_cell == NULL case is performed within NamedGroup class */
@@ -345,6 +355,7 @@ void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandl
 
 }
 
+/** Create and name groups of entities; only called after all cells have their final handles */
 void GeometryContext::tagGroups( ){
 
   // the NamedGroup system used to be used solely to create groups for material specification,
@@ -394,6 +405,7 @@ void GeometryContext::tagGroups( ){
 
 }
 
+/** Set the names of cells; only called after cells have their final handles */
 void GeometryContext::tagCellIDsAsEntNames(){
   
   int igm_result;
@@ -430,7 +442,7 @@ void GeometryContext::tagCellIDsAsEntNames(){
 
 }
 
-
+/** debugging functions to check sanity of named group mappings.  Called only if -D enabled */
 bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){ 
   bool good = true;
   int igm_result;
@@ -487,7 +499,11 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
   return good;
 }
 
-
+/** Define node x,y,z in a lattice.
+ *
+ * cell_shell is a volume representing lattice node (0,0,0)
+ * lattice_shell is the volume into which the node must be intersected
+ */
 bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
 					  int x, int y, int z, entity_collection_t& accum )
 {
@@ -512,8 +528,8 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
 
   entity_collection_t node_subcells;
   if( fn->getFillingUniverse() == 0 ){
-    // this node of the lattice "exists" in sense that it's well defined, however,
-    // it is defined to be empty.  Delete the shell and return true.
+    // this node of the lattice was assigned universe zero, meaning it's
+    // defined to be emtpy. Delete the shell and return true.
     iGeom_deleteEnt( igm, cell_copy, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting a universe-0 lattice cell" );
     return true;
@@ -598,6 +614,7 @@ static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
   }
 }
 
+/** fill a cell with its contents.  The cell's boundary is already defined in cell_shell. */
 entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_EntityHandle cell_shell, 
 						   iBase_EntityHandle lattice_shell = NULL )
 {
@@ -606,7 +623,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 
 
   if( !cell.hasFill() && !cell.isLattice() ){
-    // nothing inside this cell
+    // no further geometry inside this cell; set its material
     setVolumeCellID(cell_shell, cell.getIdent());
     if( cell.getMat() != 0 ){ setMaterial( cell_shell, cell.getMat(), cell.getRho() ); }
     if( cell.getImportances().size() ){ setImportances( cell_shell, cell.getImportances()); }
@@ -721,6 +738,11 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
   }
 }
 
+/** Define a geometric cell from a card 
+ *
+ * @param defineEmbedded If true, also define the contents of the cell, not just its boundary surfaces.
+ * @param lattice_shell
+ */
 entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEmbedded = true, 
 						  iBase_EntityHandle lattice_shell = NULL )
 {
@@ -830,6 +852,11 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
   
 }
 
+/** Define all the cells in a universe.
+ *
+ * @param container If non-null, intersect the universe with this boundary volume
+ * @param transform If non-null, transform the universe thus.
+ */
 entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityHandle container = NULL, 
 						     const Transform* transform = NULL )
 {
@@ -843,11 +870,13 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
   iBase_EntityHandle lattice_shell = NULL;
   if( u_cells.size() == 1 && u_cells[0]->isLattice() ){
     lattice_shell = container;
+    // reverse-transform the containing volume before using it as a lattice boundary
     if(transform){
       lattice_shell = applyReverseTransform( *transform, igm, lattice_shell );
     }
   }
 
+  // define all the cells of this universe
   for( InputDeck::cell_card_list::iterator i = u_cells.begin(); i!=u_cells.end(); ++i){
     entity_collection_t tmp = defineCell( *(*i), true, lattice_shell );
     for( size_t i = 0; i < tmp.size(); ++i){
@@ -956,7 +985,11 @@ void GeometryContext::createGeometry( ){
   InputDeck::surface_card_list surfaces  = deck.getSurfaces();
   InputDeck::data_card_list    datacards = deck.getDataCards();
 
+  // estimate how large the geometry will need to be to accomodate all the surfaces
   for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
+    // catch all exceptions from makeSurface at this time; if they exist, they will
+    // more properly be displayed to the user at a later time.  Right now we just want
+    // to estimate a size and failures can be ignored.
     try{
       world_size = std::max( world_size, makeSurface( *i ).getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
@@ -980,14 +1013,12 @@ void GeometryContext::createGeometry( ){
       translation_addition = std::max( translation_addition, tform_len );
     }
     // translations can also come from fill nodes.  This implementation does *not* take
-    // lattices into account, as they are assumed to be contained within other regions.
+    // lattices into account, as they are assumed to be contained within other volumes.
     if( c->hasFill() && c->getFill().getOriginNode().hasTransform() ){
       double tform_len = c->getFill().getOriginNode().getTransform().getTranslation().length();
       translation_addition = std::max( translation_addition, tform_len );
     }
-	 
   }
-
 
   world_size += translation_addition;
   world_size *= 1.2;
@@ -1012,6 +1043,9 @@ void GeometryContext::createGeometry( ){
 
 #ifdef USING_CGMA
   {
+    // in CGM's default implementation, each new volume and surface created
+    // through CSG operations gets a new unique ID number, so those IDs can
+    // be large and widely-spaced.  We want them to start from 1.
     RefEntityFactory::instance()->compress_ref_ids("surface", false );
     RefEntityFactory::instance()->compress_ref_ids("volume", false );
   }
@@ -1074,9 +1108,6 @@ std::string mcnp2cad_version(bool full = true);
 
 
 struct program_option_struct Gopt;
-
-// number parsing function from MCNPInput.cpp, used her to parse command line parameters
-double makedouble_strict( const char* string ) ;
 
 int main(int argc, char* argv[]){
 
