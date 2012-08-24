@@ -9,6 +9,7 @@ struct program_option_struct{
 
   bool infinite_lattice_extra_effort;
   bool tag_materials;
+  bool tag_importances;
   bool tag_cell_IDs;
   bool make_graveyard;
   bool imprint_geom;
@@ -23,10 +24,10 @@ struct program_option_struct{
   double specific_tolerance;
 };
 
-extern struct program_option_struct opt;
+extern struct program_option_struct Gopt;
 
-#define OPT_VERBOSE (opt.verbose || opt.debug)
-#define OPT_DEBUG   (opt.debug)
+#define OPT_VERBOSE (Gopt.verbose || Gopt.debug)
+#define OPT_DEBUG   (Gopt.debug)
 
 #define OPT_DEFAULT_OUTPUT_FILENAME "out.sat"
 

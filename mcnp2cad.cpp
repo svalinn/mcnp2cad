@@ -255,13 +255,30 @@ public:
 
   void addToVolumeGroup( iBase_EntityHandle cell, const std::string& groupname );
   void setVolumeCellID( iBase_EntityHandle cell, int ident);
-  void setMaterial( iBase_EntityHandle cell, int material, double density );
-  void setImportances( iBase_EntityHandle cell, const std::map<char, double>& imps );
+  void setMaterial( iBase_EntityHandle cell, int material, double density ){
+    if( Gopt.tag_materials ){
+        addToVolumeGroup( cell, materialName(material,density) );
+    }
+  }
+
+  void setImportances( iBase_EntityHandle cell, const std::map<char, double>& imps ){
+    if( Gopt.tag_importances ){
+      for( std::map<char, double>::const_iterator i = imps.begin();
+           i != imps.end(); ++i )
+      {
+          char impchar = (*i).first;
+          double imp = (*i).second;
+          addToVolumeGroup( cell, importanceName( impchar, imp ) );
+      }
+    }
+  }
+
+
   void updateMaps ( iBase_EntityHandle old_cell, iBase_EntityHandle new_cell );
 
   bool mapSanityCheck( iBase_EntityHandle* cells, size_t count );
 
-  void tagMaterialsAsGroups( );
+  void tagGroups( );
   void tagCellIDsAsEntNames();
 
   std::string uprefix() { 
@@ -282,19 +299,6 @@ void GeometryContext::addToVolumeGroup( iBase_EntityHandle cell, const std::stri
 			     << "Added cell to volgroup " << group->getName() << std::endl; }
 }
 
-void GeometryContext::setMaterial( iBase_EntityHandle cell, int material, double density ){
-  return addToVolumeGroup( cell, materialName(material,density) );
-}
-
-void GeometryContext::setImportances( iBase_EntityHandle cell, const std::map<char, double>& imps ){
-    for( std::map<char, double>::const_iterator i = imps.begin();
-         i != imps.end(); ++i )
-    {
-        char impchar = (*i).first;
-        double imp = (*i).second;
-        addToVolumeGroup( cell, importanceName( impchar, imp ) );
-    }
-}
 
 void GeometryContext::setVolumeCellID( iBase_EntityHandle cell, int ident ){
 
@@ -341,7 +345,7 @@ void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandl
 
 }
 
-void GeometryContext::tagMaterialsAsGroups( ){
+void GeometryContext::tagGroups( ){
 
   // the NamedGroup system used to be used solely to create groups for material specification,
   // but it has since been expanded for importance groups.  Some of the old messages that
@@ -676,13 +680,13 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
     else{
 
       if( OPT_DEBUG ) std::cout << uprefix() << "Defining infinite lattice" << std::endl;
-      if( OPT_VERBOSE && opt.infinite_lattice_extra_effort ) 
+      if( OPT_VERBOSE && Gopt.infinite_lattice_extra_effort ) 
 	std::cout << uprefix() << "Infinite lattice extra effort enabled." << std::endl;
 
       // when extra effort is enabled, initialize done_one to false;
       // the code will keep trying to create lattice elements until at least one 
       // element has been successfully created.
-      bool done = false, done_one = !opt.infinite_lattice_extra_effort;
+      bool done = false, done_one = !Gopt.infinite_lattice_extra_effort;
       int radius = 0;
 
       while( !done ){
@@ -991,7 +995,7 @@ void GeometryContext::createGeometry( ){
   std::cout << "World size: " << world_size << " (trs added " << translation_addition << ")" << std::endl;
 
   iBase_EntityHandle graveyard = NULL, graveyard_boundary = NULL;
-  if( opt.make_graveyard ){
+  if( Gopt.make_graveyard ){
     graveyard = createGraveyard ( graveyard_boundary ); 
   }
 
@@ -1014,28 +1018,26 @@ void GeometryContext::createGeometry( ){
 #endif
 
 
-  if( opt.tag_materials ){
-    if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); } 
-    tagMaterialsAsGroups();
-  }
+  if( OPT_DEBUG ){ mapSanityCheck(cell_array, count); }
+  tagGroups();
 
-  if( opt.tag_cell_IDs ){
+  if( Gopt.tag_cell_IDs ){
     tagCellIDsAsEntNames();
   }
   
 
-  if ( opt.imprint_geom ) {
+  if ( Gopt.imprint_geom ) {
     std::cout << "Imprinting all...\t\t\t" << std::flush;
     iGeom_imprintEnts( igm, cell_array, count, &igm_result );
     CHECK_IGEOM( igm_result, "Imprinting all cells" );
     std::cout << " done." << std::endl;
     
     double tolerance = world_size / 1.0e7;
-    if( opt.override_tolerance ){
-      tolerance = opt.specific_tolerance;
+    if( Gopt.override_tolerance ){
+      tolerance = Gopt.specific_tolerance;
     }
 
-    if ( opt.merge_geom ) {
+    if ( Gopt.merge_geom ) {
       std::cout << "Merging, tolerance=" << tolerance << "...\t\t" << std::flush;
       iGeom_mergeEnts( igm, cell_array, count,  tolerance, &igm_result );
       CHECK_IGEOM( igm_result, "Merging all cells" );
@@ -1044,7 +1046,7 @@ void GeometryContext::createGeometry( ){
   }
 
 
-  std::string outName = opt.output_file;
+  std::string outName = Gopt.output_file;
   std::cout << "Saving file \"" << outName << "\"...\t\t\t" << std::flush;
   iGeom_save( igm, outName.c_str(), "", &igm_result, outName.length(), 0 );
   CHECK_IGEOM( igm_result, "saving the output file "+outName );
@@ -1068,10 +1070,10 @@ void debugSurfaceDistances( InputDeck& deck, std::ostream& out = std::cout ){
   
 }
 
-std::string mcnp2cad_version();
+std::string mcnp2cad_version(bool full = true);
 
-struct program_option_struct opt;
 
+struct program_option_struct Gopt;
 
 // number parsing function from MCNPInput.cpp, used her to parse command line parameters
 double makedouble_strict( const char* string ) ;
@@ -1079,43 +1081,46 @@ double makedouble_strict( const char* string ) ;
 int main(int argc, char* argv[]){
 
   // set default options
-  opt.verbose = opt.debug = false;
-  opt.infinite_lattice_extra_effort = false;
-  opt.tag_materials = true;
-  opt.tag_cell_IDs = true;
-  opt.make_graveyard = true;
-  opt.imprint_geom = true;
-  opt.merge_geom = true;
-  opt.input_file = "";
-  opt.output_file = OPT_DEFAULT_OUTPUT_FILENAME;
-  opt.igeom_init_options = "";
-  opt.override_tolerance = false;
+  Gopt.verbose = Gopt.debug = false;
+  Gopt.infinite_lattice_extra_effort = false;
+  Gopt.tag_materials = true;
+  Gopt.tag_importances = true;
+  Gopt.tag_cell_IDs = true;
+  Gopt.make_graveyard = true;
+  Gopt.imprint_geom = true;
+  Gopt.merge_geom = true;
+  Gopt.input_file = "";
+  Gopt.output_file = OPT_DEFAULT_OUTPUT_FILENAME;
+  Gopt.igeom_init_options = "";
+  Gopt.override_tolerance = false;
 
   bool DiFlag = false, DoFlag = false;
 
-  ProgOptions po("mcnp2cad: An MCNP geometry to CAD file converter");
+  ProgOptions po("mcnp2cad " + mcnp2cad_version(false) +  ": An MCNP geometry to CAD file converter");
   po.setVersion( mcnp2cad_version() );
 
   po.addOpt<void>("extra-effort,e","Use extra effort to get infinite lattices right (may be slow)", 
-                  &opt.infinite_lattice_extra_effort );
-  po.addOpt<void>("verbose,v", "Verbose output", &opt.verbose );
-  po.addOpt<void>("debug,D", "Debugging (very verbose) output", &opt.debug );
+                  &Gopt.infinite_lattice_extra_effort );
+  po.addOpt<void>("verbose,v", "Verbose output", &Gopt.verbose );
+  po.addOpt<void>("debug,D", "Debugging (very verbose) output", &Gopt.debug );
   po.addOpt<void>("Di", "Debug output for MCNP parsing phase only", &DiFlag);
   po.addOpt<void>("Do","Debug output for iGeom output phase only", &DoFlag);
 
   po.addOptionHelpHeading( "Options controlling CAD output:" );
-  po.addOpt<std::string>(",o", "Give name of output file. Default: " + opt.output_file, &opt.output_file );
-  po.addOpt<double>("tol,t", "Specify a tolerance for merging surfaces", &opt.specific_tolerance );
+  po.addOpt<std::string>(",o", "Give name of output file. Default: " + Gopt.output_file, &Gopt.output_file );
+  po.addOpt<double>("tol,t", "Specify a tolerance for merging surfaces", &Gopt.specific_tolerance );
   po.addOpt<void>("skip-mats,M", "Do not tag materials using group names", 
-                  &opt.tag_materials, po.add_cancel_opt | po.store_false );
+                  &Gopt.tag_materials, po.store_false );
+  po.addOpt<void>("skip-imps,P", "Do not tag cell importances using group names",
+                  &Gopt.tag_importances, po.store_false );
   po.addOpt<void>("skip-nums,N", "Do not tag cell numbers using body names",
-                  &opt.tag_cell_IDs, po.add_cancel_opt | po.store_false );
+                  &Gopt.tag_cell_IDs, po.store_false );
   po.addOpt<void>("skip-merge,E", "Do not merge the geometry",
-                  &opt.merge_geom, po.add_cancel_opt | po.store_false );
+                  &Gopt.merge_geom, po.store_false );
   po.addOpt<void>("skip-imprint,I", "Do not imprint the geometry; implies skip-merge",
-                  &opt.imprint_geom, po.add_cancel_opt | po.store_false );
+                  &Gopt.imprint_geom, po.store_false );
   po.addOpt<void>("skip-graveyard,G", "Do not bound the geometry with a `graveyard' bounding box",
-                  &opt.make_graveyard, po.add_cancel_opt | po.store_false );
+                  &Gopt.make_graveyard, po.store_false );
 
 #ifdef USING_CGMA
   po.addOptionHelpHeading ("Options controlling CGM library:");
@@ -1127,15 +1132,15 @@ int main(int argc, char* argv[]){
   po.addOptionHelpHeading( "         (May be useful for infinite lattices, but use cautiously)" );
 #endif
 
-  po.addRequiredArg( "input_file", "Path to MCNP geometry input file", &opt.input_file );
+  po.addRequiredArg( "input_file", "Path to MCNP geometry input file", &Gopt.input_file );
 
   po.parseCommandLine( argc, argv );
 
   if( po.numOptSet( "tol,t" ) ){
-    opt.override_tolerance = true;
-    if( opt.specific_tolerance <= 0.0 || opt.specific_tolerance > .1 ){
+    Gopt.override_tolerance = true;
+    if( Gopt.specific_tolerance <= 0.0 || Gopt.specific_tolerance > .1 ){
       std::cerr << "Warning: you seem to have specified an unusual tolerance (" 
-                << opt.specific_tolerance << ")." << std::endl;
+                << Gopt.specific_tolerance << ")." << std::endl;
     }
   }
 
@@ -1161,31 +1166,31 @@ int main(int argc, char* argv[]){
 
 #endif
 
-  if( opt.merge_geom && !opt.imprint_geom ) {
+  if( Gopt.merge_geom && !Gopt.imprint_geom ) {
     std::cerr << "Warning: cannot merge geometry without imprinting, will skip merge too." << std::endl;
   }
 
-  std::ifstream input(opt.input_file.c_str(), std::ios::in );
+  std::ifstream input(Gopt.input_file.c_str(), std::ios::in );
   if( !input.is_open() ){
-    std::cerr << "Error: couldn't open file \"" << opt.input_file << "\"" << std::endl;
+    std::cerr << "Error: couldn't open file \"" << Gopt.input_file << "\"" << std::endl;
     return 1;
   }
   
   std::cout << "Reading input file..." << std::endl;
 
-  // if -Di and not -D, set debugging to be true for InputDeck::build() call only
+  // if --Di and not -D, set debugging to be true for InputDeck::build() call only
   if( DiFlag && !OPT_DEBUG){
-    opt.debug = true;
+    Gopt.debug = true;
   }
   else{ DiFlag = false; }
 
   InputDeck& deck = InputDeck::build(input);
   std::cout << "Done reading input." << std::endl;
 
-  // turn off debug if it was set by -Di only
-  if( DiFlag ){ opt.debug = false; }
+  // turn off debug if it was set by --Di only
+  if( DiFlag ){ Gopt.debug = false; }
   
-  if( DoFlag && !OPT_DEBUG ){ opt.debug = true; }
+  if( DoFlag && !OPT_DEBUG ){ Gopt.debug = true; }
 
   if( OPT_DEBUG ){ 
     debugSurfaceDistances( deck );
@@ -1194,7 +1199,7 @@ int main(int argc, char* argv[]){
   iGeom_Instance igm;
   int igm_result; 
 
-  iGeom_newGeom( opt.igeom_init_options.c_str(), &igm, &igm_result, opt.igeom_init_options.length() );
+  iGeom_newGeom( Gopt.igeom_init_options.c_str(), &igm, &igm_result, Gopt.igeom_init_options.length() );
   CHECK_IGEOM( igm_result, "Initializing iGeom");
 
 #ifdef USING_CGMA
@@ -1221,12 +1226,17 @@ int main(int argc, char* argv[]){
     
 }
 
-std::string mcnp2cad_version( ){
+/** Return the version string
+ *
+ * Return only numbers ("1.2.3") if full is false, else dated format
+ */
+std::string mcnp2cad_version( bool full ){
   std::stringstream str;
-  str << "mcnp2cad version " 
+  str << (full ? "mcnp2cad version " : "")
       << MCNP2CAD_VERSION_MAJOR << "." 
       << MCNP2CAD_VERSION_MINOR << "." 
-      << MCNP2CAD_VERSION_REV   << std::endl;
-  str << "Compiled on " << __DATE__ << " at " << __TIME__ ;
+      << MCNP2CAD_VERSION_REV;
+  if(full)
+      str << "\nCompiled on " << __DATE__ << " at " << __TIME__ ;
   return str.str();
 }
