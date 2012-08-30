@@ -79,8 +79,8 @@ typedef std::vector<iBase_EntityHandle> entity_collection_t;
 
 // intersect two volumes that may or may not overlap; return true on success.
 static bool intersectIfPossible( iGeom_Instance igm, 
-				 iBase_EntityHandle h1, iBase_EntityHandle h2, iBase_EntityHandle* result, 
-				 bool delete_on_failure = true)
+                                 iBase_EntityHandle h1, iBase_EntityHandle h2, iBase_EntityHandle* result, 
+                                 bool delete_on_failure = true)
 {
   int igm_result;
 
@@ -186,12 +186,12 @@ protected:
     void update( iBase_EntityHandle old_h, iBase_EntityHandle new_h ){
       entity_collection_t::iterator i = std::find( entities.begin(), entities.end(), old_h );
       if( i != entities.end() ){
-	if( new_h ){
-	  *i = new_h;
-	}
-	else {
-	  entities.erase( i );
-	}
+        if( new_h ){
+          *i = new_h;
+        }
+        else {
+          entities.erase( i );
+        }
       }
     }
 
@@ -252,7 +252,7 @@ public:
   {}
 
   bool defineLatticeNode( CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
-			  int x, int y, int z, entity_collection_t& accum );
+                          int x, int y, int z, entity_collection_t& accum );
   
 
   entity_collection_t defineCell( CellCard& cell, bool defineEmbedded, iBase_EntityHandle lattice_shell );
@@ -305,7 +305,7 @@ void GeometryContext::addToVolumeGroup( iBase_EntityHandle cell, const std::stri
   group->add( cell );
 
   if( OPT_DEBUG ){ std::cout << uprefix() 
-			     << "Added cell to volgroup " << group->getName() << std::endl; }
+                             << "Added cell to volgroup " << group->getName() << std::endl; }
 }
 
 
@@ -329,12 +329,12 @@ void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandl
   /* update named entities.*/
   if( new_cell != NULL ){
     for( std::vector< NamedEntity* >::iterator i = named_cells.begin(); 
-	 i != named_cells.end(); ++i )
+         i != named_cells.end(); ++i )
       {
-	NamedEntity* ne = *i;
-	if( ne->getHandle() == old_cell ){
-	  ne->setHandle( new_cell );
-	}
+        NamedEntity* ne = *i;
+        if( ne->getHandle() == old_cell ){
+          ne->setHandle( new_cell );
+        }
       }
   }
   else{ /* new_cell == NULL (i.e. cell has disappeared) */
@@ -344,11 +344,11 @@ void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandl
     std::vector< NamedEntity* >::iterator i = named_cells.begin();
     while( i != named_cells.end() ){
       if( (*i)->getHandle() == old_cell ){
-	delete (*i);
-	named_cells.erase(i);
+        delete (*i);
+        named_cells.erase(i);
       }
       else{
-	++i;
+        ++i;
       }
     }
   }
@@ -395,7 +395,7 @@ void GeometryContext::tagGroups( ){
     if( name.length() > (unsigned)name_tag_maxlength ){
       name.resize( name_tag_maxlength - 1);
       std::cerr << "Warning: trimmed material name " << group->getName() 
-		<< " to length " << name_tag_maxlength << std::endl;
+                << " to length " << name_tag_maxlength << std::endl;
     }
 
     iGeom_setEntSetData( igm, set, name_tag, name.c_str(), name.length(), &igm_result );
@@ -431,7 +431,7 @@ void GeometryContext::tagCellIDsAsEntNames(){
     if( name.length() > (unsigned)name_tag_maxlength ){
       name.resize( name_tag_maxlength - 1);
       std::cerr << "Warning: trimmed entity name " << (*i)->getName() 
-		<< " to length " << name_tag_maxlength << std::endl;
+                << " to length " << name_tag_maxlength << std::endl;
     }
 
     if( entity == NULL ){ std::cerr << "Error: NULL in named_cells" << std::endl; continue; }
@@ -485,7 +485,7 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
     for( entity_collection_t::iterator j = group_cells.begin(); j != group_cells.end(); ++j ){
       bool check = allRegions.find( *j ) != allRegions.end();
       if( ! check ){
-	std::cout << "Entity handle " << *j << " is not in allRegions!" << std::endl;
+        std::cout << "Entity handle " << *j << " is not in allRegions!" << std::endl;
       }
       good = good && check;
     }
@@ -505,13 +505,13 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
  * lattice_shell is the volume into which the node must be intersected
  */
 bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
-					  int x, int y, int z, entity_collection_t& accum )
+                                          int x, int y, int z, entity_collection_t& accum )
 {
   const Lattice& lattice = cell.getLattice();
   int lattice_universe =   cell.getUniverse();
 
-  const FillNode* fn = &(lattice.getFillForNode( x, y, z ));				
-  Transform t = lattice.getTxForNode( x, y, z );	
+  const FillNode* fn = &(lattice.getFillForNode( x, y, z ));                            
+  Transform t = lattice.getTxForNode( x, y, z );        
   int igm_result;
   
   iBase_EntityHandle cell_copy;
@@ -597,17 +597,17 @@ static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
     int kmax = dimensions > 2 ?  r : 0;
     for( int i = -r; i <= r; ++i ){
       for( int j = jmin;j <= jmax; ++j ){
-	for( int k = kmin; k <= kmax; ++k ){
-	  if( i == -r || i == r ||
-	      j == -r || j == r ||
-	      k == -r || k == r ){
-	    int_triple v;
-	    v.v[0] = i; 
-	    v.v[1] = j;
-	    v.v[2] = k;
-	    ret.push_back(v);
-	  }
-	}
+        for( int k = kmin; k <= kmax; ++k ){
+          if( i == -r || i == r ||
+              j == -r || j == r ||
+              k == -r || k == r ){
+            int_triple v;
+            v.v[0] = i; 
+            v.v[1] = j;
+            v.v[2] = k;
+            ret.push_back(v);
+          }
+        }
       }
     }
     return ret;
@@ -616,7 +616,7 @@ static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
 
 /** fill a cell with its contents.  The cell's boundary is already defined in cell_shell. */
 entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_EntityHandle cell_shell, 
-						   iBase_EntityHandle lattice_shell = NULL )
+                                                   iBase_EntityHandle lattice_shell = NULL )
 {
   
   if( OPT_DEBUG ) std::cout << uprefix() << "Populating cell " << cell.getIdent() << std::endl;
@@ -637,7 +637,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
     
     if( OPT_DEBUG ){
       std::cout << uprefix() << "Creating cell " << cell.getIdent() 
-		<< ", which is filled with universe " << filling_universe << std::endl;
+                << ", which is filled with universe " << filling_universe << std::endl;
     }
     
     // the contained universe is transformed by the FillNode's transform, if any, or
@@ -680,17 +680,17 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
       irange xrange = lattice.getXRange(), yrange = lattice.getYRange(), zrange = lattice.getZRange();
 
       for( int i = xrange.first; i <= xrange.second; ++i){
-	for( int j = yrange.first; j <= yrange.second; ++j ){
-	  for( int k = zrange.first; k <= zrange.second; ++k ){
+        for( int j = yrange.first; j <= yrange.second; ++j ){
+          for( int k = zrange.first; k <= zrange.second; ++k ){
 
-	    if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
+            if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << i << ", " << j << ", " << k << std::endl;
 
-	    /* bool success = */ defineLatticeNode( cell, cell_shell, lattice_shell, i, j, k, subcells );
+            /* bool success = */ defineLatticeNode( cell, cell_shell, lattice_shell, i, j, k, subcells );
 
-	    if( num_dims < 3 ) break; // from z loop
-	  }
-	  if( num_dims < 2 ) break; // from y loop
-	}
+            if( num_dims < 3 ) break; // from z loop
+          }
+          if( num_dims < 2 ) break; // from y loop
+        }
       }
 
     }
@@ -698,7 +698,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
 
       if( OPT_DEBUG ) std::cout << uprefix() << "Defining infinite lattice" << std::endl;
       if( OPT_VERBOSE && Gopt.infinite_lattice_extra_effort ) 
-	std::cout << uprefix() << "Infinite lattice extra effort enabled." << std::endl;
+        std::cout << uprefix() << "Infinite lattice extra effort enabled." << std::endl;
 
       // when extra effort is enabled, initialize done_one to false;
       // the code will keep trying to create lattice elements until at least one 
@@ -707,24 +707,24 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
       int radius = 0;
 
       while( !done ){
-	
-	done = done_one;
-	std::vector<int_triple> shell = makeGridShellOfRadius(radius++, num_dims);
+        
+        done = done_one;
+        std::vector<int_triple> shell = makeGridShellOfRadius(radius++, num_dims);
 
-	for( std::vector<int_triple>::iterator i = shell.begin(); i!=shell.end(); ++i){
-	  int x = (*i).v[0];
-	  int y = (*i).v[1];
-	  int z = (*i).v[2];
-	  
-	  if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
+        for( std::vector<int_triple>::iterator i = shell.begin(); i!=shell.end(); ++i){
+          int x = (*i).v[0];
+          int y = (*i).v[1];
+          int z = (*i).v[2];
+          
+          if( OPT_DEBUG ) std::cout << uprefix() << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
 
-	  bool success = defineLatticeNode( cell, cell_shell, lattice_shell, x, y, z, subcells );
-	  if( success ){
-	    done = false;
-	    done_one = true;
-	  }
+          bool success = defineLatticeNode( cell, cell_shell, lattice_shell, x, y, z, subcells );
+          if( success ){
+            done = false;
+            done_one = true;
+          }
 
-	}	
+        }       
       }
     }
 
@@ -744,7 +744,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
  * @param lattice_shell
  */
 entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEmbedded = true, 
-						  iBase_EntityHandle lattice_shell = NULL )
+                                                  iBase_EntityHandle lattice_shell = NULL )
 {
   int ident = cell.getIdent();
   const CellCard::geom_list_t& geom = cell.getGeom();
@@ -769,64 +769,64 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
       break;
     case CellCard::SURFNUM:
       {      
-	int surface = token.second;
-	bool pos = true;
-	if( surface < 0){
-	  pos = false; surface = -surface;
-	}
-	try{
-	  SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( surface ) );
-	  iBase_EntityHandle surf_handle = surf.define( pos, igm, world_size );
-	  stack.push_back(surf_handle);
-	}
-	catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
+        int surface = token.second;
+        bool pos = true;
+        if( surface < 0){
+          pos = false; surface = -surface;
+        }
+        try{
+          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( surface ) );
+          iBase_EntityHandle surf_handle = surf.define( pos, igm, world_size );
+          stack.push_back(surf_handle);
+        }
+        catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
       }
       break;
     case CellCard::MBODYFACET:
       {
-	int cellnum = std::abs(token.second) / 10;
-	int facet = std::abs(token.second) - (cellnum*10);
-	std::cerr << "Attempting to define facet " << facet << " of cell " << cellnum << std::endl;
-	throw std::runtime_error( "Macrobody facets are not yet supported by mcnp2cad." );
+        int cellnum = std::abs(token.second) / 10;
+        int facet = std::abs(token.second) - (cellnum*10);
+        std::cerr << "Attempting to define facet " << facet << " of cell " << cellnum << std::endl;
+        throw std::runtime_error( "Macrobody facets are not yet supported by mcnp2cad." );
       }
       break;
     case CellCard::INTERSECT:
       {
-	assert( stack.size() >= 2 );
-	iBase_EntityHandle s1 = stack.back(); stack.pop_back();
-	iBase_EntityHandle s2 = stack.back(); stack.pop_back();
-	iBase_EntityHandle result;
-	if( intersectIfPossible( igm, s1, s2, &result ) ){
-	  stack.push_back(result);
-	}
-	else{
-	  std::cout << "FAILED INTERSECTION CELL #" << cell.getIdent() << std::endl;
-	  throw std::runtime_error("Intersection failed");
-	}
+        assert( stack.size() >= 2 );
+        iBase_EntityHandle s1 = stack.back(); stack.pop_back();
+        iBase_EntityHandle s2 = stack.back(); stack.pop_back();
+        iBase_EntityHandle result;
+        if( intersectIfPossible( igm, s1, s2, &result ) ){
+          stack.push_back(result);
+        }
+        else{
+          std::cout << "FAILED INTERSECTION CELL #" << cell.getIdent() << std::endl;
+          throw std::runtime_error("Intersection failed");
+        }
       }
       break;
     case CellCard::UNION:
-      {	
-	assert( stack.size() >= 2 );
-	iBase_EntityHandle s[2];
-	s[0] = stack.back(); stack.pop_back();
-	s[1] = stack.back(); stack.pop_back();
-	iBase_EntityHandle result;
-	iGeom_uniteEnts( igm, s, 2, &result, &igm_result);
-	CHECK_IGEOM( igm_result, "Uniting two entities" );
-	stack.push_back(result);
+      { 
+        assert( stack.size() >= 2 );
+        iBase_EntityHandle s[2];
+        s[0] = stack.back(); stack.pop_back();
+        s[1] = stack.back(); stack.pop_back();
+        iBase_EntityHandle result;
+        iGeom_uniteEnts( igm, s, 2, &result, &igm_result);
+        CHECK_IGEOM( igm_result, "Uniting two entities" );
+        stack.push_back(result);
       }
       break;
     case CellCard::COMPLEMENT:
       {
-	assert (stack.size() >= 1 );
-      	iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
-	iBase_EntityHandle s = stack.back(); stack.pop_back();
-	iBase_EntityHandle result;
+        assert (stack.size() >= 1 );
+        iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
+        iBase_EntityHandle s = stack.back(); stack.pop_back();
+        iBase_EntityHandle result;
 
-	iGeom_subtractEnts( igm, world_sphere, s, &result, &igm_result);
-	CHECK_IGEOM( igm_result, "Complementing an entity" );
-	stack.push_back(result);
+        iGeom_subtractEnts( igm, world_sphere, s, &result, &igm_result);
+        CHECK_IGEOM( igm_result, "Complementing an entity" );
+        stack.push_back(result);
       }
       break;
     default:
@@ -858,7 +858,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
  * @param transform If non-null, transform the universe thus.
  */
 entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityHandle container = NULL, 
-						     const Transform* transform = NULL )
+                                                     const Transform* transform = NULL )
 {
 
   if( OPT_VERBOSE ) std::cout << uprefix() << "Defining universe " << universe << std::endl;
@@ -900,39 +900,39 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
       bool subcell_removed = false;
 
       if( boundBoxesIntersect( igm, subcells[i], container )){
-	iBase_EntityHandle container_copy;
-	iGeom_copyEnt( igm, container, &container_copy, &igm_result);
-	CHECK_IGEOM( igm_result, "Copying a universe-bounding cell" );
-	
-	iBase_EntityHandle subcell_bounded;
-	bool valid_result = intersectIfPossible( igm, container_copy, subcells[i], &subcell_bounded );
-	if( valid_result ){
-	  updateMaps( subcells[i], subcell_bounded );
-	  subcells[i] = subcell_bounded;
-	  if( OPT_DEBUG ) std::cout << " ok." <<  std::endl;
-	}
-	else{
-	  subcell_removed = true;
-	}
+        iBase_EntityHandle container_copy;
+        iGeom_copyEnt( igm, container, &container_copy, &igm_result);
+        CHECK_IGEOM( igm_result, "Copying a universe-bounding cell" );
+        
+        iBase_EntityHandle subcell_bounded;
+        bool valid_result = intersectIfPossible( igm, container_copy, subcells[i], &subcell_bounded );
+        if( valid_result ){
+          updateMaps( subcells[i], subcell_bounded );
+          subcells[i] = subcell_bounded;
+          if( OPT_DEBUG ) std::cout << " ok." <<  std::endl;
+        }
+        else{
+          subcell_removed = true;
+        }
 
       }
       else{
-	// bounding boxes didn't intersect, delete subcells[i].
-	// this suggests invalid geometry, but we can continue anyway.
-	iGeom_deleteEnt( igm, subcells[i], &igm_result );
-	CHECK_IGEOM( igm_result, "Deleting a subcell that didn't intersect a parent's bounding box (strange!)" );
-	subcell_removed = true;
+        // bounding boxes didn't intersect, delete subcells[i].
+        // this suggests invalid geometry, but we can continue anyway.
+        iGeom_deleteEnt( igm, subcells[i], &igm_result );
+        CHECK_IGEOM( igm_result, "Deleting a subcell that didn't intersect a parent's bounding box (strange!)" );
+        subcell_removed = true;
       }
       
       if( subcell_removed ){
-	updateMaps( subcells[i], NULL );
-	subcells.erase( subcells.begin()+i );
-	i--;
-	if( OPT_DEBUG ) std::cout << " removed." << std::endl;
+        updateMaps( subcells[i], NULL );
+        subcells.erase( subcells.begin()+i );
+        i--;
+        if( OPT_DEBUG ) std::cout << " removed." << std::endl;
       }
       
     }
-	
+        
     iGeom_deleteEnt( igm, container, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting a bounding cell" );
   }

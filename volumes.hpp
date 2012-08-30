@@ -60,10 +60,10 @@ iBase_EntityHandle applyReverseTransform( const Transform& tx, iGeom_Instance& i
 static char m_buf[CHECK_BUF_SIZE];
 
 #define CHECK_IGEOM(err, msg) \
-  do{/*std::cout << msg << std::endl;*/ if((err) != iBase_SUCCESS){	\
-    std::cerr << "iGeom error (" << err << "): " << msg << std::endl;	\
-    iGeom_getDescription( igm, m_buf, CHECK_BUF_SIZE);		\
-    std::cerr << " * " << m_buf << std::endl;				\
+  do{/*std::cout << msg << std::endl;*/ if((err) != iBase_SUCCESS){     \
+    std::cerr << "iGeom error (" << err << "): " << msg << std::endl;   \
+    iGeom_getDescription( igm, m_buf, CHECK_BUF_SIZE);                  \
+    std::cerr << " * " << m_buf << std::endl;                           \
      } } while(0) 
 
 #endif /* MCNP2CAD_VOLUMES_H */

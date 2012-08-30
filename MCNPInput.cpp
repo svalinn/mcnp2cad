@@ -163,11 +163,11 @@ static FillNode parseFillNode( InputDeck& deck, token_list_t::iterator& i, const
     if( ++i != end ){
       second_token = *i;
       if( second_token[0] == '(' ){
-	has_transform = true;
+        has_transform = true;
       }
       else{
-	// the next token didn't belong to this fill 
-	i--;
+        // the next token didn't belong to this fill 
+        i--;
       }
     }
     else{ i--; }
@@ -265,73 +265,73 @@ protected:
       size_t j = 0;
       while( j < token.length() ){
 
-	char cj = token.at(j);
+        char cj = token.at(j);
 
-	switch(cj){
-	  
-	  // the following macro pushes an intersect token onto the geom list
-	  // if the end of that list indicates that one is needed
-#define IMPLICIT_INTERSECT() do{				\
-	    if(geom.size()){					\
-	      geom_list_entry_t &t = geom.at(geom.size()-1);	\
-	      if( is_num_token(t) || t.first == RPAREN ){	\
-		geom.push_back( make_geom_entry( INTERSECT ) );	\
-	      }}} while(0) 
-	  
-	case '(': 
-	  IMPLICIT_INTERSECT();
-	  geom.push_back(make_geom_entry(LPAREN)); j++;
-	  break;
-	  
-	case ')':
-	  geom.push_back(make_geom_entry(RPAREN)); j++;
-	  break;
-	  
-	case '#':
-	  IMPLICIT_INTERSECT();
-	  geom.push_back(make_geom_entry(COMPLEMENT)); j++; 
-	  break;
-	  
-	case ':':
-	  geom.push_back(make_geom_entry(UNION)); j++; 
-	  break;
-	  
-	default: // a number
-	  // the number refers to a cell if the previous token is a complement
-	  bool is_cell = geom.size() && ((geom.at(geom.size()-1)).first == COMPLEMENT);
-	  IMPLICIT_INTERSECT();
-	  assert(isdigit(cj) || cj == '+' || cj == '-' );
-	  size_t end = token.find_first_not_of("1234567890-+.",j);
-	  assert(j != end);
+        switch(cj){
+          
+          // the following macro pushes an intersect token onto the geom list
+          // if the end of that list indicates that one is needed
+#define IMPLICIT_INTERSECT() do{                                \
+            if(geom.size()){                                    \
+              geom_list_entry_t &t = geom.at(geom.size()-1);    \
+              if( is_num_token(t) || t.first == RPAREN ){       \
+                geom.push_back( make_geom_entry( INTERSECT ) ); \
+              }}} while(0) 
+          
+        case '(': 
+          IMPLICIT_INTERSECT();
+          geom.push_back(make_geom_entry(LPAREN)); j++;
+          break;
+          
+        case ')':
+          geom.push_back(make_geom_entry(RPAREN)); j++;
+          break;
+          
+        case '#':
+          IMPLICIT_INTERSECT();
+          geom.push_back(make_geom_entry(COMPLEMENT)); j++; 
+          break;
+          
+        case ':':
+          geom.push_back(make_geom_entry(UNION)); j++; 
+          break;
+          
+        default: // a number
+          // the number refers to a cell if the previous token is a complement
+          bool is_cell = geom.size() && ((geom.at(geom.size()-1)).first == COMPLEMENT);
+          IMPLICIT_INTERSECT();
+          assert(isdigit(cj) || cj == '+' || cj == '-' );
+          size_t end = token.find_first_not_of("1234567890-+.",j);
+          assert(j != end);
 
-	  std::string numstr( token, j, end-j );
-	  const char* numstr_c = numstr.c_str();
-	  char* p;
-	  int num = strtol( numstr_c, &p, 10 );
+          std::string numstr( token, j, end-j );
+          const char* numstr_c = numstr.c_str();
+          char* p;
+          int num = strtol( numstr_c, &p, 10 );
 
-	  if( *p == '.' ){
-	    // This is a macrobody facet
-	    assert( !is_cell );
+          if( *p == '.' ){
+            // This is a macrobody facet
+            assert( !is_cell );
 
-	    int facet = strtol( p+1, NULL, 10 );
-	    assert( facet > 0 && facet <= 8 );
+            int facet = strtol( p+1, NULL, 10 );
+            assert( facet > 0 && facet <= 8 );
 
-	    // storage of macrobody facets: multiply cell number by ten, add facet number
-	    num *= 10;
-	    // don't add a positive facet number to a negative cell numer
-	    num += (num > 0) ? facet : -facet;
-	    geom.push_back( make_geom_entry( MBODYFACET, num ) );
-	  }
-	  else{
-	    geom.push_back( make_geom_entry( is_cell ? CELLNUM : SURFNUM, num ));
-	  }
+            // storage of macrobody facets: multiply cell number by ten, add facet number
+            num *= 10;
+            // don't add a positive facet number to a negative cell numer
+            num += (num > 0) ? facet : -facet;
+            geom.push_back( make_geom_entry( MBODYFACET, num ) );
+          }
+          else{
+            geom.push_back( make_geom_entry( is_cell ? CELLNUM : SURFNUM, num ));
+          }
 
-	  j += (end-j);
-	  break;
+          j += (end-j);
+          break;
 #undef IMPLICIT_INTERSECT
 
-	}
-	
+        }
+        
       } 
     }
     
@@ -354,31 +354,31 @@ protected:
     for(geom_list_t::iterator i = geom_copy.begin(); i!=geom_copy.end(); ++i){
       geom_list_entry_t token = *i;
       if( is_num_token(token) ){
-	geom.push_back(token);
+        geom.push_back(token);
       }
       else if( is_op_token(token) ){
 
-	while(stack.size()){
-	  geom_list_entry_t& stack_top = stack.back();
-	  if( is_op_token(stack_top) && operator_priority(stack_top) > operator_priority(token) ){
-	    geom.push_back(stack_top);
-	    stack.pop_back();
-	  }
-	  else{
-	    break;
-	  }
-	}
-	stack.push_back(token);
+        while(stack.size()){
+          geom_list_entry_t& stack_top = stack.back();
+          if( is_op_token(stack_top) && operator_priority(stack_top) > operator_priority(token) ){
+            geom.push_back(stack_top);
+            stack.pop_back();
+          }
+          else{
+            break;
+          }
+        }
+        stack.push_back(token);
       }
       else if( token.first == LPAREN ){
-	stack.push_back(token);
+        stack.push_back(token);
       }
       else if( token.first == RPAREN ){
-	while( stack.back().first != LPAREN ){
-	  geom.push_back( stack.back() );
-	  stack.pop_back();
-	}
-	stack.pop_back(); // remove the LPAREN
+        while( stack.back().first != LPAREN ){
+          geom.push_back( stack.back() );
+          stack.pop_back();
+        }
+        stack.pop_back(); // remove the LPAREN
       }
     }
     while( stack.size() ){
@@ -401,9 +401,9 @@ protected:
     for( geom_list_t::iterator i = geom.begin(); i!=geom.end(); ++i){
       geom_list_entry_t entry = *i;
       if( entry.first == SURFNUM ){
-	SurfaceCard* surf = parent_deck.lookup_surface_card( std::abs(entry.second) );
-	assert(surf);
-	surfaceCards.push_back( std::make_pair(surf, (entry.second>0) ) );
+        SurfaceCard* surf = parent_deck.lookup_surface_card( std::abs(entry.second) );
+        assert(surf);
+        surfaceCards.push_back( std::make_pair(surf, (entry.second>0) ) );
       }
     }
 
@@ -415,65 +415,65 @@ protected:
     if( surfaceCards.size() == 1 ){ 
       planes = surfaceCards.at(0).first->getMacrobodyPlaneParams();
       if( surfaceCards.at(0).second != false ){
-	std::cerr << "Warning: macrobody lattice with positive sense, will proceed as if it was negative.";
+        std::cerr << "Warning: macrobody lattice with positive sense, will proceed as if it was negative.";
       }
     }
     else{
       for( unsigned int i = 0; i < surfaceCards.size(); ++i){
-	planes.push_back( surfaceCards.at(i).first->getPlaneParams() );
-	if( surfaceCards.at(i).second == true ){ planes[i].first = -planes[i].first; }
+        planes.push_back( surfaceCards.at(i).first->getPlaneParams() );
+        if( surfaceCards.at(i).second == true ){ planes[i].first = -planes[i].first; }
       }
     }
 
     if( OPT_DEBUG ){
       for( unsigned int i = 0; i < planes.size(); ++i){
-	std::cout << " plane " << i << " normal = " << planes[i].first << " d = " << planes[i].second  << std::endl;
+        std::cout << " plane " << i << " normal = " << planes[i].first << " d = " << planes[i].second  << std::endl;
       }
     }
     if( lat_type == HEXAHEDRAL ){
       assert( planes.size() == 2 || planes.size() == 4 || planes.size() == 6 );
       if( planes.size() == 2 ){
 
-	num_finite_dims = 1;
-	v1 = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second ); 
+        num_finite_dims = 1;
+        v1 = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second ); 
 
       }
       else if( planes.size() == 4 ){
-	num_finite_dims = 2;
-	
-	Vector3d v3 = planes[0].first.cross( planes[2].first ).normalize(); // infer a third (infinite) direction
-	
-	// vector from planes[1] to planes[0]
-	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
+        num_finite_dims = 2;
+        
+        Vector3d v3 = planes[0].first.cross( planes[2].first ).normalize(); // infer a third (infinite) direction
+        
+        // vector from planes[1] to planes[0]
+        Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
 
-	// direction of l.v1: cross product of normals planes[2] and v3
-	Vector3d xv2 = planes[2].first.normalize().cross( v3 ).normalize();
-	v1 = latticeVectorHelper( xv, xv2 );
+        // direction of l.v1: cross product of normals planes[2] and v3
+        Vector3d xv2 = planes[2].first.normalize().cross( v3 ).normalize();
+        v1 = latticeVectorHelper( xv, xv2 );
 
-	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
-	Vector3d yv2 = planes[0].first.normalize().cross( v3 ).normalize();
-	v2 = latticeVectorHelper( yv, yv2 );
+        Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
+        Vector3d yv2 = planes[0].first.normalize().cross( v3 ).normalize();
+        v2 = latticeVectorHelper( yv, yv2 );
 
 
       }
       else{ // planes.size() == 6 
-	num_finite_dims = 3;
+        num_finite_dims = 3;
 
-	// vector from planes[1] to planes[0]
-	Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
+        // vector from planes[1] to planes[0]
+        Vector3d xv = planes[0].first.normalize() * std::fabs( planes[0].second - planes[1].second );
 
-	// direction of v1: cross product of normals planes[2] and planes[4]
-	Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() ).normalize();
-	v1 = latticeVectorHelper( xv, xv2 );
+        // direction of v1: cross product of normals planes[2] and planes[4]
+        Vector3d xv2 = planes[2].first.normalize().cross( planes[4].first.normalize() ).normalize();
+        v1 = latticeVectorHelper( xv, xv2 );
 
-	Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
-	Vector3d yv2 = planes[0].first.normalize().cross( planes[4].first.normalize() ).normalize();
-	v2 = latticeVectorHelper( yv, yv2 );
+        Vector3d yv = planes[2].first.normalize() * std::fabs( planes[2].second - planes[3].second );
+        Vector3d yv2 = planes[0].first.normalize().cross( planes[4].first.normalize() ).normalize();
+        v2 = latticeVectorHelper( yv, yv2 );
 
-	Vector3d zv = planes[4].first.normalize() * std::fabs( planes[4].second - planes[5].second );
-	Vector3d zv2 = planes[0].first.normalize().cross( planes[2].first.normalize() ).normalize();
-	v3 = latticeVectorHelper( zv, zv2 );
-	
+        Vector3d zv = planes[4].first.normalize() * std::fabs( planes[4].second - planes[5].second );
+        Vector3d zv2 = planes[0].first.normalize().cross( planes[2].first.normalize() ).normalize();
+        v3 = latticeVectorHelper( zv, zv2 );
+        
       }
       
     }
@@ -496,15 +496,15 @@ protected:
       
 
       if( planes.size() == 6 ){
-	num_finite_dims = 2;
-	
+        num_finite_dims = 2;
+        
       }
       else{ // planes.size() == 8
-	num_finite_dims = 3;
+        num_finite_dims = 3;
 
-	Vector3d zv = planes[6].first.normalize() * std::fabs( planes[6].second - planes[7].second );
-	Vector3d zv2 = v3;
-	v3 = latticeVectorHelper( zv, zv2 );
+        Vector3d zv = planes[6].first.normalize() * std::fabs( planes[6].second - planes[7].second );
+        Vector3d zv2 = v3;
+        v3 = latticeVectorHelper( zv, zv2 );
       }
     }
 
@@ -668,7 +668,7 @@ public:
       likeness_cell_n = makeint(tokens.at(idx++));
       idx++; // skip the "but" token
       while(idx < tokens.size()){
-	data.push_back(tokens[idx++]);
+        data.push_back(tokens[idx++]);
       }
       return;
     }
@@ -832,15 +832,15 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
       int tx_id = makeint(token2);
 
       if( tx_id == 0 ){
-	std::cerr << "I don't think 0 is a valid surface transformation ID, so I'm ignoring it." << std::endl;
-	coord_xform = new NullRef<Transform>();
+        std::cerr << "I don't think 0 is a valid surface transformation ID, so I'm ignoring it." << std::endl;
+        coord_xform = new NullRef<Transform>();
       }
       else if ( tx_id < 0 ){
-	// abs(tx_id) is the ID of surface with respect to which this surface is periodic.
-	std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
+        // abs(tx_id) is the ID of surface with respect to which this surface is periodic.
+        std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
       }
       else{ // tx_id is positive and nonzero
-	coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
+        coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
       }
 
       mnemonic = tokens.at(idx++);
@@ -1009,34 +1009,34 @@ protected:
     do{
       
       if(!std::getline(input, next_line)){
-	has_next = false;
+        has_next = false;
       }
       else{
 
-	comment = false;
-	next_line_idx++;
+        comment = false;
+        next_line_idx++;
 
-	// strip trailing carriage return, if any
-	if(next_line.length() > 0 && *(next_line.rbegin()) == '\r')
-	  next_line.resize(next_line.size()-1);
-	
-	// convert to lowercase
-	strlower(next_line);
+        // strip trailing carriage return, if any
+        if(next_line.length() > 0 && *(next_line.rbegin()) == '\r')
+          next_line.resize(next_line.size()-1);
+        
+        // convert to lowercase
+        strlower(next_line);
 
-	// Append a space, to catch blank comment lines (e.g. "c\n") that would otherwise not meet
-	// the MCNP comment card spec ("a C anywhere in columns 1-5 followed by at least one blank.")
-	// I have seen lines like "c\n" or " c\n" as complete comment cards in practice, so MCNP must 
-	// accept them.
-	next_line.append(" ");
+        // Append a space, to catch blank comment lines (e.g. "c\n") that would otherwise not meet
+        // the MCNP comment card spec ("a C anywhere in columns 1-5 followed by at least one blank.")
+        // I have seen lines like "c\n" or " c\n" as complete comment cards in practice, so MCNP must 
+        // accept them.
+        next_line.append(" ");
 
-	// We want to find "c " within the first five
-	// columns, but not if the c has anything other than a space before it.
-	size_t idx = next_line.find("c ");
-	if( idx < 5 ){
-	  if( idx == 0 || next_line.at(idx-1) == ' '){
-	    comment = true;
-	  }
-	}
+        // We want to find "c " within the first five
+        // columns, but not if the c has anything other than a space before it.
+        size_t idx = next_line.find("c ");
+        if( idx < 5 ){
+          if( idx == 0 || next_line.at(idx-1) == ' '){
+            comment = true;
+          }
+        }
       }
     }
     while( has_next && comment );
@@ -1108,7 +1108,7 @@ void appendToTokenList( const std::string& token, token_list_t& tokens ){
     }
 
     if( OPT_DEBUG ) { std::cout << "Repeat syntax: " << token << " repeats " 
-				<< tokens.back() << " " << num << " times." << std::endl; }
+                                << tokens.back() << " " << num << " times." << std::endl; }
 
     for( int i = 0; i < num; ++i){
       const std::string& last_tok = tokens.back();
@@ -1142,9 +1142,9 @@ void tokenizeLine( std::string line, token_list_t& tokens, const char* extra_sep
     size_t idx;
     if((idx = t.find("$")) != t.npos){
       if(idx > 0){
-	// this token had some data before the $
-	t.resize(idx);
-	appendToTokenList( t, tokens );
+        // this token had some data before the $
+        t.resize(idx);
+        appendToTokenList( t, tokens );
       }
       break;
     }
@@ -1315,14 +1315,14 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
       t = DataCard::TR;
       bool degree_format = false;
       if( cardname[0] == '*' ){
-	degree_format = true;
-	cardname = cardname.substr( 1 ); // remove leading * 
+        degree_format = true;
+        cardname = cardname.substr( 1 ); // remove leading * 
       }
       else if( cardname.find("*") == cardname.length()-1 ){
-	// although it's undocumented, apparently TRn* is a synonym for *TRn
-	// (the manual uses this undocumented form in chapter 4)
-	degree_format = true;
-	cardname.resize( cardname.length() -1 ); // remove trailing *
+        // although it's undocumented, apparently TRn* is a synonym for *TRn
+        // (the manual uses this undocumented form in chapter 4)
+        degree_format = true;
+        cardname.resize( cardname.length() -1 ); // remove trailing *
       }
 
       std::string id_string( cardname, 2 );
@@ -1330,10 +1330,10 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
       // the id_string may be empty, indicating that n is missing from TRn.  
       // examples from the manual indicate it should be assumed to be 1
       if( id_string == "" ){
-	ident = 1;
+        ident = 1;
       }
       else{
-	ident = makeint( id_string );
+        ident = makeint( id_string );
       }
 
       d = new TransformCard( *this, ident, degree_format, token_buffer);

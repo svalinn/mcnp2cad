@@ -12,11 +12,11 @@ std::ostream& operator<<(std::ostream& str, const Vector3d& v ){
 
 double matrix_det( double mat[9] ){
   return (mat[0]*mat[4]*mat[8] -
-	  mat[0]*mat[5]*mat[7] -
-	  mat[1]*mat[3]*mat[8] +
-	  mat[1]*mat[5]*mat[6] +
-	  mat[2]*mat[3]*mat[7] -
-	  mat[2]*mat[4]*mat[6]);
+          mat[0]*mat[5]*mat[7] -
+          mat[1]*mat[3]*mat[8] +
+          mat[1]*mat[5]*mat[6] +
+          mat[2]*mat[3]*mat[7] -
+          mat[2]*mat[4]*mat[6]);
 }
 
 /**
@@ -26,8 +26,8 @@ double matrix_det( double mat[9] ){
 void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     
   double mat[3][3]  = {{ raw_matrix[0], raw_matrix[3], raw_matrix[6] },
-		       { raw_matrix[1], raw_matrix[4], raw_matrix[7] },
-		       { raw_matrix[2], raw_matrix[5], raw_matrix[8] } };
+                       { raw_matrix[1], raw_matrix[4], raw_matrix[7] },
+                       { raw_matrix[2], raw_matrix[5], raw_matrix[8] } };
 
 
   if( f == C_STYLE ){
@@ -54,7 +54,7 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     for( int i = 0; i < 3; i++ ){
       std::cout << "  [ ";
       for ( int j = 0; j < 3; j++ ){
-	std::cout << mat[i][j] << " ";
+        std::cout << mat[i][j] << " ";
       }
       std::cout << "]" << std::endl;
     }
@@ -161,7 +161,7 @@ Transform::Transform( const std::vector< double >& inputs,  bool degree_format_p
     
     if( num_inputs == 9 ){
       for( int i = 3; i < 9; ++i){
-	raw_matrix[i-3] = degree_format_p ? cos(inputs.at(i) * M_PI / 180.0 ) : inputs.at(i);
+        raw_matrix[i-3] = degree_format_p ? cos(inputs.at(i) * M_PI / 180.0 ) : inputs.at(i);
       }
       
       Vector3d v1( raw_matrix ); //v1 = v1.normalize();
@@ -173,12 +173,12 @@ Transform::Transform( const std::vector< double >& inputs,  bool degree_format_p
     }
     else{
       for( int i = 3; i < 12; ++i){
-	raw_matrix[i-3] = degree_format_p ? cos(inputs.at(i) * M_PI / 180.0 ) : inputs.at(i);
+        raw_matrix[i-3] = degree_format_p ? cos(inputs.at(i) * M_PI / 180.0 ) : inputs.at(i);
       }
       if( num_inputs == 13 && inputs.at(12) == -1.0 ){
-	std::cout << "Notice: a transformation has M = -1.  Inverting the translation;" << std::endl;
-	std::cout << " though this might not be what you wanted." << std::endl;
-	translation = -translation;
+        std::cout << "Notice: a transformation has M = -1.  Inverting the translation;" << std::endl;
+        std::cout << " though this might not be what you wanted." << std::endl;
+        translation = -translation;
       }
     }
 
