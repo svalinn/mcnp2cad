@@ -3,10 +3,10 @@ MCNP2CAD README
 MCNP to iGeom/CAD converter: a program to extract the geomtery from MCNP 
 input files and write it out using any ITAPS iGeom backend. 
 
-This program is currently maintained by Steve Jackson (sjackson@cae.wisc.edu).
+This program is currently maintained by Julie Zachman (zachman@engr.wisc.edu).
 Bug reports are appreciated.
 
-The home of mcnp2cad on the web is https://trac.cae.wisc.edu/trac/svalinn
+The home of mcnp2cad on the web is https://github.com/svalinn/mcnp2cad
 
 Compiling (with CGM):
 
@@ -20,7 +20,7 @@ standard system directories, or in a location pointed to by the
 LD_LIBRARY_PATH environment variable.  If your version of CGM was compiled 
 against CUBIT, you  will likely need to set LD_LIBRARY_PATH as follows:
 
-> export LD_LIBRARY_PATH=/path/to/cubit12.2/bin 
+> export LD_LIBRARY_PATH=/path/to/cubit13.1/bin 
 
 Running:
 
