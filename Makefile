@@ -1,4 +1,13 @@
-CGM_BASE_DIR = /path/to/CGM/install
+# Makefile for mcnp2cad
+#
+# Needs to be called while setting the CGM_BASE_DIR variable.
+# CGM_BASE_DIR should be the directory in which there is an
+# 'include' and 'lib' directory with the CGM include files and
+# libraries.
+#
+# prompt%> make CGM_BASE_DIR=/home/wilsonp/opt/cgm 
+#
+# CGM_BASE_DIR = /home/wilsonp/opt/cgm
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
