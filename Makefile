@@ -5,9 +5,9 @@
 # 'include' and 'lib' directory with the CGM include files and
 # libraries.
 #
-# prompt%> make CGM_BASE_DIR=/home/wilsonp/opt/cgm 
+# prompt%> make CGM_BASE_DIR=/path/to/installed/cgm
 #
-# CGM_BASE_DIR = /home/wilsonp/opt/cgm
+# CGM_BASE_DIR = /path/to/installed/cgm
 
 include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
