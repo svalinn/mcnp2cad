@@ -10,8 +10,11 @@ The home of mcnp2cad on the web is https://github.com/svalinn/mcnp2cad
 
 Compiling (with CGM):
 
-At present, you must edit the top line of the Makefile so that CGM_BASE_DIR
-points to a valid installation of the CGM library.  Information and instructions
+At present CGM_BASE_DIR must be specifed as a make paramter, e.g.
+
+    make CGM_BASE_DIR=<path to CGM>
+
+CGM_BASE_DIR must point to a valid installation of the CGM library.  Information and instructions
 for getting and using CGM are available at 
 https://trac.mcs.anl.gov/projects/ITAPS/wiki/CGM
 
