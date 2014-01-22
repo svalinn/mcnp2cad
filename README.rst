@@ -9,6 +9,9 @@ Bug reports are appreciated.
 
 The home of mcnp2cad on the web is https://github.com/svalinn/mcnp2cad
 
+This tool is based on an concept first developed at Argonne National
+Laboratory.
+
 Compiling (with CGM):
 ---------------------
 
