@@ -71,7 +71,7 @@ Unsupported Features:
 
 * Could be added with substantial effort:
    * General support for `SQ`, `GQ`, `X`, `Y`, and `Z` surfaces.  
-     (Simple `X`,`Y`,`Z` surfaces are already supported.)
+     (Simple `X`, `Y`, `Z` surfaces are already supported.)
    * Robust error detection and reporting for ill-formed MCNP inputs.
 
 
