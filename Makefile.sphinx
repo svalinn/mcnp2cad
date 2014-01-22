@@ -12,12 +12,12 @@ include gh-project.mk
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 PAPER         =
-BUILDDIR      = ./gh-build
+GHBUILDDIR      = ./gh-build
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
-ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) $(GH_SOURCE_DIR)
+ALLSPHINXOPTS   = -d $(GHBUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) $(GH_SOURCE_DIR)
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) $(GH_SOURCE_DIR)
 
@@ -25,8 +25,8 @@ I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) $(GH_SOURCE_DIR)
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
-	@echo "  gh-preview to build HTML in directory $BUILDDIR for testing"
-	@echo "  gh-revert  to cleanup HTML build in directory $BUILDDIR after testing"
+	@echo "  gh-preview to build HTML in directory $GHBUILDDIR for testing"
+	@echo "  gh-revert  to cleanup HTML build in directory $GHBUILDDIR after testing"
 	@echo "  gh-publish final build and push from source branch to master branch"
 	@echo "  html       to make standalone HTML files"
 	@echo "  dirhtml    to make HTML files named index.html in directories"
@@ -49,12 +49,12 @@ help:
 	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
 
 gh-clean gh-revert clean:
-	-rm -rf $(BUILDDIR)
+	-rm -rf $(GHBUILDDIR)
 
 gh-preview html:
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(GHBUILDDIR)
 	@echo
-	@echo "Build finished. The HTML pages are in $(BUILDDIR)."
+	@echo "Build finished. The HTML pages are in $(GHBUILDDIR)."
 
 gh-publish:
 	git checkout $(GH_PUBLISH_BRANCH)
@@ -62,117 +62,117 @@ gh-publish:
 	git reset HEAD
 	make clean
 	make html
-	rsync -a $(BUILDDIR)/* .
-	rsync -a $(BUILDDIR)/.* .
-	git add `(cd $(BUILDDIR); find . -type f; cd ..)`
-	rm -rf $(GH_SOURCE_DIR) $(BUILDDIR)
+	rsync -a $(GHBUILDDIR)/* .
+	rsync -a $(GHBUILDDIR)/.* .
+	git add `(cd $(GHBUILDDIR); find . -type f; cd ..)`
+	rm -rf $(GH_SOURCE_DIR) $(GHBUILDDIR)
 	git commit -m "Generated $(GH_PUBLISH_BRANCH) for `git log $(GH_SOURCE_BRANCH) -1 --pretty=short --abbrev-commit`" && git push $(GH_UPSTREAM_REPO) $(GH_PUBLISH_BRANCH)
 	git checkout $(GH_SOURCE_BRANCH)
 
 htmlclean cleanhtml: clean html
 
 dirhtml:
-	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
+	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(GHBUILDDIR)/dirhtml
 	@echo
-	@echo "Build finished. The HTML pages are in $(BUILDDIR)/dirhtml."
+	@echo "Build finished. The HTML pages are in $(GHBUILDDIR)/dirhtml."
 
 singlehtml:
-	$(SPHINXBUILD) -b singlehtml $(ALLSPHINXOPTS) $(BUILDDIR)/singlehtml
+	$(SPHINXBUILD) -b singlehtml $(ALLSPHINXOPTS) $(GHBUILDDIR)/singlehtml
 	@echo
-	@echo "Build finished. The HTML page is in $(BUILDDIR)/singlehtml."
+	@echo "Build finished. The HTML page is in $(GHBUILDDIR)/singlehtml."
 
 pickle:
-	$(SPHINXBUILD) -b pickle $(ALLSPHINXOPTS) $(BUILDDIR)/pickle
+	$(SPHINXBUILD) -b pickle $(ALLSPHINXOPTS) $(GHBUILDDIR)/pickle
 	@echo
 	@echo "Build finished; now you can process the pickle files."
 
 json:
-	$(SPHINXBUILD) -b json $(ALLSPHINXOPTS) $(BUILDDIR)/json
+	$(SPHINXBUILD) -b json $(ALLSPHINXOPTS) $(GHBUILDDIR)/json
 	@echo
 	@echo "Build finished; now you can process the JSON files."
 
 htmlhelp:
-	$(SPHINXBUILD) -b htmlhelp $(ALLSPHINXOPTS) $(BUILDDIR)/htmlhelp
+	$(SPHINXBUILD) -b htmlhelp $(ALLSPHINXOPTS) $(GHBUILDDIR)/htmlhelp
 	@echo
 	@echo "Build finished; now you can run HTML Help Workshop with the" \
-	      ".hhp project file in $(BUILDDIR)/htmlhelp."
+	      ".hhp project file in $(GHBUILDDIR)/htmlhelp."
 
 qthelp:
-	$(SPHINXBUILD) -b qthelp $(ALLSPHINXOPTS) $(BUILDDIR)/qthelp
+	$(SPHINXBUILD) -b qthelp $(ALLSPHINXOPTS) $(GHBUILDDIR)/qthelp
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
-	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/DirectAccleratedGeometryMonteCarloToolkit.qhcp"
+	      ".qhcp project file in $(GHBUILDDIR)/qthelp, like this:"
+	@echo "# qcollectiongenerator $(GHBUILDDIR)/qthelp/DirectAccleratedGeometryMonteCarloToolkit.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/DirectAccleratedGeometryMonteCarloToolkit.qhc"
+	@echo "# assistant -collectionFile $(GHBUILDDIR)/qthelp/DirectAccleratedGeometryMonteCarloToolkit.qhc"
 
 devhelp:
-	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
+	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(GHBUILDDIR)/devhelp
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
 	@echo "# mkdir -p $$HOME/.local/share/devhelp/DirectAccleratedGeometryMonteCarloToolkit"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/DirectAccleratedGeometryMonteCarloToolkit"
+	@echo "# ln -s $(GHBUILDDIR)/devhelp $$HOME/.local/share/devhelp/DirectAccleratedGeometryMonteCarloToolkit"
 	@echo "# devhelp"
 
 epub:
-	$(SPHINXBUILD) -b epub $(ALLSPHINXOPTS) $(BUILDDIR)/epub
+	$(SPHINXBUILD) -b epub $(ALLSPHINXOPTS) $(GHBUILDDIR)/epub
 	@echo
-	@echo "Build finished. The epub file is in $(BUILDDIR)/epub."
+	@echo "Build finished. The epub file is in $(GHBUILDDIR)/epub."
 
 latex:
-	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
+	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(GHBUILDDIR)/latex
 	@echo
-	@echo "Build finished; the LaTeX files are in $(BUILDDIR)/latex."
+	@echo "Build finished; the LaTeX files are in $(GHBUILDDIR)/latex."
 	@echo "Run \`make' in that directory to run these through (pdf)latex" \
 	      "(use \`make latexpdf' here to do that automatically)."
 
 latexpdf:
-	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
+	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(GHBUILDDIR)/latex
 	@echo "Running LaTeX files through pdflatex..."
-	$(MAKE) -C $(BUILDDIR)/latex all-pdf
-	@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
+	$(MAKE) -C $(GHBUILDDIR)/latex all-pdf
+	@echo "pdflatex finished; the PDF files are in $(GHBUILDDIR)/latex."
 
 text:
-	$(SPHINXBUILD) -b text $(ALLSPHINXOPTS) $(BUILDDIR)/text
+	$(SPHINXBUILD) -b text $(ALLSPHINXOPTS) $(GHBUILDDIR)/text
 	@echo
-	@echo "Build finished. The text files are in $(BUILDDIR)/text."
+	@echo "Build finished. The text files are in $(GHBUILDDIR)/text."
 
 man:
-	$(SPHINXBUILD) -b man $(ALLSPHINXOPTS) $(BUILDDIR)/man
+	$(SPHINXBUILD) -b man $(ALLSPHINXOPTS) $(GHBUILDDIR)/man
 	@echo
-	@echo "Build finished. The manual pages are in $(BUILDDIR)/man."
+	@echo "Build finished. The manual pages are in $(GHBUILDDIR)/man."
 
 texinfo:
-	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(BUILDDIR)/texinfo
+	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(GHBUILDDIR)/texinfo
 	@echo
-	@echo "Build finished. The Texinfo files are in $(BUILDDIR)/texinfo."
+	@echo "Build finished. The Texinfo files are in $(GHBUILDDIR)/texinfo."
 	@echo "Run \`make' in that directory to run these through makeinfo" \
 	      "(use \`make info' here to do that automatically)."
 
 info:
-	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(BUILDDIR)/texinfo
+	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(GHBUILDDIR)/texinfo
 	@echo "Running Texinfo files through makeinfo..."
-	make -C $(BUILDDIR)/texinfo info
-	@echo "makeinfo finished; the Info files are in $(BUILDDIR)/texinfo."
+	make -C $(GHBUILDDIR)/texinfo info
+	@echo "makeinfo finished; the Info files are in $(GHBUILDDIR)/texinfo."
 
 gettext:
-	$(SPHINXBUILD) -b gettext $(I18NSPHINXOPTS) $(BUILDDIR)/locale
+	$(SPHINXBUILD) -b gettext $(I18NSPHINXOPTS) $(GHBUILDDIR)/locale
 	@echo
-	@echo "Build finished. The message catalogs are in $(BUILDDIR)/locale."
+	@echo "Build finished. The message catalogs are in $(GHBUILDDIR)/locale."
 
 changes:
-	$(SPHINXBUILD) -b changes $(ALLSPHINXOPTS) $(BUILDDIR)/changes
+	$(SPHINXBUILD) -b changes $(ALLSPHINXOPTS) $(GHBUILDDIR)/changes
 	@echo
-	@echo "The overview file is in $(BUILDDIR)/changes."
+	@echo "The overview file is in $(GHBUILDDIR)/changes."
 
 linkcheck:
-	$(SPHINXBUILD) -b linkcheck $(ALLSPHINXOPTS) $(BUILDDIR)/linkcheck
+	$(SPHINXBUILD) -b linkcheck $(ALLSPHINXOPTS) $(GHBUILDDIR)/linkcheck
 	@echo
 	@echo "Link check complete; look for any errors in the above output " \
-	      "or in $(BUILDDIR)/linkcheck/output.txt."
+	      "or in $(GHBUILDDIR)/linkcheck/output.txt."
 
 doctest:
-	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
+	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(GHBUILDDIR)/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
-	      "results in $(BUILDDIR)/doctest/output.txt."
+	      "results in $(GHBUILDDIR)/doctest/output.txt."
