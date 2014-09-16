@@ -70,9 +70,9 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
       //iGeom_rotateEnt( igm, e, 180, 0, 0, 0, &igm_result );
 
     //if( !t.hasRot() ){
-      iGeom_reflectEnt( igm, e, 0, 0, 1, &igm_result );
-      iGeom_reflectEnt( igm, e, 0, 1, 0, &igm_result );
-      iGeom_reflectEnt( igm, e, 1, 0, 0, &igm_result );
+      iGeom_reflectEnt( igm, e, 0, 0, 0, 0, 0, 1, &igm_result );
+      iGeom_reflectEnt( igm, e, 0, 0, 0, 0, 1, 0, &igm_result );
+      iGeom_reflectEnt( igm, e, 0, 0, 0, 1, 0, 0, &igm_result );
       //}
       //else{
       //   const Vector3d& axis = t.getAxis();
@@ -355,7 +355,7 @@ protected:
 
     if( ellipse_axis_rad != ellipse_perp_rad ){
       double scalef = ellipse_axis_rad / ellipse_perp_rad;
-      iGeom_scaleEnt( igm, torus, 1.0, 1.0, scalef, &igm_result );
+      iGeom_scaleEnt( igm, torus, 0, 0, 0, 1.0, 1.0, scalef, &igm_result );
       CHECK_IGEOM( igm_result, "Scaling torus" );
     }
     
