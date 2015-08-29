@@ -153,9 +153,10 @@ protected:
   std::string materialName( int mat, double rho ){
     std::string ret;
     std::stringstream formatter;
-    formatter << "mat_" << mat << "_rho_" << rho;
     if(Gopt.uwuw_names)
-        std::cout<<"hello"<<std::endl;;
+      formatter << "mat:m" << mat << "/rho:" << rho;
+    else
+      formatter << "mat_" << mat << "_rho_" << rho;
     formatter >> ret;
     return ret;
   }
@@ -1155,7 +1156,8 @@ int main(int argc, char* argv[]){
                   &Gopt.imprint_geom, po.store_false );
   po.addOpt<void>("skip-graveyard,G", "Do not bound the geometry with a `graveyard' bounding box",
                   &Gopt.make_graveyard, po.store_false );
-  po.addOpt<void>("uwuw-names,U", "Use a UWUW compatible name scheme for material groups.",
+  po.addOpt<void>("uwuw-names,U", "Use a UWUW compatible name scheme for material groups,"
+                                   "i.e. 'mat:mX/rho:Y' where X is material number is Y is density",
                   &Gopt.uwuw_names, po.store_true );
 
 #ifdef USING_CGMA
