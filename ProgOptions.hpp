@@ -77,6 +77,10 @@ public:
 
   /// Set for a flag that, when detected, will call printVersion() and halt the program.
   static const int version_flag = 1<<5;
+
+  /// When applied to a flag argument (one with template type void), indicate that the 
+  /// value 'true' should be stored into the pointer that was given at option creation time.
+  static const int store_true = 1<<6 ;
   
   ///unimplemented flag for required arguments that may be given multiple times
   //const static int accept_multiple;
