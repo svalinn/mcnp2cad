@@ -13,12 +13,14 @@ def uwuw_matlib(inp, out):
     uwuw_mats = {}
     for mat in mats.values():
         if isinstance(mat, Material):
-            mat_name = "mat:m{0}/rho:{1}".format(mat.metadata["mat_number"], mat.density)
+            mat_name = "mat:m{0}/rho:{1:E}".format(mat.metadata["mat_number"], 
+                                                   mat.metadata["orig_density"])
             mat.metadata["name"] = mat_name
             uwuw_mats[mat_name] = mat
         if isinstance(mat, MultiMaterial):
            for m in mat._mats.keys():
-               mat_name = "mat:m{0}/rho:{1}".format(m.metadata["mat_number"], m.density)
+               mat_name = "mat:m{0}/rho:{1:E}".format(m.metadata["mat_number"], 
+                                                      m.metadata["orig_density"])
                m.metadata["name"] = mat_name
                uwuw_mats[mat_name] = m
            

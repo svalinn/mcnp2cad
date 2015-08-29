@@ -153,8 +153,12 @@ protected:
   std::string materialName( int mat, double rho ){
     std::string ret;
     std::stringstream formatter;
-    if(Gopt.uwuw_names)
-      formatter << "mat:m" << mat << "/rho:" << rho;
+    if(Gopt.uwuw_names){
+      char buffer [50];
+      int n;
+      n = sprintf(buffer, "%E", rho);
+      formatter << "mat:m" << mat << "/rho:" << buffer;
+    }
     else
       formatter << "mat_" << mat << "_rho_" << rho;
     formatter >> ret;
