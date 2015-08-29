@@ -674,6 +674,7 @@ bool ProgOptions::process_option( ProgOpt* opt, std::string arg, const char* val
     if( opt->cancel_opt ){ opt->cancel_opt->args.clear(); }
     if( opt->storage ){
       *static_cast<bool*>(opt->storage) = ( opt->flags & store_false ) ? false : true;            
+      *static_cast<bool*>(opt->storage) = ( opt->flags & store_true ) ? true : false;            
     }
     opt->args.push_back(""); 
   }

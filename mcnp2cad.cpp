@@ -154,6 +154,8 @@ protected:
     std::string ret;
     std::stringstream formatter;
     formatter << "mat_" << mat << "_rho_" << rho;
+    if(Gopt.uwuw_names)
+        std::cout<<"hello"<<std::endl;;
     formatter >> ret;
     return ret;
   }
@@ -1124,6 +1126,7 @@ int main(int argc, char* argv[]){
   Gopt.output_file = OPT_DEFAULT_OUTPUT_FILENAME;
   Gopt.igeom_init_options = "";
   Gopt.override_tolerance = false;
+  Gopt.uwuw_names = false;
 
   bool DiFlag = false, DoFlag = false;
 
@@ -1152,6 +1155,8 @@ int main(int argc, char* argv[]){
                   &Gopt.imprint_geom, po.store_false );
   po.addOpt<void>("skip-graveyard,G", "Do not bound the geometry with a `graveyard' bounding box",
                   &Gopt.make_graveyard, po.store_false );
+  po.addOpt<void>("uwuw-names,U", "Use a UWUW compatible name scheme for material groups.",
+                  &Gopt.uwuw_names, po.store_true );
 
 #ifdef USING_CGMA
   po.addOptionHelpHeading ("Options controlling CGM library:");

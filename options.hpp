@@ -14,6 +14,7 @@ struct program_option_struct{
   bool make_graveyard;
   bool imprint_geom;
   bool merge_geom;
+  bool uwuw_names;
   
   std::string output_file;
   std::string input_file;
