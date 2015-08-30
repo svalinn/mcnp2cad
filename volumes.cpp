@@ -417,6 +417,47 @@ protected:
 
 };
 
+class EllipsoidSurface : public SurfaceVolume {
+
+protected:
+  Vector3d center;
+  Vector3d axes;
+
+public:
+  EllipsoidSurface( const Vector3d& center_p, const Vector3d& axes_p ) :
+    SurfaceVolume(), center(center_p), axes(axes_p)
+  {}
+
+  virtual ~EllipsoidSurface(){}
+
+  virtual double getFarthestExtentFromOrigin ( ) const {
+    return (center.length() + axes.length());
+  }
+
+protected:
+  virtual iBase_EntityHandle getHandle( bool positive, iGeom_Instance& igm, double world_size ){
+
+    int igm_result;
+    iBase_EntityHandle sphere;
+    double radius = 1;
+
+    iGeom_createSphere( igm, radius, &sphere, &igm_result);
+    CHECK_IGEOM( igm_result, "making sphere" );
+
+    iGeom_scaleEnt( igm, sphere, 0, 0, 0, sqrt(1/axes.v[0]), sqrt(1/axes.v[1]), sqrt(1/axes.v[2]), &igm_result);
+    CHECK_IGEOM( igm_result, "scaling sphere to ellipsoid" );
+
+    iGeom_moveEnt( igm, sphere, center.v[0], center.v[1], center.v[2], &igm_result );
+    CHECK_IGEOM( igm_result, "moving sphere" );
+
+
+    iBase_EntityHandle final_sphere = embedWithinWorld( positive, igm, world_size, sphere, false );
+    
+    return final_sphere; 
+  }
+
+};
+
 
 
 static Transform axesImage( const Vector3d& v1, const Vector3d& v2, const Vector3d &v3, const Vector3d& translation = Vector3d() )
@@ -741,6 +782,20 @@ public:
 
 };
 
+bool sqIsEllipsoid(const std::vector< double >& args) {
+
+  bool isEllipsoid = true;
+  
+  if ( args.at(3)*args.at(3) + args.at(4)*args.at(4) + args.at(5)*args.at(5) != 0)
+    isEllipsoid = false;
+
+  if ( args.at(0)*args.at(1)*args.at(2)*args.at(6) >= 0 )
+    isEllipsoid = false;
+
+  return isEllipsoid;
+  
+}
+
 // the VolumeCache to use if none is provided to makeSurface() calls.
 static VolumeCache default_volume_cache;
 
@@ -775,6 +830,9 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
     }
     else if( mnemonic == "s" || mnemonic == "sph" ){
       surface = new SphereSurface( Vector3d( args ), args.at(3) );
+    }
+    else if( mnemonic == "sq" && sqIsEllipsoid(args) ){
+      surface = new EllipsoidSurface( Vector3d( args.at(7), args.at(8), args.at(9) ), Vector3d( args )* (-1/args.at(6)) );
     }
     else if( mnemonic == "p"){
       if( args.size() == 4 ){
