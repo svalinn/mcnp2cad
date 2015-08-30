@@ -154,10 +154,9 @@ protected:
     std::string ret;
     std::stringstream formatter;
     if(Gopt.uwuw_names){
-      char buffer [50];
-      int n;
-      n = sprintf(buffer, "%E", rho);
-      formatter << "mat:m" << mat << "/rho:" << buffer;
+      char rho_formatted [50];
+      sprintf(rho_formatted, "%E", rho);
+      formatter << "mat:m" << mat << "/rho:" << rho_formatted;
     }
     else
       formatter << "mat_" << mat << "_rho_" << rho;
