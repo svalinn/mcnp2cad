@@ -154,9 +154,18 @@ protected:
     std::string ret;
     std::stringstream formatter;
     if(Gopt.uwuw_names){
+      bool mass_density = false;
+      if (rho <= 0){
+        mass_density = true;
+        rho = -rho;
+      }
       char rho_formatted [50];
       sprintf(rho_formatted, "%E", rho);
-      formatter << "mat:m" << mat << "/rho:" << rho_formatted;
+      formatter << "mat:m" << mat;
+      if(mass_density)
+          formatter << "/rho:" <<rho_formatted;
+      else
+          formatter << "/atom:" << rho_formatted;
     }
     else
       formatter << "mat_" << mat << "_rho_" << rho;
