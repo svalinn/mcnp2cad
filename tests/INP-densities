@@ -1,0 +1,10 @@
+A input file with both mass and atom densities
+1 1 0.05 -1
+2 2 -2.0 1 -2
+3 0 2
+
+1 so 1
+2 so 2
+
+m1 1001 1
+m2 2004 2
