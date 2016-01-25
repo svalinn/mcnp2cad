@@ -172,10 +172,78 @@ protected:
   double rotation_mat[9];
   double extents[3];
 
+  enum GQ_TYPE {UNKNOWN = 0,
+		ELLIPSOID,
+		ONE_SHEET_HYPERBOLOID,
+		TWO_SHEET_HYPERBOLOID,
+		ELLIPTIC_CONE,
+		ELLIPTIC_PARABOLOID,
+		HYPERBOLIC_PARABOLOID,
+		ELLIPTIC_CYL,
+		HYPERBOLIC_CYL,
+		PARABOLIC_CYL};
 public:
   GeneralQuadraticSurface(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
     SurfaceVolume(),A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K)
   {}
+
+protected:
+  void cannonize()
+  {
+  //create coefficient matrix
+  arma::mat Aa;
+  Aa << A_ << D_/2 << F_/2 << arma::endr
+     << D_/2 << B_ <<  E_/2 << arma::endr
+     << F_/2 << E_/2 << C_ << arma::endr;  
+  //create hessian matrix
+  arma::mat Ac;
+  Ac << A_ << D_/2 << F_/2 << G_/2 << arma::endr
+  << D_/2 << B_ << E_/2 <<H_/2 << arma::endr
+  << F_/2 << E_/2 << C_ << J_/2 << arma::endr
+  << G_/2 <<  H_/2 << J_/2 << K_ << arma::endr;
+  
+  //characterization values
+  int rnkAa, rnkAc, delta, S;
+  rnkAa = arma::rank(Aa);
+  rnkAc = arma::rank(Ac);
+
+  double determinant = arma::det(Ac);
+  if ( fabs(determinant) < 1e-9 )
+    delta = 0;
+  else
+    delta = (determinant < 0) ? -1:1;
+
+  arma::vec eigenvals = arma::eig_sym(Aa);
+  arma::vec signs = arma::sign(eigenvals);
+  S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
+
+  type = characterize(rnkAa,rnkAc,delta,S);
+
+  }
+
+  GQ_TYPE characterize(int rt, int rf, int del, int s)
+  {
+    if( 3 == rt && 4 == rf && -1 == del && 1 == s)
+      return ELLIPSOID;
+    else if( 3 == rt && 4 == rf && 1 == del && -1 == s)
+      return ONE_SHEET_HYPERBOLOID;
+    else if( 3 == rt && 4 == rf && -1 == del && -1 == s)
+      return TWO_SHEET_HYPERBOLOID;
+    else if( 3 == rt && 3 == rf && 0 == del && -1 == s)
+      return ELLIPTIC_CONE;
+    else if( 2 == rt && 4 == rf && -1 == del && 1 == s)
+      return ELLIPTIC_PARABOLOID;
+    else if( 2 == rt && 4 == rf && 1 == del && -1 == s)
+      return HYPERBOLIC_PARABOLOID;
+    else if( 2 == rt && 3 == rf && -1 == del && 1 == s)
+      return ELLIPTIC_CYL;
+    else if( 2 == rt && 3 == rf && 0 == del && -1 == s)
+      return HYPERBOLIC_CYL;
+    else if( 1 == rt && 3 == rf && 0 == del && 1 == s)
+      return PARABOLIC_CYL;
+    else
+      return UNKNOWN;
+  }
 
 };
 
