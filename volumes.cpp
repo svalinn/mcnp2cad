@@ -163,6 +163,21 @@ protected:
 
 typedef  enum { X=0, Y=1, Z=2 } axis_t;
 
+class GeneralQuadraticSurface : public SurfaceVolume {
+
+protected:
+  double A_,B_,C_,D_,E_,F_,G_,H_,J_,K_;
+  int type;
+  Vector3d translation;
+  double rotation_mat[9];
+  double extents[3];
+
+public:
+  GeneralQuadraticSurface(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
+    SurfaceVolume(),A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K)
+  {}
+
+};
 
 class CylinderSurface : public SurfaceVolume {
 
