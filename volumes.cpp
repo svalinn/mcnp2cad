@@ -231,12 +231,15 @@ protected:
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
     
-    
-  type = characterize(rnkAa,rnkAc,delta,S);
+  //based on characteristic values, get the GQ type  
+  type = find_type(rnkAa,rnkAc,delta,S);
+
+  
+  
 
   }
 
-  GQ_TYPE characterize(int rt, int rf, int del, int s)
+  GQ_TYPE find_type(int rt, int rf, int del, int s)
   {
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
       return ELLIPSOID;
