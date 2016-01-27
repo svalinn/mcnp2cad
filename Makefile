@@ -9,7 +9,7 @@
 #
 # CGM_BASE_DIR = /path/to/installed/cgm
 
-include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
+-include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
 
 CXXSOURCES = mcnp2cad.cpp MCNPInput.cpp volumes.cpp geometry.cpp ProgOptions.cpp
