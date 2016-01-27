@@ -204,7 +204,7 @@ protected:
   << G_/2 <<  H_/2 << J_/2 << K_ << arma::endr;
   
   //characterization values
-  int rnkAa, rnkAc, delta, S;
+  int rnkAa, rnkAc, delta, S, D;
   rnkAa = arma::rank(Aa);
   rnkAc = arma::rank(Ac);
 
@@ -217,10 +217,17 @@ protected:
   arma::vec eigenvals;
   arma::mat eigenvects;
   arma::eig_sym(eigenvals, eigenvects, Aa);
-  arma::vec signs = arma::sign(eigenvals);
+  arma::vec signs(3);
 
+  for(unsigned int i = 0; i < 3; i++) {
+    if (fabs(eigenvals[i]) < 1e-6)
+      signs[i] = 1;
+    else if (eigenvals[i] > 0)
+      signs[i] = 1;
+    else if (eigenvals[i] < 0)
+      signs[i] = -1;
+  }
 
-  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i] < 1e-6)) eigenvals[i] = 0;
   S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
   // may need to adjust delta for speical cases using the new scaling factor
   arma:: mat b;
@@ -234,7 +241,7 @@ protected:
   K_ = K_ + (G_/2)*dx + (H_/2)*dy + (J_/2)*dz;
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
-    
+  D = (K_*signs[0]) ? 1:-1;
   //based on characteristic values, get the GQ type
   type = find_type(rnkAa,rnkAc,delta,S);
   //set the translation while we're at it
@@ -242,6 +249,7 @@ protected:
   //set the rotaion matrix
   std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
   //set the new canonical values
+  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i] < 1e-6)) eigenvals[i] = 0;
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
