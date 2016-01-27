@@ -185,8 +185,9 @@ protected:
 public:
   GeneralQuadraticSurface(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
     SurfaceVolume(),A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K)
-  {}
+  { cannonize(); }
 
+  virtual double getFarthestExtentFromOrigin() const{ return 0; }
 protected:
   void cannonize()
   {
@@ -231,9 +232,8 @@ protected:
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
     
-  //based on characteristic values, get the GQ type  
+  //based on characteristic values, get the GQ type
   type = find_type(rnkAa,rnkAc,delta,S);
-
   //set the translation while we're at it
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix
@@ -343,7 +343,15 @@ protected:
       std::cout << "Shouldn't be here." << std::endl;
       
     }
-      
+
+    //re-orient gq into original position
+    Transform rotation_transform(rotation_mat, Vector3d(0,0,0));    
+    applyReverseTransform( rotation_transform, igm, gq);
+    Transform translation_transform(translation);    
+    applyTransform(translation_transform, igm, gq);
+    
+    iBase_EntityHandle final_gq = embedWithinWorld(-positive, igm, world_size, gq, true);
+    return final_gq;
   }
 
 };
@@ -1220,6 +1228,8 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
         break;
       }
     }
+    else if ( mnemonic == "gq" )
+      surface = new GeneralQuadraticSurface(args.at(0), args.at(1), args.at(2), args.at(3), args.at(4), args.at(5), args.at(6), args.at(7), args.at(8), args.at(9));
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
