@@ -281,11 +281,14 @@ protected:
     else
       t = UNKNOWN;
 
-    if( 2 == rt && 3 == rf && 1 == s && d != 0)
-      //special case, replace delta with D
+    //special case, replace delta with D
+    if( 2 == rt && 3 == rf && 1 == s && d != 0) {
       t = find_type(rt, rf, d, s, 0);
-    else
       return t;
+    }
+    else {
+      return t;
+    }
   }
 
   iBase_EntityHandle elliptic_cyl(iGeom_Instance &igm, double world_size) {
