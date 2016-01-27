@@ -218,17 +218,19 @@ protected:
   arma::mat eigenvects;
   arma::eig_sym(eigenvals, eigenvects, Aa);
   arma::vec signs = arma::sign(eigenvals);
-  S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
 
+
+  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i] < 1e-6)) eigenvals[i] = 0;
+  S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
   // may need to adjust delta for speical cases using the new scaling factor
   arma:: mat b;
   b << -G_/2 << arma::endr
     << -H_/2 << arma::endr
     << -J_/2 << arma::endr;
-  arma::mat c = Aa.i()*b;
+  arma::mat Aai = pinv(Aa);
+  arma::mat c = Aai*b;
   double dx = c[0], dy = c[1], dz = c[2];
   K_ = K_ + (G_/2)*dx + (H_/2)*dy + (J_/2)*dz;
-  
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
     
