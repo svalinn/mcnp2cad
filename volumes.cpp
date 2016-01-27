@@ -227,6 +227,7 @@ protected:
   b << -G_/2 << arma::endr
     << -H_/2 << arma::endr
     << -J_/2 << arma::endr;
+  //use Moore-Penrose pseudoinverse to ensure minimal norm least squares solution
   arma::mat Aai = pinv(Aa);
   arma::mat c = Aai*b;
   double dx = c[0], dy = c[1], dz = c[2];
