@@ -20,6 +20,7 @@ CXXFLAGS = -g -Wall -Wextra -DUSING_CGMA -DHAVE_IGEOM_CONE
 
 
 LDFLAGS = ${IGEOM_LIBS} 
+LDFLAGS += -larmadillo
 
 mcnp2cad: ${CXXOBJS} Makefile
 	${CXX} ${CXXFLAGS} -o $@ ${CXXOBJS} ${LDFLAGS}
