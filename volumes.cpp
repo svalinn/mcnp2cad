@@ -288,6 +288,47 @@ protected:
       return t;
   }
 
+  iBase_EntityHandle elliptic_cyl(iGeom_Instance &igm, double world_size) {
+    int igm_result;
+    double r1,r2;
+    int axis;
+    //figure out which direction is zero
+    if (A_ == 0)
+      {
+	axis = 0;
+	r1 = sqrt(K_/C_);
+	r2 = sqrt(K_/B_);
+      }
+    else if (B_ == 0)
+      {
+	axis = 1;
+	r1 = sqrt(K_/A_);
+	r2 = sqrt(K_/C_);
+      }
+    else if (C_ == 0)
+      {
+	axis = 2;
+	r1 = sqrt(K_/A_);
+	r2 = sqrt(K_/B_);
+      }
+
+    iBase_EntityHandle cyl;
+    iGeom_createCylinder(igm,2*world_size,r1,r2,&cyl,&igm_result);
+    CHECK_IGEOM(igm_result, "Creating elliptic cylinder for GQ.");
+
+    if (1 == axis) {
+      iGeom_rotateEnt(igm,cyl,90,1,0,0,&igm_result);
+    }
+    else if (0 == axis) {
+      iGeom_rotateEnt(igm,cyl,90,0,1,0,&igm_result);
+    }
+    else if (2 == axis) {
+      igm_result = iBase_SUCCESS;
+    }
+    CHECK_IGEOM(igm_result, "Rotating canonical elliptic cylinder into place.");
+
+    return cyl;
+  }
   iBase_EntityHandle elliptic_cone(iGeom_Instance &igm, double world_size) {
     assert( 0 != A_ && 0 != B_ && 0 != C_);
 
