@@ -213,7 +213,9 @@ protected:
   else
     delta = (determinant < 0) ? -1:1;
 
-  arma::vec eigenvals = arma::eig_sym(Aa);
+  arma::vec eigenvals;
+  arma::mat eigenvects;
+  arma::eig_sym(eigenvals, eigenvects, Aa);
   arma::vec signs = arma::sign(eigenvals);
   S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
 
@@ -222,11 +224,9 @@ protected:
   b << -G_/2 << arma::endr
     << -H_/2 << arma::endr
     << -J_/2 << arma::endr;
-
   arma::mat c = Aa.i()*b;
   double dx = c[0], dy = c[1], dz = c[2];
   K_ = K_ + (G_/2)*dx + (H_/2)*dy + (J_/2)*dz;
-
   
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
@@ -234,8 +234,15 @@ protected:
   //based on characteristic values, get the GQ type  
   type = find_type(rnkAa,rnkAc,delta,S);
 
-  
-  
+  //set the translation while we're at it
+  translation = Vector3d(dx,dy,dz);
+  //set the rotaion matrix
+  std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
+  //set the new canonical values
+  A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
+  D_ = 0; E_ = 0; F_ = 0;
+  G_ = 0; H_ = 0; J_ = 0;
+  //K is set above
 
   }
 
@@ -261,6 +268,10 @@ protected:
       return PARABOLIC_CYL;
     else
       return UNKNOWN;
+  }
+
+  virtual iBase_EntityHandle getHandle(bool positive, iGeom_Instance &igm, double world_size) {
+    
   }
 
 };
