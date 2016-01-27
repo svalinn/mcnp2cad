@@ -209,7 +209,7 @@ protected:
   rnkAc = arma::rank(Ac);
 
   double determinant = arma::det(Ac);
-  if ( fabs(determinant) < 1e-9 )
+  if ( fabs(determinant) < 1e-8 )
     delta = 0;
   else
     delta = (determinant < 0) ? -1:1;
@@ -241,9 +241,9 @@ protected:
   K_ = K_ + (G_/2)*dx + (H_/2)*dy + (J_/2)*dz;
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
-  D = (K_*signs[0]) ? 1:-1;
+  D = (K_*signs[0]) ? -1:1;
   //based on characteristic values, get the GQ type
-  type = find_type(rnkAa,rnkAc,delta,S);
+  type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the translation while we're at it
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix
@@ -257,28 +257,35 @@ protected:
 
   }
 
-  GQ_TYPE find_type(int rt, int rf, int del, int s)
+  GQ_TYPE find_type(int rt, int rf, int del, int s, int d)
   {
+    GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
-      return ELLIPSOID;
+      t = ELLIPSOID;
     else if( 3 == rt && 4 == rf && 1 == del && -1 == s)
-      return ONE_SHEET_HYPERBOLOID;
+      t = ONE_SHEET_HYPERBOLOID;
     else if( 3 == rt && 4 == rf && -1 == del && -1 == s)
-      return TWO_SHEET_HYPERBOLOID;
+      t = TWO_SHEET_HYPERBOLOID;
     else if( 3 == rt && 3 == rf && 0 == del && -1 == s)
-      return ELLIPTIC_CONE;
+      t = ELLIPTIC_CONE;
     else if( 2 == rt && 4 == rf && -1 == del && 1 == s)
-      return ELLIPTIC_PARABOLOID;
+      t = ELLIPTIC_PARABOLOID;
     else if( 2 == rt && 4 == rf && 1 == del && -1 == s)
-      return HYPERBOLIC_PARABOLOID;
+      t = HYPERBOLIC_PARABOLOID;
     else if( 2 == rt && 3 == rf && -1 == del && 1 == s)
-      return ELLIPTIC_CYL;
+      t = ELLIPTIC_CYL;
     else if( 2 == rt && 3 == rf && 0 == del && -1 == s)
-      return HYPERBOLIC_CYL;
+      t = HYPERBOLIC_CYL;
     else if( 1 == rt && 3 == rf && 0 == del && 1 == s)
-      return PARABOLIC_CYL;
+      t = PARABOLIC_CYL;
     else
-      return UNKNOWN;
+      t = UNKNOWN;
+
+    if( 2 == rt && 3 == rf && 1 == s && d != 0)
+      //special case, replace delta with D
+      t = find_type(rt, rf, d, s, 0);
+    else
+      return t;
   }
 
   iBase_EntityHandle elliptic_cone(iGeom_Instance &igm, double world_size) {
