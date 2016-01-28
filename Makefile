@@ -9,7 +9,7 @@
 #
 # CGM_BASE_DIR = /path/to/installed/cgm
 
-include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
+-include ${CGM_BASE_DIR}/lib/iGeom-Defs.inc
 
 
 CXXSOURCES = mcnp2cad.cpp MCNPInput.cpp volumes.cpp geometry.cpp ProgOptions.cpp
@@ -91,7 +91,7 @@ help:
 	@echo "  linkcheck  to check all external links for integrity"
 	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
 
-gh-clean gh-revert clean:
+gh-clean gh-revert:
 	-rm -rf $(GHBUILDDIR)
 
 gh-preview html:
