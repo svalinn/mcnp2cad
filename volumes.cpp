@@ -249,7 +249,7 @@ protected:
   //set the rotaion matrix
   std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
   //set the new canonical values
-  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i] < 1e-6)) eigenvals[i] = 0;
+  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < 1e-6) eigenvals[i] = 0;
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
@@ -299,20 +299,20 @@ protected:
     if (A_ == 0)
       {
 	axis = 0;
-	r1 = sqrt(K_/C_);
-	r2 = sqrt(K_/B_);
+	r1 = sqrt(fabs(K_/C_));
+	r2 = sqrt(fabs(K_/B_));
       }
     else if (B_ == 0)
       {
 	axis = 1;
-	r1 = sqrt(K_/A_);
-	r2 = sqrt(K_/C_);
+	r1 = sqrt(fabs(K_/A_));
+	r2 = sqrt(fabs(K_/C_));
       }
     else if (C_ == 0)
       {
 	axis = 2;
-	r1 = sqrt(K_/A_);
-	r2 = sqrt(K_/B_);
+	r1 = sqrt(fabs(K_/A_));
+	r2 = sqrt(fabs(K_/B_));
       }
 
     iBase_EntityHandle cyl;
@@ -332,6 +332,7 @@ protected:
 
     return cyl;
   }
+  
   iBase_EntityHandle elliptic_cone(iGeom_Instance &igm, double world_size) {
     assert( 0 != A_ && 0 != B_ && 0 != C_);
 
@@ -400,6 +401,9 @@ protected:
     switch(type){
     case ELLIPTIC_CONE:
       gq = elliptic_cone(igm, world_size);
+      break;
+    case ELLIPTIC_CYL:
+      gq = elliptic_cyl(igm, world_size);
       break;
     default:
       std::cout << "Shouldn't be here." << std::endl;
