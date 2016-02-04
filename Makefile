@@ -16,7 +16,7 @@ CXXSOURCES = mcnp2cad.cpp MCNPInput.cpp volumes.cpp geometry.cpp ProgOptions.cpp
 CXXOBJS = mcnp2cad.o MCNPInput.o volumes.o geometry.o ProgOptions.o
 
 # Remove HAVE_IGEOM_CONE from the next line if using old iGeom implementation
-CXXFLAGS = -g -Wall -Wextra -DUSING_CGMA -DHAVE_IGEOM_CONE
+CXXFLAGS = -g -std=c++11 -Wall -Wextra -DUSING_CGMA -DHAVE_IGEOM_CONE
 
 
 LDFLAGS = ${IGEOM_LIBS} 
