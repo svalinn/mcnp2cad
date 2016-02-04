@@ -171,6 +171,7 @@ protected:
   Vector3d translation;
   double rotation_mat[9];
   double extents[3];
+  double gq_tol = 1e-6;
 
   enum GQ_TYPE {UNKNOWN = 0,
 		ELLIPSOID,
@@ -209,7 +210,7 @@ protected:
   rnkAc = arma::rank(Ac);
 
   double determinant = arma::det(Ac);
-  if ( fabs(determinant) < 1e-8 )
+  if ( fabs(determinant) < gq_tol )
     delta = 0;
   else
     delta = (determinant < 0) ? -1:1;
@@ -220,7 +221,7 @@ protected:
   arma::vec signs(3);
 
   for(unsigned int i = 0; i < 3; i++) {
-    if (fabs(eigenvals[i]) < 1e-6)
+    if (fabs(eigenvals[i]) < gq_tol)
       signs[i] = 1;
     else if (eigenvals[i] > 0)
       signs[i] = 1;
@@ -249,7 +250,7 @@ protected:
   //set the rotaion matrix
   std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
   //set the new canonical values
-  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < 1e-6) eigenvals[i] = 0;
+  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
