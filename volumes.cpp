@@ -210,7 +210,7 @@ protected:
   rnkAc = arma::rank(Ac);
 
   double determinant = arma::det(Ac);
-  if ( fabs(determinant) < gq_tol )
+  if (fabs(determinant) < gq_tol)
     delta = 0;
   else
     delta = (determinant < 0) ? -1:1;
@@ -230,7 +230,8 @@ protected:
   }
 
   S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
-  // may need to adjust delta for speical cases using the new scaling factor
+  // may need to adjust delta for speical cases using the new scaling factor, K_
+  // so we'll calculate that now
   arma:: mat b;
   b << -G_/2 << arma::endr
     << -H_/2 << arma::endr
@@ -255,11 +256,9 @@ protected:
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
   //K is set above
-
   }
 
-  GQ_TYPE find_type(int rt, int rf, int del, int s, int d)
-  {
+  GQ_TYPE find_type(int rt, int rf, int del, int s, int d) {
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
       t = ELLIPSOID;
@@ -297,24 +296,21 @@ protected:
     double r1,r2;
     int axis;
     //figure out which direction is zero
-    if (A_ == 0)
-      {
+    if (A_ == 0) {
 	axis = 0;
 	r1 = sqrt(fabs(K_/C_));
 	r2 = sqrt(fabs(K_/B_));
-      }
-    else if (B_ == 0)
-      {
+    }
+    else if (B_ == 0) {
 	axis = 1;
 	r1 = sqrt(fabs(K_/A_));
 	r2 = sqrt(fabs(K_/C_));
-      }
-    else if (C_ == 0)
-      {
+    }
+    else if (C_ == 0) {
 	axis = 2;
 	r1 = sqrt(fabs(K_/A_));
 	r2 = sqrt(fabs(K_/B_));
-      }
+    }
 
     iBase_EntityHandle cyl;
     iGeom_createCylinder(igm,2*world_size,r1,r2,&cyl,&igm_result);
@@ -335,7 +331,7 @@ protected:
   }
   
   iBase_EntityHandle elliptic_cone(iGeom_Instance &igm, double world_size) {
-    assert( 0 != A_ && 0 != B_ && 0 != C_);
+    assert(0 != A_ && 0 != B_ && 0 != C_);
 
     iBase_EntityHandle gq_handle;
     int igm_result=0;
@@ -343,59 +339,56 @@ protected:
     double minor_radius,major_radius,rot_angle;
     int rot_axis;
     //establish orientation
-    if (A_ < 0) 
-      {
+    if (A_ < 0) {
 	minor_radius = 2*world_size*sqrt(-A_/C_);
 	major_radius = 2*world_size*sqrt(-A_/B_);
 	rot_angle = -90;
 	rot_axis = 1;
-      }
-    else if (B_ < 0)
-      { 
+    }
+    else if (B_ < 0) { 
 	minor_radius = 2*world_size*sqrt(-B_/A_);
 	major_radius = 2*world_size*sqrt(-B_/C_);
 	rot_angle = 90;
 	rot_axis = 0;
-      }
-    else if (C_ < 0) 
-      {
+    }
+    else if (C_ < 0) {
 	minor_radius = 2*world_size*sqrt(-C_/A_);
 	major_radius = 2*world_size*sqrt(-C_/B_);
 	rot_angle = 180;
 	rot_axis = 0;
-      }
+    }
 
     //create cone
     iBase_EntityHandle pos_cone;
-    iGeom_createCone(igm,2*world_size,major_radius,minor_radius,0,&pos_cone,&igm_result);
+    iGeom_createCone(igm, 2*world_size, major_radius, minor_radius, 0, &pos_cone, &igm_result);
     CHECK_IGEOM(igm_result, "Creating positive cone for GQ.");
 
     //now move the cone s.t. the point is on the origin
-    iGeom_moveEnt(igm,pos_cone,0,0,-world_size,&igm_result);
+    iGeom_moveEnt(igm, pos_cone, 0, 0, -world_size, &igm_result);
     CHECK_IGEOM(igm_result, "Moving positive cone for GQ.");
 
     double rot_vec[3] = {0,0,0};
     rot_vec[rot_axis] = 1;
 
     //rotate to proper axis
-    iGeom_rotateEnt(igm,pos_cone,rot_angle,rot_vec[0],rot_vec[1],rot_vec[2],&igm_result);
+    iGeom_rotateEnt(igm, pos_cone, rot_angle, rot_vec[0], rot_vec[1], rot_vec[2], &igm_result);
     CHECK_IGEOM(igm_result, "Rotating positive cone for GQ.");
 
     //create a copy
     iBase_EntityHandle neg_cone;
-    iGeom_copyEnt(igm,pos_cone,&neg_cone,&igm_result);
+    iGeom_copyEnt(igm, pos_cone, &neg_cone, &igm_result);
     CHECK_IGEOM(igm_result, "Copying positive cone for GQ.");
 
-    iGeom_rotateEnt(igm,neg_cone,180,rot_vec[0],rot_vec[1],rot_vec[2],&igm_result);
+    iGeom_rotateEnt(igm, neg_cone, 180, rot_vec[0], rot_vec[1], rot_vec[2], &igm_result);
     CHECK_IGEOM(igm_result, "Rotating negative cone for GQ.");
 
-    iBase_EntityHandle cones[2] = {pos_cone,neg_cone};
-    iGeom_uniteEnts(igm,cones,2,&gq_handle,&igm_result);
+    iBase_EntityHandle cones[2] = {pos_cone, neg_cone};
+    iGeom_uniteEnts(igm, cones, 2, &gq_handle, &igm_result);
     CHECK_IGEOM(igm_result, "Uniting positive and negative cones for GQ.");
 
     return gq_handle;
-
-  }    
+  }
+  
   virtual iBase_EntityHandle getHandle(bool positive, iGeom_Instance &igm, double world_size) {
 
     iBase_EntityHandle gq;
