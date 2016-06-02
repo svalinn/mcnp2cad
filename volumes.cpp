@@ -799,23 +799,26 @@ bool sqIsEllipsoid(const std::vector< double >& args) {
 // the VolumeCache to use if none is provided to makeSurface() calls.
 static VolumeCache default_volume_cache;
 
-SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
-  
+// Facet number is 0 if not provided
+SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   VolumeCache& cache = default_volume_cache;
   if( v != NULL ){
     cache = *v;
   }
 
   
-  if( cache.contains( card ) ){
+  if( cache.contains( card ) && facet == 0 ){
     return *cache.get( card );
   }
+//  else if( cache.contains( card ) && facet != 0 ){
+  //  return *cache.get( cardII );
+  //}
   else{ 
     // SurfaceCard variables:  mnemonic, args, coord_xform  
     SurfaceVolume* surface;
     const std::string& mnemonic = card->getMnemonic();
     const std::vector< double >& args = card->getArgs(); 
-    
+
     if( mnemonic == "so"){
       surface = new SphereSurface( origin, args.at(0) );
     }
@@ -946,29 +949,126 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
       surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
     }
     else if( mnemonic == "box" ){
-      surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
-    }
-    else if( mnemonic == "rpp" ){
-      surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
-    }
-    else if( mnemonic == "rcc" ){
-      surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
-    }
-    else if( mnemonic == "rec" ){
-      if( args.size() == 10 ){
-        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9) );
+      if( facet == 0 ){
+        surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+      }
+      else if( facet == 1 ){
+        //end of first vector
+      }
+      else if( facet == 2 ){
+        //beginning of first vector
+      }
+      else if( facet == 3 ){
+        //end of second vector
+      }
+      else if( facet == 4 ){
+        //beginning of second vector
+      }
+      else if( facet == 5 ){
+        //end of third vector
+      }
+      else if( facet == 6 ){
+        //beginning of third vector
       }
       else{
-        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+        throw std::runtime_error( "box only has 6 facets");
+      }
+    }
+    else if( mnemonic == "rpp" ){
+      if( facet == 0 ){
+        surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
+      }
+      else if( facet == 1 ){
+        //xmax plane
+      }
+      else if( facet == 2 ){
+        //xmin plane
+      }
+      else if( facet == 3 ){
+        //ymax plane
+      }
+      else if( facet == 4 ){
+        //ymin plane
+      }
+      else if( facet == 5 ){
+        //zmax plane
+      }
+      else if( facet == 6 ){
+        //zmin plane
+      }
+    }
+    else if( mnemonic == "rcc" ){
+      if( facet == 0 ){
+        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
+      }
+      else if( facet == 1 ){
+        //cylinder surface
+      }
+      else if( facet == 2 ){
+        //end plane
+      }
+      else if( facet == 3 ){
+        //start plane
+        std::cout << "Facets working." << std::endl;
+      }
+      else{
+        throw std::runtime_error( "rcc only has 3 facets" );
+      }
+    }
+    else if( mnemonic == "rec" ){
+      if( facet == 0 ){
+        if( args.size() == 10 ){
+          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9) );
+        }
+        else{
+          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+        }
+      }
+      else if( facet == 1 ){
+      }
+      else if( facet == 2 ){
+      }
+      else if( facet == 3 ){
+      }
+      else if( facet == 4 ){
+      }
+      else if( facet == 5 ){
+      }
+      else if( facet == 6 ){
+      }
+      else{
+        throw std::runtime_error( "rec only has 6 facets" );
       }
     }
     else if( mnemonic == "hex" || mnemonic == "rhp" ){
-      if( args.size() == 9 ){
-        surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
+      if( facet == 0 ){
+        if( args.size() == 9 ){
+          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
+        }
+        else{
+          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
+        }
+      }
+      else if( facet == 1 ){
+      }
+      else if( facet == 2 ){
+      }
+      else if( facet == 3 ){
+      }
+      else if( facet == 4 ){
+      }
+      else if( facet == 5 ){
+      }
+      else if( facet == 6 ){
+      }
+      else if( facet == 7 ){
+      }
+      else if( facet == 8 ){
       }
       else{
-        surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
+        throw std::runtime_error( mnemonic + " only has 8 facets" );
       }
+
     }
     else if( mnemonic == "x" ) {
       switch (args.size()) {

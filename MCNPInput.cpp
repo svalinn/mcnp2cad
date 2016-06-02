@@ -226,7 +226,6 @@ std::ostream& operator<<( std::ostream& out, const std::vector<T>& list ){
  ******************/
 
 class CellCardImpl : public CellCard { 
-
 protected:
   static geom_list_entry_t make_geom_entry(geom_token_t t, int param = 0){
     return std::make_pair(t, param);
@@ -813,6 +812,7 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
 SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
   Card(deck)
 {
+// If macrobody of a type with facets, loop here to create a seperate card for each potential facet that is the same as the macrobody itself, but with a different ident or token1.
     size_t idx = 0;
     std::string token1 = tokens.at(idx++);
     if(token1.find_first_of("*+") != token1.npos){
@@ -844,13 +844,20 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
       }
 
       mnemonic = tokens.at(idx++);
-      
     }
 
     while( idx < tokens.size() ){
       args.push_back( makedouble(tokens[idx++]) );
     }
-
+//  This makes a seperate card for use by macrobody facets
+   /*
+     if( tokens.at(1) == "box" || tokens.at(1) == "rpp" || tokens.at(1) == "rcc" || tokens.at(1) == "rec" || tokens.at(1) == "hex" || tokens.at(1) == "rhp" ){
+      idx = 0
+      tokens.at(0) = -tokens.at(0)
+      while( idx < tokens.size() ){
+        args.push_back( makedouble(tokens[idx++]) );
+    }
+*/
 }
 
 const DataRef<Transform>& SurfaceCard::getTransform() const {

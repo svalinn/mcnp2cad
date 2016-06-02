@@ -799,10 +799,27 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
       break;
     case CellCard::MBODYFACET:
       {
-        int cellnum = std::abs(token.second) / 10;
-        int facet = std::abs(token.second) - (cellnum*10);
-        std::cerr << "Attempting to define facet " << facet << " of cell " << cellnum << std::endl;
-        throw std::runtime_error( "Macrobody facets are not yet supported by mcnp2cad." );
+        int cellnum = -std::abs(token.second) / 10;
+        int facet = std::abs(token.second) + (cellnum*10);
+        bool pos = true;
+        if( token.second < 0){
+          pos = false;
+        }
+
+
+        try{
+          makeSurface( deck.lookup_surface_card( cellnum ), NULL, facet);
+          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( cellnum ), NULL, facet );
+          iBase_EntityHandle surf_handle = surf.define ( pos, igm, world_size );
+          stack.push_back(surf_handle);
+        }
+        catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
+
+
+        
+//        std::cerr << "Attempting to define facet " << facet << " of cell " << cellnum << std::endl;
+//        throw std::runtime_error( "Macrobody facets are not yet supported by mcnp2cad." );
+
       }
       break;
     case CellCard::INTERSECT:
