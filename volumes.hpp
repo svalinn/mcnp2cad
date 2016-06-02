@@ -39,7 +39,7 @@ class VolumeCache;
  * that's not an issue right now, so I haven't coded it.
  */
 extern 
-SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v = NULL );
+SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v = NULL, int facet = 0 );
 
 extern 
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ); 
