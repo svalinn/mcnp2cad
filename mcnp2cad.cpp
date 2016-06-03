@@ -799,8 +799,9 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
       break;
     case CellCard::MBODYFACET:
       {
-        int cellnum = -std::abs(token.second) / 10;
-        int facet = std::abs(token.second) + (cellnum*10);
+        int identifier = -std::abs( token.second );
+        int cellnum = -identifier / 10;
+        int facet = -identifier - ( cellnum * 10 );
         bool pos = true;
         if( token.second < 0){
           pos = false;
@@ -808,8 +809,8 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
 
 
         try{
-          makeSurface( deck.lookup_surface_card( cellnum ), NULL, facet);
-          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( cellnum ), NULL, facet );
+          makeSurface( deck.lookup_surface_card( identifier ), NULL, facet);
+          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
           iBase_EntityHandle surf_handle = surf.define ( pos, igm, world_size );
           stack.push_back(surf_handle);
         }
