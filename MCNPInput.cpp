@@ -809,57 +809,51 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
  * SURFACE CARDS
  ******************/
 
-SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
+SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets ):
   Card(deck)
 {
 // If macrobody of a type with facets, loop here to create a seperate card for each potential facet that is the same as the macrobody itself, but with a different ident or token1.
-    size_t idx = 0;
-    std::string token1 = tokens.at(idx++);
-    if(token1.find_first_of("*+") != token1.npos){
-      std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
-    token1[0] = ' ';
-    }
-    ident = makeint(token1);
-
-    std::string token2 = tokens.at(idx++);
-    if(token2.find_first_of("1234567890-") != 0){
-      //token2 is the mnemonic
-      coord_xform = new NullRef<Transform>();
-      mnemonic = token2;
-    }
-    else{
-      // token2 is a coordinate transform identifier
-      int tx_id = makeint(token2);
-
-      if( tx_id == 0 ){
-        std::cerr << "I don't think 0 is a valid surface transformation ID, so I'm ignoring it." << std::endl;
+      size_t idx = 0;
+      std::string token1 = tokens.at(idx++);
+      if(token1.find_first_of("*+") != token1.npos){
+        std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
+      token1[0] = ' ';
+      }
+      if( facets == 0){
+        ident = makeint(token1);
+      }
+      else{
+        ident = -makeint(token1) * 10 - facets;
+      }
+      std::cout << "creating identity " << ident << std::endl;
+      std::string token2 = tokens.at(idx++);
+      if(token2.find_first_of("1234567890-") != 0){
+        //token2 is the mnemonic
         coord_xform = new NullRef<Transform>();
+        mnemonic = token2;
       }
-      else if ( tx_id < 0 ){
-        // abs(tx_id) is the ID of surface with respect to which this surface is periodic.
-        std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
-      }
-      else{ // tx_id is positive and nonzero
-        coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
+      else{
+        // token2 is a coordinate transform identifier
+        int tx_id = makeint(token2);
+
+        if( tx_id == 0 ){
+          coord_xform = new NullRef<Transform>();
+        }
+        else if ( tx_id < 0 ){
+          // abs(tx_id) is the ID of surface with respect to which this surface is periodic.
+          std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
+        }
+        else{ // tx_id is positive and nonzero
+          coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
+        }
+
+        mnemonic = tokens.at(idx++);
       }
 
-      mnemonic = tokens.at(idx++);
-    }
-
-    while( idx < tokens.size() ){
-      args.push_back( makedouble(tokens[idx++]) );
-    }
-//  This makes a seperate card for use by macrobody facets
-   /*
-     if( tokens.at(1) == "box" || tokens.at(1) == "rpp" || tokens.at(1) == "rcc" || tokens.at(1) == "rec" || tokens.at(1) == "hex" || tokens.at(1) == "rhp" ){
-      idx = 0
-      tokens.at(0) = -tokens.at(0)
       while( idx < tokens.size() ){
         args.push_back( makedouble(tokens[idx++]) );
-    }
-*/
+      }
 }
-
 const DataRef<Transform>& SurfaceCard::getTransform() const {
   return *coord_xform;
 }
@@ -1280,16 +1274,27 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
     if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
-   
-    SurfaceCard* s = new SurfaceCard(*this, token_buffer);
+    int numFacets = 0;
+    if( token_buffer.at(1) == "box" || token_buffer.at(1) == "rpp" ){
+      numFacets = 6;
+    }
+    else if( token_buffer.at(1) == "rcc" || token_buffer.at(1) == "rec" ){
+      numFacets = 3;
+    }
+    else if( token_buffer.at(1) == "hex" || token_buffer.at(1) == "rhp" ){
+      numFacets = 8;
+    }
 
-    if( OPT_VERBOSE) s->print(std::cout);
+    for(int i = 0; i <= numFacets; ++i)
+    {
+      SurfaceCard* s = new SurfaceCard(*this, token_buffer, i);
 
-    this->surfaces.push_back(s);
-    this->surface_map.insert( std::make_pair(s->getIdent(), s) );
+      if( OPT_VERBOSE) s->print(std::cout);
 
+      this->surfaces.push_back(s);
+      this->surface_map.insert( std::make_pair(s->getIdent(), s) );
+    }
     token_buffer.clear();
-
   }
 }
 

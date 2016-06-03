@@ -807,12 +807,9 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   }
 
   
-  if( cache.contains( card ) && facet == 0 ){
+  if( cache.contains( card ) && facet == 0){
     return *cache.get( card );
   }
-//  else if( cache.contains( card ) && facet != 0 ){
-  //  return *cache.get( cardII );
-  //}
   else{ 
     // SurfaceCard variables:  mnemonic, args, coord_xform  
     SurfaceVolume* surface;
@@ -841,6 +838,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       if( args.size() == 4 ){
         // plane given as ABCD coefficients (Ax+By+Cz-D=0)
         Vector3d v(args);
+        std::cout << "Vector3d is " << v << std::endl;
         surface = new PlaneSurface( v, args.at(3)/v.length() );
       }
       else if( args.size() == 9 ){
@@ -1003,13 +1001,23 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 1 ){
         //cylinder surface
+        std::cout << "Facets working. " << facet << std::endl;
+        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
       }
       else if( facet == 2 ){
         //end plane
+//findme
+        int v1 = args.at(3) - args.at(0);
+        int v2 = args.at(4) - args.at(1);
+        int v3 = args.at(5) - args.at(2);
+        Vector3d v( v1, v2, v3 );
+        surface = new PlaneSurface( v, ( v1 * args.at(3) + v2 * args.at(4) + v3 * args.at(5) )/v.length() );
+        std::cout << "Facets working. " << facet << std::endl;
       }
       else if( facet == 3 ){
         //start plane
-        std::cout << "Facets working." << std::endl;
+        std::cout << "Facets working. " << facet << std::endl;
+        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
       }
       else{
         throw std::runtime_error( "rcc only has 3 facets" );

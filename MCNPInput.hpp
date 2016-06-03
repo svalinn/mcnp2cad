@@ -96,7 +96,7 @@ protected:
   std::vector<double> args;
 
 public:
-  SurfaceCard( InputDeck& deck, const token_list_t tokens );
+  SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets = 0 );
 
   int getIdent() const { return ident; } 
   void print( std::ostream& s ) const ;
