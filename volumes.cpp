@@ -952,21 +952,37 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 1 ){
         //end of first vector
+
+        Vector3d v( args.at(3), args.at(4), args.at(5) );
+        surface = new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
       }
       else if( facet == 2 ){
         //beginning of first vector
+        Vector3d v( args.at(3), args.at(4), args.at(5) );
+        surface = new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
       }
       else if( facet == 3 ){
         //end of second vector
+
+        Vector3d v( args.at(6), args.at(7), args.at(8) );
+        surface = new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
       }
       else if( facet == 4 ){
         //beginning of second vector
+        //This one doesn't work.  It registers as intersecting, but it doesn't do anything.  1.2, which is the same but for a few components, works just fine.
+        //If placed as negative, it doesn't register as an intersection.
+        Vector3d v( args.at(6), args.at(7), args.at(8) );
+        surface = new PlaneSurface( v, ( args.at(6) * args.at(0) + args.at(7) * args.at(1) + args.at(8) * args.at(2) )/v.length() );
       }
       else if( facet == 5 ){
         //end of third vector
+        Vector3d v( args.at(9), args.at(10), args.at(11) );
+        surface = new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
       }
       else if( facet == 6 ){
         //beginning of third vector
+        Vector3d v( args.at(9), args.at(10), args.at(11) );
+        surface = new PlaneSurface( v, ( args.at(9) * args.at(0) + args.at(10) * args.at(1) + args.at(11) * args.at(2) )/v.length() );
       }
       else{
         throw std::runtime_error( "box only has 6 facets");
