@@ -1267,17 +1267,13 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       else if( facet == 2 ){
         //end plane
 //findme
-        int v1 = args.at(3) - args.at(0);
-        int v2 = args.at(4) - args.at(1);
-        int v3 = args.at(5) - args.at(2);
-        Vector3d v( v1, v2, v3 );
-        surface = new PlaneSurface( v, ( v1 * args.at(3) + v2 * args.at(4) + v3 * args.at(5) )/v.length() );
-        std::cout << "Facets working. " << facet << std::endl;
+        Vector3d v( args.at(3), args.at(4), args.at(5) );
+        surface = new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
       }
       else if( facet == 3 ){
+        Vector3d v( args.at(3), args.at(4), args.at(5) );
+        surface = new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
         //start plane
-        std::cout << "Facets working. " << facet << std::endl;
-        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
       }
       else{
         throw std::runtime_error( "rcc only has 3 facets" );

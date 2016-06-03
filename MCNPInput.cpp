@@ -825,7 +825,6 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets
       else{
         ident = -makeint(token1) * 10 - facets;
       }
-      std::cout << "creating identity " << ident << std::endl;
       std::string token2 = tokens.at(idx++);
       if(token2.find_first_of("1234567890-") != 0){
         //token2 is the mnemonic
