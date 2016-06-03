@@ -802,15 +802,15 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
         int identifier = -std::abs( token.second );
         int cellnum = -identifier / 10;
         int facet = -identifier - ( cellnum * 10 );
-        bool pos = true;
-        if( token.second < 0){
-          pos = false;
-        }
-
 
         try{
           makeSurface( deck.lookup_surface_card( identifier ), NULL, facet);
           SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
+          const std::string& mnemonic = deck.lookup_surface_card( identifier )->getMnemonic();
+          bool pos = true;
+          if( token.second < 0 ^ (mnemonic == "rcc" && facet == 3 ) ){
+            pos = false;
+          }
           iBase_EntityHandle surf_handle = surf.define ( pos, igm, world_size );
           stack.push_back(surf_handle);
         }
