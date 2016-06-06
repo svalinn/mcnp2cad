@@ -1,6 +1,7 @@
 #include <iostream>
 #include <map>
 #include <cfloat>
+#include <math.h>
 
 #include <cassert>
 
@@ -431,8 +432,11 @@ protected:
   double radius;
   Vector3d center;
   bool onaxis;
+  double rotation_ph;
+  double rotation_th;
 
 public:
+  //Edit for cylinder
   CylinderSurface( axis_t axis_p, double radius_p ):
     SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(true)
   {}
@@ -445,6 +449,12 @@ public:
     case Y: center.v[X] += trans1; center.v[Z] += trans2; break;
     case Z: center.v[X] += trans1; center.v[Y] += trans2; break;
     }
+  }
+
+  CylinderSurface( double rotation_1, double rotation_2, double radius_p, double trans1, double trans2, double trans3 ):
+    SurfaceVolume(), radius(radius_p), center(origin), onaxis(false), rotation_ph(rotation_1), rotation_th(rotation_2)
+  {
+    center.v[X] += trans1; center.v[Y] += trans2; center.v[Z] += trans3;
   }
   
   virtual double getFarthestExtentFromOrigin( ) const{
@@ -468,6 +478,16 @@ protected:
       iGeom_rotateEnt( igm, cylinder, 90, 1, 0, 0, &igm_result );
       CHECK_IGEOM( igm_result, "rotating cylinder (Y)" );
     }
+    else if( axis == Z ){
+    }
+    
+    else{
+      iGeom_rotateEnt( igm, cylinder, rotation_ph, 0, 1, 0, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating cylinder (phi)" );
+      iGeom_rotateEnt( igm, cylinder, rotation_th, 0, 0, 1, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating cylinder (theta)" );
+    }
+
 
     if( onaxis == false ){
       iGeom_moveEnt( igm, cylinder, center.v[0], center.v[1], center.v[2], &igm_result);
@@ -1229,8 +1249,6 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 4 ){
         //beginning of second vector
-        //This one doesn't work.  It registers as intersecting, but it doesn't do anything.  1.2, which is the same but for a few components, works just fine.
-        //If placed as negative, it doesn't register as an intersection.
         Vector3d v( args.at(6), args.at(7), args.at(8) );
         surface = new PlaneSurface( v, ( args.at(6) * args.at(0) + args.at(7) * args.at(1) + args.at(8) * args.at(2) )/v.length() );
       }
@@ -1248,6 +1266,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
         throw std::runtime_error( "box only has 6 facets");
       }
     }
+//findme
     else if( mnemonic == "rpp" ){
       if( facet == 0 ){
         surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
@@ -1277,19 +1296,19 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 1 ){
         //cylinder surface
-        std::cout << "Facets working. " << facet << std::endl;
-        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
+        double PI = 3.1415926536;
+        double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
+        surface = new CylinderSurface( atan2( lenP, args.at(5) ) * 180 / PI, atan2( args.at(4), args.at(3) ) * 180 / PI, args.at(6), args.at(0), args.at(1), args.at(2) );
       }
       else if( facet == 2 ){
-        //end plane
-//findme
+        //plane at end of vector
         Vector3d v( args.at(3), args.at(4), args.at(5) );
         surface = new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
       }
       else if( facet == 3 ){
+        //plane at start of vector
         Vector3d v( args.at(3), args.at(4), args.at(5) );
         surface = new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
-        //start plane
       }
       else{
         throw std::runtime_error( "rcc only has 3 facets" );
