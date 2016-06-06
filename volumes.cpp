@@ -972,7 +972,6 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 1 ){
         //end of first vector
-
         Vector3d v( args.at(3), args.at(4), args.at(5) );
         surface = new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
       }
@@ -1013,21 +1012,27 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 1 ){
         //xmax plane
+        surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(1) );
       }
       else if( facet == 2 ){
         //xmin plane
+        surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
       }
       else if( facet == 3 ){
         //ymax plane
+        surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(3) );
       }
       else if( facet == 4 ){
         //ymin plane
+        surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(2) );
       }
       else if( facet == 5 ){
         //zmax plane
+        surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(5) );
       }
       else if( facet == 6 ){
         //zmin plane
+        surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(4) );
       }
     }
     else if( mnemonic == "rcc" ){
