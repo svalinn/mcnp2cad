@@ -808,7 +808,17 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
           SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
           const std::string& mnemonic = deck.lookup_surface_card( identifier )->getMnemonic();
           bool pos = true;
-          if( ( token.second < 0 ) ^ ( ( mnemonic == "rcc" && facet == 3 ) || ( mnemonic == "box" && ( facet == 2 || facet == 4 || facet == 6  ) ) || ( mnemonic == "rpp" && ( facet == 2 || facet == 4 || facet == 6 ) ) ) ){
+          if( mnemonic == "rcc" ){
+            if( ( token.second < 0 ) ^ ( facet == 3 ) ){
+              pos = false;
+            }
+          }
+          else if( mnemonic == "box" || mnemonic == "rpp" ){
+            if( ( token.second < 0 ) ^ ( facet == 2 || facet == 4 || facet == 6 ) ){
+              pos = false;
+            }
+          }
+          else if( token.second < 0 ){
             pos = false;
           }
           iBase_EntityHandle surf_handle = surf.define ( pos, igm, world_size );
