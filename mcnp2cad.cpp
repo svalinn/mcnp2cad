@@ -808,13 +808,18 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
           SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
           const std::string& mnemonic = deck.lookup_surface_card( identifier )->getMnemonic();
           bool pos = true;
-          if( mnemonic == "rcc" ){
+          if( mnemonic == "rcc" || mnemonic == "rec" ){
             if( ( token.second < 0 ) ^ ( facet == 3 ) ){
               pos = false;
             }
           }
           else if( mnemonic == "box" || mnemonic == "rpp" ){
             if( ( token.second < 0 ) ^ ( facet == 2 || facet == 4 || facet == 6 ) ){
+              pos = false;
+            }
+          }
+          else if( mnemonic == "hex" || mnemonic == "rhp" ){
+            if( ( token.second < 0 ) ^ ( facet == 8 ) ){
               pos = false;
             }
           }

@@ -1344,7 +1344,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet ){
   if( mnemonic == "rcc" ){
     if( facet == 1 ){
-         //cylinder surface
+      //cylinder surface
       double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
       return new CylinderSurface( W, atan2( lenP, args.at(5) ) * 180 / M_PI, atan2( args.at(4), args.at(3) ) * 180 / M_PI, args.at(6), args.at(0), args.at(1), args.at(2) );
     }
@@ -1422,7 +1422,82 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
       //zmin plane
       return new PlaneSurface( Vector3d( 0, 0, 1), args.at(4) );
     }
+    else{
+      throw std::runtime_error( "rpp only has 6 facets." );
+    }
+  }
+  else if( mnemonic == "hex" || mnemonic == "rhp" ){
+    if( facet == 1 ){
+      //plane at end of first side vector
+      Vector3d v( args.at(6), args.at(7), args.at(8) );
+      return new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
+    }
+    else if( facet == 2 ){
+      //plane opposite facet 1
+      Vector3d v( -args.at(6), -args.at(7), -args.at(8) );
+      return new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
+    }
+    if( args.size() == 15 ){
+      if( facet == 3 ){
+	//plane at end of second side vector
+	Vector3d v( args.at(9), args.at(10), args.at(11) );
+	return new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
+      }
+      else if( facet == 4 ){
+	//plane opposite facet 3
+	Vector3d v( -args.at(9), -args.at(10), -args.at(11) );
+	return new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
+      }
+      else if( facet == 5 ){
+	//plane at end of third side vector
+	Vector3d v( args.at(12), args.at(13), args.at(14) );
+	return new PlaneSurface( v, ( args.at(12) * ( args.at(0) + args.at(12) ) + args.at(13) * ( args.at(1) + args.at(13) ) + args.at(14) * ( args.at(2) + args.at(14) ))/v.length() );
+      }
+      else if( facet == 6 ){
+	//plane opposite facet 5
+	Vector3d v( -args.at(12), -args.at(13), -args.at(14) );
+	return new PlaneSurface( v, ( args.at(12) * ( args.at(0) + args.at(12) ) + args.at(13) * ( args.at(1) + args.at(13) ) + args.at(14) * ( args.at(2) + args.at(14) ))/v.length() );
+      }
+    }
+    else if( args.size() == 9 ){
+      if ( facet == 3 || facet == 4 || facet == 5 || facet == 6 ){
+        throw std::runtime_error( mnemonic + " facets are only supported for the 12 argument version at this time." );
+      }
+    }
+    if( facet == 7 ){
+      //plane at end of axis vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
+    }
+    else if( facet == 8 ){
+      //plane at beginning of axis vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
+    }
+    else{
+      throw std::runtime_error( mnemonic + " only has 8 facets." );
+    }
 
+  }
+  else if( mnemonic == "rec" ){
+    if( facet == 1 ){
+      //elliptical prism surface
+      throw std::runtime_error( "We're not sure how to get the elliptical part quite yet..." );
+    }
+    else if( facet == 2 ){
+      //plane at end of axis vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
+    }
+    else if( facet == 3 ){
+      //plane at beginning of axis vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
+    }
+    else{
+      throw std::runtime_error( "rec only has 3 facets." );
+    }
+ 
   }
   throw std::runtime_error( mnemonic + " does not have macrobody facet support at this time." );
 }
