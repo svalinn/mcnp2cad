@@ -1265,6 +1265,7 @@ void InputDeck::parseTitle( LineExtractor& lines ){
 void InputDeck::parseSurfaces( LineExtractor& lines ){
   std::string line;
   token_list_t token_buffer;
+  std::string mnemonic;
 
   while( !isblank(line = lines.takeLine()) ){
 
@@ -1274,16 +1275,24 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
       continue;
     }
     int numFacets = 0;
-    if( token_buffer.at(1) == "box" || token_buffer.at(1) == "rpp" ){
+    
+    if(token_buffer.at(1).find_first_of("1234567890-") != 0){
+      mnemonic = token_buffer.at(1);
+    }
+    else{
+      mnemonic = token_buffer.at(2);
+    }
+    
+    if( mnemonic == "box" || mnemonic == "rpp" ){
       numFacets = 6;
     }
-    else if( token_buffer.at(1) == "rcc" || token_buffer.at(1) == "rec" ){
+    else if( mnemonic == "rcc" || mnemonic == "rec" ){
       numFacets = 3;
     }
-    else if( token_buffer.at(1) == "hex" || token_buffer.at(1) == "rhp" ){
+    else if( mnemonic == "hex" || mnemonic == "rhp" ){
       numFacets = 8;
     }
-
+//lookatme
     for(int i = 0; i <= numFacets; ++i)
     {
       SurfaceCard* s = new SurfaceCard(*this, token_buffer, i);
