@@ -162,7 +162,7 @@ protected:
 };
 
 
-typedef  enum { X=0, Y=1, Z=2 } axis_t;
+typedef  enum { X=0, Y=1, Z=2, W=3 } axis_t;
 
 
 class CylinderSurface : public SurfaceVolume {
@@ -176,7 +176,6 @@ protected:
   double rotation_th;
 
 public:
-  //Edit for cylinder
   CylinderSurface( axis_t axis_p, double radius_p ):
     SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(true)
   {}
@@ -188,11 +187,12 @@ public:
     case X: center.v[Y] += trans1; center.v[Z] += trans2; break;
     case Y: center.v[X] += trans1; center.v[Z] += trans2; break;
     case Z: center.v[X] += trans1; center.v[Y] += trans2; break;
+    case W: throw std::runtime_error("Axis W specifically for macrobody faces"); break;
     }
   }
 
-  CylinderSurface( double rotation_1, double rotation_2, double radius_p, double trans1, double trans2, double trans3 ):
-    SurfaceVolume(), radius(radius_p), center(origin), onaxis(false), rotation_ph(rotation_1), rotation_th(rotation_2)
+  CylinderSurface( axis_t axis_p, double rotation_1, double rotation_2, double radius_p, double trans1, double trans2, double trans3 ):
+    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false), rotation_ph(rotation_1), rotation_th(rotation_2)
   {
     center.v[X] += trans1; center.v[Y] += trans2; center.v[Z] += trans3;
   }
@@ -1040,9 +1040,8 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 1 ){
         //cylinder surface
-        double PI = 3.1415926536;
         double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
-        surface = new CylinderSurface( atan2( lenP, args.at(5) ) * 180 / PI, atan2( args.at(4), args.at(3) ) * 180 / PI, args.at(6), args.at(0), args.at(1), args.at(2) );
+        surface = new CylinderSurface( W, atan2( lenP, args.at(5) ) * 180 / M_PI, atan2( args.at(4), args.at(3) ) * 180 / M_PI, args.at(6), args.at(0), args.at(1), args.at(2) );
       }
       else if( facet == 2 ){
         //plane at end of vector
