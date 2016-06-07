@@ -836,229 +836,151 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     const std::string& mnemonic = card->getMnemonic();
     const std::vector< double >& args = card->getArgs(); 
 
-    if( mnemonic == "so"){
-      surface = new SphereSurface( origin, args.at(0) );
+    // special function for macrobody facets
+    if( facet != 0 ){
+      surface = FacetSurface( mnemonic, args, facet );
     }
-    else if( mnemonic == "sx"){
-      surface = new SphereSurface( Vector3d( args.at(0), 0, 0 ), args.at(1) );
-    }
-    else if( mnemonic == "sy"){
-      surface = new SphereSurface( Vector3d( 0, args.at(0), 0 ), args.at(1) );
-    }
-    else if( mnemonic == "sz"){
-      surface = new SphereSurface( Vector3d( 0, 0, args.at(0) ), args.at(1) );
-    }
-    else if( mnemonic == "s" || mnemonic == "sph" ){
-      surface = new SphereSurface( Vector3d( args ), args.at(3) );
-    }
-    else if( mnemonic == "sq" && sqIsEllipsoid(args) ){
-      surface = new EllipsoidSurface( Vector3d( args.at(7), args.at(8), args.at(9) ), Vector3d( args )* (-1/args.at(6)) );
-    }
-    else if( mnemonic == "p"){
-      if( args.size() == 4 ){
-        // plane given as ABCD coefficients (Ax+By+Cz-D=0)
-        Vector3d v(args);
-        std::cout << "Vector3d is " << v << std::endl;
-        surface = new PlaneSurface( v, args.at(3)/v.length() );
-      }
-      else if( args.size() == 9 ){
-        // plane is given at three points in space
-        Vector3d v1(args), v2(args,3), v3(args,6);
 
-        // ordering of the points is arbitrary, but make sure v1 is furthest from origin.
-        if( v1.length() < v2.length() ){
-          std::swap( v1, v2 );
-        }
-        if( v1.length() < v3.length() ){
-          std::swap( v1, v3 );
-        }
+    else{
+      if( mnemonic == "so"){
+	surface = new SphereSurface( origin, args.at(0) );
+      }
+      else if( mnemonic == "sx"){
+	surface = new SphereSurface( Vector3d( args.at(0), 0, 0 ), args.at(1) );
+      }
+      else if( mnemonic == "sy"){
+	surface = new SphereSurface( Vector3d( 0, args.at(0), 0 ), args.at(1) );
+      }
+      else if( mnemonic == "sz"){
+	surface = new SphereSurface( Vector3d( 0, 0, args.at(0) ), args.at(1) );
+      }
+      else if( mnemonic == "s" || mnemonic == "sph" ){
+	surface = new SphereSurface( Vector3d( args ), args.at(3) );
+      }
+      else if( mnemonic == "sq" && sqIsEllipsoid(args) ){
+	surface = new EllipsoidSurface( Vector3d( args.at(7), args.at(8), args.at(9) ), Vector3d( args )* (-1/args.at(6)) );
+      }
+      else if( mnemonic == "p"){
+	if( args.size() == 4 ){
+	  // plane given as ABCD coefficients (Ax+By+Cz-D=0)
+	  Vector3d v(args);
+	  surface = new PlaneSurface( v, args.at(3)/v.length() );
+	}
+	else if( args.size() == 9 ){
+	  // plane is given at three points in space
+	  Vector3d v1(args), v2(args,3), v3(args,6);
 
-        // the normal (up to reversal) of the plane 
-        // The normal may need to be reversed to ensure that the origin
-        // has negative sense, as required by MCNP
-        Vector3d normal = v1.add(-v2).cross( v1.add(-v3) ).normalize();
+	  // ordering of the points is arbitrary, but make sure v1 is furthest from origin.
+	  if( v1.length() < v2.length() ){
+	    std::swap( v1, v2 );
+	  }
+	  if( v1.length() < v3.length() ){
+	    std::swap( v1, v3 );
+	  }
 
-        // If a ray started from the origin and followed the normal vector,
-        // p is the point where it intersects the plane
-        Vector3d p = normal.scale( v1.dot(normal) );
+	  // the normal (up to reversal) of the plane 
+	  // The normal may need to be reversed to ensure that the origin
+	  // has negative sense, as required by MCNP
+	  Vector3d normal = v1.add(-v2).cross( v1.add(-v3) ).normalize();
 
-        // cos of the angle between v1 and normal 
-        double angle = normal.dot( v1.normalize() );
-        
-        // invert the normal if the angle is > 90 degrees, which indicates
-        // that reversal is required.
-        if( angle < 0 ){
-          normal   = -normal;
-        }
+	  // If a ray started from the origin and followed the normal vector,
+	  // p is the point where it intersects the plane
+	  Vector3d p = normal.scale( v1.dot(normal) );
 
-        //std::cout << normal << " " << p.length() << " : " << angle << std::endl;
-        surface = new PlaneSurface( normal, p.length() );
+	  // cos of the angle between v1 and normal 
+	  double angle = normal.dot( v1.normalize() );
+	  
+	  // invert the normal if the angle is > 90 degrees, which indicates
+	  // that reversal is required.
+	  if( angle < 0 ){
+	    normal   = -normal;
+	  }
+
+	  //std::cout << normal << " " << p.length() << " : " << angle << std::endl;
+	  surface = new PlaneSurface( normal, p.length() );
 
 
-      }
-      else{ 
-        throw std::runtime_error( "P surface with unsupported number of params" );
-      }
+	}
+	else{ 
+	  throw std::runtime_error( "P surface with unsupported number of params" );
+	}
 
-    }
-    else if( mnemonic == "px"){
-      surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-    }
-    else if( mnemonic == "py"){
-      surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
-    }
-    else if( mnemonic == "pz"){
-      surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
-    }
-    else if( mnemonic == "cx" ){
-      surface = new CylinderSurface( X, args.at(0) );
-    }
-    else if( mnemonic == "cy" ){
-      surface = new CylinderSurface( Y, args.at(0) );
-    }
-    else if( mnemonic == "cz" ){
-      surface = new CylinderSurface( Z, args.at(0) );
-    }
-    else if( mnemonic == "c/x"){
-      surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1) );
-    }
-    else if( mnemonic == "c/y"){
-      surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1) );
-    }
-    else if( mnemonic == "c/z"){
-      surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
-    }
-#ifdef HAVE_IGEOM_CONE
-    else if( mnemonic == "kx"){
-      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      surface = new ConeSurface( X, args.at(1), args.at(0), arg3 );
-    } 
-    else if( mnemonic == "ky"){
-      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      surface = new ConeSurface( Y, args.at(1), args.at(0), arg3 );
-    }
-    else if( mnemonic == "kz"){
-      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-      surface = new ConeSurface( Z, args.at(1), args.at(0), arg3 );
-    }
-    else if( mnemonic == "k/x" ){
-      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      surface = new ConeSurface( X, args.at(3), Vector3d(args),  arg5 );
-    }
-    else if( mnemonic == "k/y" ){
-      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      surface = new ConeSurface( Y, args.at(3), Vector3d(args),  arg5 );
-    }
-    else if( mnemonic == "k/z" ){
-      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-      surface = new ConeSurface( Z, args.at(3), Vector3d(args),  arg5 );
-    }
-    else if( mnemonic == "trc" ){
-      surface = new TrcVolume( Vector3d(args), Vector3d(args,3), args.at(6), args.at(7) );
-    }
-#endif /*HAVE_IGEOM_CONE */
-    else if( mnemonic == "tx" ){
-      surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-    } 
-    else if( mnemonic == "ty" ){
-      surface = new TorusSurface( Y, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-    } 
-    else if( mnemonic == "tz" ){
-      surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-    }
-    else if( mnemonic == "box" ){
-      if( facet == 0 ){
-        surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
       }
-      else if( facet == 1 ){
-        //end of first vector
-        Vector3d v( args.at(3), args.at(4), args.at(5) );
-        surface = new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
+      else if( mnemonic == "px"){
+	surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
       }
-      else if( facet == 2 ){
-        //beginning of first vector
-        Vector3d v( args.at(3), args.at(4), args.at(5) );
-        surface = new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
+      else if( mnemonic == "py"){
+	surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
       }
-      else if( facet == 3 ){
-        //end of second vector
-        Vector3d v( args.at(6), args.at(7), args.at(8) );
-        surface = new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
+      else if( mnemonic == "pz"){
+	surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
       }
-      else if( facet == 4 ){
-        //beginning of second vector
-        Vector3d v( args.at(6), args.at(7), args.at(8) );
-        surface = new PlaneSurface( v, ( args.at(6) * args.at(0) + args.at(7) * args.at(1) + args.at(8) * args.at(2) )/v.length() );
+      else if( mnemonic == "cx" ){
+	surface = new CylinderSurface( X, args.at(0) );
       }
-      else if( facet == 5 ){
-        //end of third vector
-        Vector3d v( args.at(9), args.at(10), args.at(11) );
-        surface = new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
+      else if( mnemonic == "cy" ){
+	surface = new CylinderSurface( Y, args.at(0) );
       }
-      else if( facet == 6 ){
-        //beginning of third vector
-        Vector3d v( args.at(9), args.at(10), args.at(11) );
-        surface = new PlaneSurface( v, ( args.at(9) * args.at(0) + args.at(10) * args.at(1) + args.at(11) * args.at(2) )/v.length() );
+      else if( mnemonic == "cz" ){
+	surface = new CylinderSurface( Z, args.at(0) );
       }
-      else{
-        throw std::runtime_error( "box only has 6 facets");
+      else if( mnemonic == "c/x"){
+	surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1) );
       }
-    }
-//findme
-    else if( mnemonic == "rpp" ){
-      if( facet == 0 ){
-        surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
+      else if( mnemonic == "c/y"){
+	surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1) );
       }
-      else if( facet == 1 ){
-        //xmax plane
-        surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(1) );
+      else if( mnemonic == "c/z"){
+	surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
       }
-      else if( facet == 2 ){
-        //xmin plane
-        surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+  #ifdef HAVE_IGEOM_CONE
+      else if( mnemonic == "kx"){
+	double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+	surface = new ConeSurface( X, args.at(1), args.at(0), arg3 );
+      } 
+      else if( mnemonic == "ky"){
+	double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+	surface = new ConeSurface( Y, args.at(1), args.at(0), arg3 );
       }
-      else if( facet == 3 ){
-        //ymax plane
-        surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(3) );
+      else if( mnemonic == "kz"){
+	double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+	surface = new ConeSurface( Z, args.at(1), args.at(0), arg3 );
       }
-      else if( facet == 4 ){
-        //ymin plane
-        surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(2) );
+      else if( mnemonic == "k/x" ){
+	double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+	surface = new ConeSurface( X, args.at(3), Vector3d(args),  arg5 );
       }
-      else if( facet == 5 ){
-        //zmax plane
-        surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(5) );
+      else if( mnemonic == "k/y" ){
+	double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+	surface = new ConeSurface( Y, args.at(3), Vector3d(args),  arg5 );
       }
-      else if( facet == 6 ){
-        //zmin plane
-        surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(4) );
+      else if( mnemonic == "k/z" ){
+	double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+	surface = new ConeSurface( Z, args.at(3), Vector3d(args),  arg5 );
       }
-    }
-    else if( mnemonic == "rcc" ){
-      if( facet == 0 ){
+      else if( mnemonic == "trc" ){
+	surface = new TrcVolume( Vector3d(args), Vector3d(args,3), args.at(6), args.at(7) );
+      }
+  #endif /*HAVE_IGEOM_CONE */
+      else if( mnemonic == "tx" ){
+	surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+      } 
+      else if( mnemonic == "ty" ){
+	surface = new TorusSurface( Y, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+      } 
+      else if( mnemonic == "tz" ){
+	surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+      }
+      else if( mnemonic == "box" ){
+	surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+      }
+      else if( mnemonic == "rpp" ){
+	surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
+      }
+      else if( mnemonic == "rcc" ){
         surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
       }
-      else if( facet == 1 ){
-        //cylinder surface
-        double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
-        surface = new CylinderSurface( W, atan2( lenP, args.at(5) ) * 180 / M_PI, atan2( args.at(4), args.at(3) ) * 180 / M_PI, args.at(6), args.at(0), args.at(1), args.at(2) );
-      }
-      else if( facet == 2 ){
-        //plane at end of vector
-        Vector3d v( args.at(3), args.at(4), args.at(5) );
-        surface = new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
-      }
-      else if( facet == 3 ){
-        //plane at start of vector
-        Vector3d v( args.at(3), args.at(4), args.at(5) );
-        surface = new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
-      }
-      else{
-        throw std::runtime_error( "rcc only has 3 facets" );
-      }
-    }
-    else if( mnemonic == "rec" ){
-      if( facet == 0 ){
+      else if( mnemonic == "rec" ){
         if( args.size() == 10 ){
           surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9) );
         }
@@ -1066,18 +988,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
           surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
         }
       }
-      else if( facet == 1 ){
-      }
-      else if( facet == 2 ){
-      }
-      else if( facet == 3 ){
-      }
-      else{
-        throw std::runtime_error( "rec only has 3 facets" );
-      }
-    }
-    else if( mnemonic == "hex" || mnemonic == "rhp" ){
-      if( facet == 0 ){
+      else if( mnemonic == "hex" || mnemonic == "rhp" ){
         if( args.size() == 9 ){
           surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
         }
@@ -1085,97 +996,77 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
           surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
         }
       }
-      else if( facet == 1 ){
+      else if( mnemonic == "x" ) {
+	switch (args.size()) {
+	case 2: // plane
+	  surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+	  break;
+	case 4: // either plane, cylinder or cone
+	  if ( args.at(0) == args.at(2) ) // plane
+	    surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+	  else if (args.at(1) == args.at(3)) // cylinder
+	    surface = new CylinderSurface( X, args.at(1) );
+	  else // cone
+	    {
+	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+	      double apex_p = args.at(0) - args.at(1)/m;
+	      surface = new ConeSurface( X, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	    }
+	  break;
+	default:
+	  throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+	  break;
+	}
       }
-      else if( facet == 2 ){
+      else if( mnemonic == "y" ) {
+	switch (args.size()) {
+	case 2: // plane
+	  surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
+	  break;
+	case 4: // either plane, cylinder or cone
+	  if ( args.at(0) == args.at(2) ) // plane
+	    surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
+	  else if (args.at(1) == args.at(3)) // cylinder
+	    surface = new CylinderSurface( Y, args.at(1) );
+	  else // cone
+	    {
+	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+	      double apex_p = args.at(0) - args.at(1)/m;
+	      surface = new ConeSurface( Y, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	    }
+	  break;
+	default:
+	  throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+	  break;
+	}
       }
-      else if( facet == 3 ){
-      }
-      else if( facet == 4 ){
-      }
-      else if( facet == 5 ){
-      }
-      else if( facet == 6 ){
-      }
-      else if( facet == 7 ){
-      }
-      else if( facet == 8 ){
+      else if( mnemonic == "z" ) {
+	switch (args.size()) {
+	case 2: // plane
+	  surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+	  break;
+	case 4: // either plane, cylinder or cone
+	  if ( args.at(0) == args.at(2) ) // plane
+	    surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+	  else if (args.at(1) == args.at(3)) // cylinder
+	    surface = new CylinderSurface( Z, args.at(1) );
+	  else // cone
+	    {
+	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+	      double apex_p = args.at(0) - args.at(1)/m;
+	      surface = new ConeSurface( Z, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	    }
+	  break;
+	default:
+	  throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+	  break;
+	}
       }
       else{
-        throw std::runtime_error( mnemonic + " only has 8 facets" );
-      }
-
-    }
-    else if( mnemonic == "x" ) {
-      switch (args.size()) {
-      case 2: // plane
-        surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-        break;
-      case 4: // either plane, cylinder or cone
-        if ( args.at(0) == args.at(2) ) // plane
-          surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-        else if (args.at(1) == args.at(3)) // cylinder
-          surface = new CylinderSurface( X, args.at(1) );
-        else // cone
-          {
-            double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-            double apex_p = args.at(0) - args.at(1)/m;
-            surface = new ConeSurface( X, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-          }
-        break;
-      default:
-        throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
-        break;
+	throw std::runtime_error( mnemonic + " is not a supported surface" );
       }
     }
-    else if( mnemonic == "y" ) {
-      switch (args.size()) {
-      case 2: // plane
-        surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
-        break;
-      case 4: // either plane, cylinder or cone
-        if ( args.at(0) == args.at(2) ) // plane
-          surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
-        else if (args.at(1) == args.at(3)) // cylinder
-          surface = new CylinderSurface( Y, args.at(1) );
-        else // cone
-          {
-            double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-            double apex_p = args.at(0) - args.at(1)/m;
-            surface = new ConeSurface( Y, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-          }
-        break;
-      default:
-        throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
-        break;
-      }
-    }
-    else if( mnemonic == "z" ) {
-      switch (args.size()) {
-      case 2: // plane
-        surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
-        break;
-      case 4: // either plane, cylinder or cone
-        if ( args.at(0) == args.at(2) ) // plane
-          surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
-        else if (args.at(1) == args.at(3)) // cylinder
-          surface = new CylinderSurface( Z, args.at(1) );
-        else // cone
-          {
-            double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-            double apex_p = args.at(0) - args.at(1)/m;
-            surface = new ConeSurface( Z, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-          }
-        break;
-      default:
-        throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
-        break;
-      }
-    }
-    else{
-      throw std::runtime_error( mnemonic + " is not a supported surface" );
-    }
-    
+  
     if( card->getTransform().hasData() ){
       const Transform& transform = card->getTransform().getData();
       surface->setTransform( &transform );
@@ -1188,5 +1079,88 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   
   
 }
+SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet ){
+  if( mnemonic == "rcc" ){
+    if( facet == 1 ){
+         //cylinder surface
+      double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
+      return new CylinderSurface( W, atan2( lenP, args.at(5) ) * 180 / M_PI, atan2( args.at(4), args.at(3) ) * 180 / M_PI, args.at(6), args.at(0), args.at(1), args.at(2) );
+    }
+    else if( facet == 2 ){
+      //plane at end of vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
+    }
+    else if( facet == 3 ){
+      //plane at start of vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
+    }
+    else{
+      throw std::runtime_error( "rcc only has 3 facets" );
+    }
+  }
+  else if(mnemonic == "box"){
+    if( facet == 1 ){
+      //end of first vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
+    }
+    else if( facet == 2 ){
+      //beginning of first vector
+      Vector3d v( args.at(3), args.at(4), args.at(5) );
+      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
+    }
+    else if( facet == 3 ){
+      //end of second vector
+      Vector3d v( args.at(6), args.at(7), args.at(8) );
+      return new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
+    }
+    else if( facet == 4 ){
+      //beginning of second vector
+      Vector3d v( args.at(6), args.at(7), args.at(8) );
+      return new PlaneSurface( v, ( args.at(6) * args.at(0) + args.at(7) * args.at(1) + args.at(8) * args.at(2) )/v.length() );
+    }
+    else if( facet == 5 ){
+      //end of third vector
+      Vector3d v( args.at(9), args.at(10), args.at(11) );
+      return new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
+    }
+    else if( facet == 6 ){
+      //beginning of third vector
+      Vector3d v( args.at(9), args.at(10), args.at(11) );
+      return new PlaneSurface( v, ( args.at(9) * args.at(0) + args.at(10) * args.at(1) + args.at(11) * args.at(2) )/v.length() );
+    }
+    else{
+      throw std::runtime_error( "box only has 6 facets");
+    }
+  }
+  else if( mnemonic == "rpp"){
+   if( facet == 1 ){
+      //xmax plane
+      return new PlaneSurface( Vector3d( 1, 0, 0), args.at(1) );
+    }
+    else if( facet == 2 ){
+      //xmin plane
+      return new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+    }
+    else if( facet == 3 ){
+      //ymax plane
+      return new PlaneSurface( Vector3d( 0, 1, 0), args.at(3) );
+    }
+    else if( facet == 4 ){
+      //ymin plane
+      return new PlaneSurface( Vector3d( 0, 1, 0), args.at(2) );
+    }
+    else if( facet == 5 ){
+      //zmax plane
+      return new PlaneSurface( Vector3d( 0, 0, 1), args.at(5) );
+    }
+    else if( facet == 6 ){
+      //zmin plane
+      return new PlaneSurface( Vector3d( 0, 0, 1), args.at(4) );
+    }
 
-
+  }
+  throw std::runtime_error( mnemonic + " does not have macrobody facet support at this time." );
+}
