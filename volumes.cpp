@@ -1242,7 +1242,6 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 3 ){
         //end of second vector
-
         Vector3d v( args.at(6), args.at(7), args.at(8) );
         surface = new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
       }
@@ -1334,14 +1333,8 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
       else if( facet == 3 ){
       }
-      else if( facet == 4 ){
-      }
-      else if( facet == 5 ){
-      }
-      else if( facet == 6 ){
-      }
       else{
-        throw std::runtime_error( "rec only has 6 facets" );
+        throw std::runtime_error( "rec only has 3 facets" );
       }
     }
     else if( mnemonic == "hex" || mnemonic == "rhp" ){
