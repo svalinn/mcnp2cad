@@ -41,6 +41,9 @@ class VolumeCache;
 extern 
 SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v = NULL, int facet = 0 );
 
+extern
+SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet);
+
 extern 
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ); 
 
