@@ -8,7 +8,7 @@
 #include "volumes.hpp"
 #include "geometry.hpp"
 #include "options.hpp"
-
+#include <armadillo>
 
 static Vector3d origin(0,0,0);
 
@@ -166,12 +166,19 @@ typedef  enum { X=0, Y=1, Z=2 } axis_t;
 class GeneralQuadraticSurface : public SurfaceVolume {
 
 protected:
+  // coefficients of the GQ
   double A_,B_,C_,D_,E_,F_,G_,H_,J_,K_;
+  // the cannonical GQ type
   int type;
+  // translation from the canoncial GQ to final GQ
   Vector3d translation;
+  // rotation matrix from canonical GQ to final GQ
   double rotation_mat[9];
+  // principle axes extents of the GQ
   double extents[3];
-  double gq_tol = 1e-6;
+  // tolerance used to determine
+  // if matrix determinant should be considered zero
+  const double gq_tol = 1e-6;
 
   enum GQ_TYPE {UNKNOWN = 0,
 		ELLIPSOID,
@@ -185,12 +192,14 @@ protected:
 		PARABOLIC_CYL};
 public:
   GeneralQuadraticSurface(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
-    SurfaceVolume(),A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K)
-  { cannonize(); }
-
+    SurfaceVolume(),A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {
+    //determine canonical form of GQ and determine transformation
+    make_canonical();
+  }
+  
   virtual double getFarthestExtentFromOrigin() const{ return 0; }
 protected:
-  void cannonize()
+  void make_canonical()
   {
   //create coefficient matrix
   arma::mat Aa;
@@ -400,8 +409,7 @@ protected:
       gq = elliptic_cyl(igm, world_size);
       break;
     default:
-      std::cout << "Shouldn't be here." << std::endl;
-      
+      std::cout << "GQ type is currently unsupported" << std::endl;
     }
 
     //re-orient gq into original position

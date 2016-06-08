@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 #include "iGeom.h"
-#include <armadillo>
+
 
 class Transform;
 class SurfaceCard;
