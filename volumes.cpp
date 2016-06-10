@@ -161,7 +161,7 @@ protected:
 
 };
 
-
+//added "W axis" to avoid bug with the rcc cylinder facet
 typedef  enum { X=0, Y=1, Z=2, W=3 } axis_t;
 
 class GeneralQuadraticSurface : public SurfaceVolume {
@@ -1459,10 +1459,32 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
 	return new PlaneSurface( v, ( args.at(12) * ( args.at(0) + args.at(12) ) + args.at(13) * ( args.at(1) + args.at(13) ) + args.at(14) * ( args.at(2) + args.at(14) ))/v.length() );
       }
     }
-    else if( args.size() == 9 ){
-      if ( facet == 3 || facet == 4 || facet == 5 || facet == 6 ){
-        throw std::runtime_error( mnemonic + " facets are only supported for the 12 argument version at this time." );
+    else if( args.size() == 9 && ( facet <= 6 || facet >= 3 ) ){
+// I'm not acutally sure about these facets, with regular hexagon.  As it is written, it goes 1 3 5 2 4 6, counter clockwise (with 1 and 2 as they are for 12 argument version).
+      if( facet == 3 ){
+        Vector3d v1( args.at(6), args.at(7), args.at(8) );
+        Vector3d v2( args.at(3), args.at(4), args.at(5) );
+        Vector3d v( v1.rotate_about( v2, 60 ) );
+ 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
       }
+      else if( facet == 4 ){
+        Vector3d v1( args.at(6), args.at(7), args.at(8) );
+        Vector3d v2( args.at(3), args.at(4), args.at(5) );
+        Vector3d v( -v1.rotate_about( v2, 60 ) );
+ 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
+      }
+      else if( facet == 5 ){
+        Vector3d v1( args.at(6), args.at(7), args.at(8) );
+        Vector3d v2( args.at(3), args.at(4), args.at(5) );
+        Vector3d v( v1.rotate_about( v2, 120 ) );
+ 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
+      }
+      else if( facet == 6 ){
+        Vector3d v1( args.at(6), args.at(7), args.at(8) );
+        Vector3d v2( args.at(3), args.at(4), args.at(5) );
+        Vector3d v( -v1.rotate_about( v2, 120 ) );
+ 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
+      } 
     }
     if( facet == 7 ){
       //plane at end of axis vector
