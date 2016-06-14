@@ -161,8 +161,7 @@ protected:
 
 };
 
-//added "W axis" to avoid bug with the rcc cylinder facet
-typedef  enum { X=0, Y=1, Z=2, W=3 } axis_t;
+typedef  enum { X=0, Y=1, Z=2 } axis_t;
 
 
 class CylinderSurface : public SurfaceVolume {
@@ -172,30 +171,22 @@ protected:
   double radius;
   Vector3d center;
   bool onaxis;
-  double rotation_th, rotation_ph, spin, scalef;
 
 public:
-  CylinderSurface( axis_t axis_p, double radius_p, double scalef_p ):
-    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(true), scalef(scalef_p)
+  CylinderSurface( axis_t axis_p, double radius_p ):
+    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(true)
   {}
 
-  CylinderSurface( axis_t axis_p, double radius_p, double trans1, double trans2, double scalef_p ):
-    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false), scalef(scalef_p)
+  CylinderSurface( axis_t axis_p, double radius_p, double trans1, double trans2 ):
+    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false)
   {
     switch(axis){
     case X: center.v[Y] += trans1; center.v[Z] += trans2; break;
     case Y: center.v[X] += trans1; center.v[Z] += trans2; break;
     case Z: center.v[X] += trans1; center.v[Y] += trans2; break;
-    case W: throw std::runtime_error("Axis W specifically for macrobody faces"); break;
     }
   }
 
-  CylinderSurface( axis_t axis_p, double rotation_1, double rotation_2, double rotation_3, double radius_p, double trans1, double trans2, double trans3, double scalef_p ):
-    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false), rotation_th(rotation_1), rotation_ph(rotation_2), spin(rotation_3), scalef(scalef_p)
-  {
-    center.v[X] += trans1; center.v[Y] += trans2; center.v[Z] += trans3;
-  }
-  
   virtual double getFarthestExtentFromOrigin( ) const{
     return radius + center.length();
   }
@@ -205,7 +196,7 @@ protected:
     int igm_result;
 
     iBase_EntityHandle cylinder;
-    iGeom_createCylinder( igm, 2.0 * world_size, radius, scalef, &cylinder, &igm_result);
+    iGeom_createCylinder( igm, 2.0 * world_size, radius, 0, &cylinder, &igm_result);
     CHECK_IGEOM( igm_result, "making cylinder" );
 
     
@@ -216,19 +207,6 @@ protected:
     else if( axis == Y ){
       iGeom_rotateEnt( igm, cylinder, 90, 1, 0, 0, &igm_result );
       CHECK_IGEOM( igm_result, "rotating cylinder (Y)" );
-    }
-    else if( axis == Z ){
-    }
-    else{
-      iGeom_rotateEnt( igm, cylinder, 90 + spin, 0, 0, 1, &igm_result );
-      CHECK_IGEOM( igm_result, "spinning cylinder" );
-      iGeom_rotateEnt( igm, cylinder, rotation_th, 0, 1, 0, &igm_result );
-      CHECK_IGEOM( igm_result, "rotating cylinder (theta)" );
-      iGeom_rotateEnt( igm, cylinder, rotation_ph, 0, 0, 1, &igm_result );
-      CHECK_IGEOM( igm_result, "rotating cylinder (phi)" );
-    
-  
-
     }
 
     if( onaxis == false ){
@@ -601,16 +579,17 @@ protected:
   Vector3d base_center;
   Transform transform;
   double length, radius1, radius2;
+  bool facet;
 
 public:
-  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, const Vector3d& v2 ) :
+  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, const Vector3d& v2, bool facet_p ) :
     base_center( center_p ), transform( axesImage( v1, v2, axis, center_p ) ), 
-    length( axis.length() ), radius1( v1.length() ), radius2( v2.length() )
+    length( axis.length() ), radius1( v1.length() ), radius2( v2.length() ), facet( facet_p)
   {}
 
-  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, double length2 ) :
+  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, double length2, bool facet_p ) :
     base_center( center_p ), transform( axesImage( v1, v1.cross(axis), axis, center_p ) ), 
-    length( axis.length() ), radius1( v1.length() ), radius2( length2 )
+    length( axis.length() ), radius1( v1.length() ), radius2( length2 ), facet( facet_p )
   {}
 
   virtual double getFarthestExtentFromOrigin ( ) const {
@@ -622,7 +601,12 @@ protected:
     int igm_result;
     iBase_EntityHandle rec;
     
-    iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );
+    if( facet ){
+      iGeom_createCylinder( igm, 2.0*world_size, radius1, radius2, &rec, &igm_result );
+    }
+    else{
+      iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );
+    }
     CHECK_IGEOM( igm_result, "creating rec" );
 
 
@@ -643,10 +627,11 @@ protected:
   Vector3d base_center;
   Transform transform;
   double length, radius;
+  bool facet;
 
 public:
-  RccVolume( const Vector3d& center_p, const Vector3d& axis, double radius_p ) :
-    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), radius(radius_p) 
+  RccVolume( const Vector3d& center_p, const Vector3d& axis, double radius_p, bool facet_p ) :
+    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), radius(radius_p), facet( facet_p ) 
   {}
 
   virtual double getFarthestExtentFromOrigin ( ) const {
@@ -658,7 +643,12 @@ protected:
     int igm_result;
     iBase_EntityHandle rcc;
 
-    iGeom_createCylinder( igm, length, radius, 0, &rcc, &igm_result );
+    if( facet ){
+      iGeom_createCylinder( igm, 2.0 * world_size, radius, 0, &rcc, &igm_result );
+    }
+    else{
+      iGeom_createCylinder( igm, length, radius, 0, &rcc, &igm_result );
+    }
     CHECK_IGEOM( igm_result, "creating rcc" );
     
     double movement_factor = length / 2.0;
@@ -839,11 +829,11 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     const std::vector< double >& args = card->getArgs(); 
 
     // special function for macrobody facets
-    if( facet != 0 ){
-      surface = FacetSurface( mnemonic, args, facet );
-    }
+//    if( facet != 0 ){
+//      surface = FacetSurface( mnemonic, args, facet );
+//    }
 
-    else{
+//    else{
       if( mnemonic == "so"){
 	surface = new SphereSurface( origin, args.at(0) );
       }
@@ -918,22 +908,22 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
       }
       else if( mnemonic == "cx" ){
-	surface = new CylinderSurface( X, args.at(0), 0 );
+	surface = new CylinderSurface( X, args.at(0) );
       }
       else if( mnemonic == "cy" ){
-	surface = new CylinderSurface( Y, args.at(0), 0 );
+	surface = new CylinderSurface( Y, args.at(0) );
       }
       else if( mnemonic == "cz" ){
-	surface = new CylinderSurface( Z, args.at(0), 0 );
+	surface = new CylinderSurface( Z, args.at(0) );
       }
       else if( mnemonic == "c/x"){
-	surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1), 0 );
+	surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1) );
       }
       else if( mnemonic == "c/y"){
-	surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1), 0 );
+	surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1) );
       }
       else if( mnemonic == "c/z"){
-	surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1), 0 );
+	surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
       }
   #ifdef HAVE_IGEOM_CONE
       else if( mnemonic == "kx"){
@@ -974,28 +964,53 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
       }
       else if( mnemonic == "box" ){
-	surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
-      }
-      else if( mnemonic == "rpp" ){
-	surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
-      }
-      else if( mnemonic == "rcc" ){
-        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
-      }
-      else if( mnemonic == "rec" ){
-        if( args.size() == 10 ){
-          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9) );
+        if( facet != 0){
+          surface = boxFacet( args, facet );
         }
         else{
-          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+          surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+        }
+      }
+      else if( mnemonic == "rpp" ){
+        if( facet != 0 ){
+          surface = rppFacet( args, facet );
+        }
+        else{
+	  surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
+        }
+      }
+      else if( mnemonic == "rcc" ){
+        if( facet != 0 ){
+          surface = rccFacet( args, facet );
+        }
+        else{
+          surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), false );
+        }
+      }
+      else if( mnemonic == "rec" ){
+        if( facet != 0 ){
+          surface = recFacet( args, facet );
+        }
+        else{
+          if( args.size() == 10 ){
+            surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9), false );
+          }
+          else{
+            surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), false );
+          }
         }
       }
       else if( mnemonic == "hex" || mnemonic == "rhp" ){
-        if( args.size() == 9 ){
-          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
+        if( facet != 0 ){
+          surface = hexFacet( args, facet );
         }
         else{
-          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
+          if( args.size() == 9 ){
+            surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
+          }
+          else{
+            surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
+          }
         }
       }
       else if( mnemonic == "x" ) {
@@ -1007,7 +1022,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	  if ( args.at(0) == args.at(2) ) // plane
 	    surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
 	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( X, args.at(1), 0 );
+	    surface = new CylinderSurface( X, args.at(1) );
 	  else // cone
 	    {
 	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
@@ -1029,7 +1044,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	  if ( args.at(0) == args.at(2) ) // plane
 	    surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
 	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( Y, args.at(1), 0 );
+	    surface = new CylinderSurface( Y, args.at(1) );
 	  else // cone
 	    {
 	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
@@ -1051,7 +1066,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	  if ( args.at(0) == args.at(2) ) // plane
 	    surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
 	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( Z, args.at(1), 0 );
+	    surface = new CylinderSurface( Z, args.at(1) );
 	  else // cone
 	    {
 	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
@@ -1067,7 +1082,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       else{
 	throw std::runtime_error( mnemonic + " is not a supported surface" );
       }
-    }
+   // }
   
     if( card->getTransform().hasData() ){
       const Transform& transform = card->getTransform().getData();
@@ -1079,201 +1094,243 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     
   }
   
-  
 }
+/*
 SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet ){
   if( mnemonic == "rcc" ){
-    if( facet == 1 ){
-      //cylinder surface
-      double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
-      return new CylinderSurface( W, atan2( lenP, args.at(5) ) * 180 / M_PI, atan2( args.at(4), args.at(3) ) * 180 / M_PI, 0, args.at(6), args.at(0), args.at(1), args.at(2), 0 );
-    }
-    else if( facet == 2 ){
-      //plane at end of vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
-    }
-    else if( facet == 3 ){
-      //plane at start of vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
-    }
-    else{
-      throw std::runtime_error( "rcc only has 3 facets" );
-    }
+    return rccFacet( args, facet );
   }
   else if(mnemonic == "box"){
-    if( facet == 1 ){
-      //end of first vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
-    }
-    else if( facet == 2 ){
-      //beginning of first vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
-    }
-    else if( facet == 3 ){
-      //end of second vector
-      Vector3d v( args.at(6), args.at(7), args.at(8) );
-      return new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
-    }
-    else if( facet == 4 ){
-      //beginning of second vector
-      Vector3d v( args.at(6), args.at(7), args.at(8) );
-      return new PlaneSurface( v, ( args.at(6) * args.at(0) + args.at(7) * args.at(1) + args.at(8) * args.at(2) )/v.length() );
-    }
-    else if( facet == 5 ){
-      //end of third vector
-      Vector3d v( args.at(9), args.at(10), args.at(11) );
-      return new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
-    }
-    else if( facet == 6 ){
-      //beginning of third vector
-      Vector3d v( args.at(9), args.at(10), args.at(11) );
-      return new PlaneSurface( v, ( args.at(9) * args.at(0) + args.at(10) * args.at(1) + args.at(11) * args.at(2) )/v.length() );
-    }
-    else{
-      throw std::runtime_error( "box only has 6 facets");
-    }
+    return boxFacet( args, facet );
   }
   else if( mnemonic == "rpp"){
-   if( facet == 1 ){
-      //xmax plane
-      return new PlaneSurface( Vector3d( 1, 0, 0), args.at(1) );
-    }
-    else if( facet == 2 ){
-      //xmin plane
-      return new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-    }
-    else if( facet == 3 ){
-      //ymax plane
-      return new PlaneSurface( Vector3d( 0, 1, 0), args.at(3) );
-    }
-    else if( facet == 4 ){
-      //ymin plane
-      return new PlaneSurface( Vector3d( 0, 1, 0), args.at(2) );
-    }
-    else if( facet == 5 ){
-      //zmax plane
-      return new PlaneSurface( Vector3d( 0, 0, 1), args.at(5) );
-    }
-    else if( facet == 6 ){
-      //zmin plane
-      return new PlaneSurface( Vector3d( 0, 0, 1), args.at(4) );
-    }
-    else{
-      throw std::runtime_error( "rpp only has 6 facets." );
-    }
+    return rppFacet( args, facet );
   }
   else if( mnemonic == "hex" || mnemonic == "rhp" ){
-    if( facet == 1 ){
-      //plane at end of first side vector
-      Vector3d v( args.at(6), args.at(7), args.at(8) );
-      return new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
-    }
-    else if( facet == 2 ){
-      //plane opposite facet 1
-      Vector3d v( -args.at(6), -args.at(7), -args.at(8) );
-      return new PlaneSurface( v, ( args.at(6) * ( args.at(0) + args.at(6) ) + args.at(7) * ( args.at(1) + args.at(7) ) + args.at(8) * ( args.at(2) + args.at(8) ) )/v.length() );
-    }
-    if( args.size() == 15 ){
-      if( facet == 3 ){
-	//plane at end of second side vector
-	Vector3d v( args.at(9), args.at(10), args.at(11) );
-	return new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
-      }
-      else if( facet == 4 ){
-	//plane opposite facet 3
-	Vector3d v( -args.at(9), -args.at(10), -args.at(11) );
-	return new PlaneSurface( v, ( args.at(9) * ( args.at(0) + args.at(9) ) + args.at(10) * ( args.at(1) + args.at(10) ) + args.at(11) * ( args.at(2) + args.at(11) ) )/v.length() );
-      }
-      else if( facet == 5 ){
-	//plane at end of third side vector
-	Vector3d v( args.at(12), args.at(13), args.at(14) );
-	return new PlaneSurface( v, ( args.at(12) * ( args.at(0) + args.at(12) ) + args.at(13) * ( args.at(1) + args.at(13) ) + args.at(14) * ( args.at(2) + args.at(14) ))/v.length() );
-      }
-      else if( facet == 6 ){
-	//plane opposite facet 5
-	Vector3d v( -args.at(12), -args.at(13), -args.at(14) );
-	return new PlaneSurface( v, ( args.at(12) * ( args.at(0) + args.at(12) ) + args.at(13) * ( args.at(1) + args.at(13) ) + args.at(14) * ( args.at(2) + args.at(14) ))/v.length() );
-      }
-    }
-    else if( args.size() == 9 && ( facet <= 6 || facet >= 3 ) ){
-// I'm not acutally sure about these facets, with regular hexagon.  As it is written, it goes 1 3 5 2 4 6, counter clockwise (with 1 and 2 as they are for 12 argument version).
-      if( facet == 3 ){
-        Vector3d v1( args.at(6), args.at(7), args.at(8) );
-        Vector3d v2( args.at(3), args.at(4), args.at(5) );
-        Vector3d v( v1.rotate_about( v2, 60 ) );
- 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
-      }
-      else if( facet == 4 ){
-        Vector3d v1( args.at(6), args.at(7), args.at(8) );
-        Vector3d v2( args.at(3), args.at(4), args.at(5) );
-        Vector3d v( -v1.rotate_about( v2, 60 ) );
- 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
-      }
-      else if( facet == 5 ){
-        Vector3d v1( args.at(6), args.at(7), args.at(8) );
-        Vector3d v2( args.at(3), args.at(4), args.at(5) );
-        Vector3d v( v1.rotate_about( v2, 120 ) );
- 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
-      }
-      else if( facet == 6 ){
-        Vector3d v1( args.at(6), args.at(7), args.at(8) );
-        Vector3d v2( args.at(3), args.at(4), args.at(5) );
-        Vector3d v( -v1.rotate_about( v2, 120 ) );
- 	return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
-      } 
-    }
-    if( facet == 7 ){
-      //plane at end of axis vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
-    }
-    else if( facet == 8 ){
-      //plane at beginning of axis vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
-    }
-    else{
-      throw std::runtime_error( mnemonic + " only has 8 facets." );
-    }
-
+    return hexFacet( args, facet );
   }
   else if( mnemonic == "rec" ){
-    if( facet == 1 ){
-      //elliptical prism surface
-      double radius;
-      if( args.size() == 10 ){
-        radius = args.at(9);
-      }
-      else{
-        radius = sqrt( args.at(9)*args.at(9) + args.at(10)*args.at(10) + args.at(11)*args.at(11) );
-      }
-      double majRadius = sqrt( args.at(6)*args.at(6) + args.at(7)*args.at(7) + args.at(8)*args.at(8) );
-      double ratio = majRadius/radius;
-      double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
-      double theta = atan2( lenP, args.at(5) )*180/M_PI;
-      double phi = atan2( args.at(4), args.at(3) );
-      double xVal = args.at(6)*cos( phi ) + args.at(7)*sin( phi );
-      double yVal = args.at(7)*cos( phi ) - args.at(6)*sin( phi );
-      return new CylinderSurface( W, theta, phi*180/M_PI, atan2( yVal, sqrt( xVal*xVal + args.at(8)*args.at(8) ) )*180/M_PI, radius, args.at(0), args.at(1), args.at(2), ratio );
-    }
-    else if( facet == 2 ){
-      //plane at end of axis vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * ( args.at(0) + args.at(3) ) + args.at(4) * ( args.at(1) + args.at(4) ) + args.at(5) * ( args.at(2) + args.at(5) ) )/v.length() );
-    }
-    else if( facet == 3 ){
-      //plane at beginning of axis vector
-      Vector3d v( args.at(3), args.at(4), args.at(5) );
-      return new PlaneSurface( v, ( args.at(3) * args.at(0) + args.at(4) * args.at(1) + args.at(5) * args.at(2) )/v.length() );
-    }
-    else{
-      throw std::runtime_error( "rec only has 3 facets." );
-    }
- 
+    return recFacet( args, facet );
   }
   throw std::runtime_error( mnemonic + " does not have macrobody facet support at this time." );
+}    
+*/
+
+//This function is used to find D in the planar equation Ax + By + Cz - D = 0 when given two vectors.
+int planePoint( std::vector< double > args, int i, bool end ){
+  if( end ){
+    return args.at(i)*( args.at(0) + args.at(i) ) + args.at(i + 1)*( args.at(1) + args.at(i + 1) ) + args.at(i + 2)*( args.at(2) + args.at(i + 2) );
+  }
+  else{
+    return args.at(i)*args.at(0) + args.at(i + 1)*args.at(1) + args.at(i + 2)*args.at(2);
+  }
 }
+
+
+SurfaceVolume* rccFacet( const std::vector< double > args, int facet ){
+  if( facet == 1 ){
+    //cylinder surface
+    return new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), true );
+  }
+  else if( facet == 2 ){
+    //plane at end of vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 3 ){
+    //plane at start of vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, false );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else{
+    throw std::runtime_error( "rcc only has 3 facets" );
+  }
+}
+
+SurfaceVolume* boxFacet( const std::vector< double > args, int facet ){
+  if( facet == 1 ){
+    //end of first vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 2 ){
+    //beginning of first vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, false );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 3 ){
+    //end of second vector
+    Vector3d v( args.at(6), args.at(7), args.at(8) );
+    double D = planePoint( args, 6, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 4 ){
+    //beginning of second vector
+    Vector3d v( args.at(6), args.at(7), args.at(8) );
+    double D = planePoint( args, 6, false );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 5 ){
+    //end of third vector
+    Vector3d v( args.at(9), args.at(10), args.at(11) );
+    double D = planePoint( args, 9, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 6 ){
+    //beginning of third vector
+    Vector3d v( args.at(9), args.at(10), args.at(11) );
+    double D = planePoint( args, 9, false );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else{
+    throw std::runtime_error( "box only has 6 facets");
+  }
+}
+
+SurfaceVolume* rppFacet( const std::vector< double > args, int facet ){
+  if( facet == 1 ){
+    //xmax plane
+    return new PlaneSurface( Vector3d( 1, 0, 0), args.at(1) );
+  }
+  else if( facet == 2 ){
+    //xmin plane
+    return new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+  }
+  else if( facet == 3 ){
+    //ymax plane
+    return new PlaneSurface( Vector3d( 0, 1, 0), args.at(3) );
+  }
+  else if( facet == 4 ){
+    //ymin plane
+    return new PlaneSurface( Vector3d( 0, 1, 0), args.at(2) );
+  }
+  else if( facet == 5 ){
+    //zmax plane
+    return new PlaneSurface( Vector3d( 0, 0, 1), args.at(5) );
+  }
+  else if( facet == 6 ){
+    //zmin plane
+    return new PlaneSurface( Vector3d( 0, 0, 1), args.at(4) );
+  }
+  else{
+    throw std::runtime_error( "rpp only has 6 facets." );
+  }
+}
+
+SurfaceVolume* hexFacet( const std::vector< double > args, int facet ){
+  if( facet == 1 ){
+    //plane at end of first side vector
+    Vector3d v( args.at(6), args.at(7), args.at(8) );
+    double D = planePoint( args, 6, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 2 ){
+    //plane opposite facet 1
+    Vector3d v( -args.at(6), -args.at(7), -args.at(8) );
+    double D = planePoint( args, 6, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  if( args.size() == 15 ){
+    if( facet == 3 ){
+      //plane at end of second side vector
+      Vector3d v( args.at(9), args.at(10), args.at(11) );
+      double D = planePoint( args, 9, true );
+      return new PlaneSurface( v, D/v.length() );
+    }
+    else if( facet == 4 ){
+      //plane opposite facet 3
+      Vector3d v( -args.at(9), -args.at(10), -args.at(11) );
+      double D = planePoint( args, 9, true );
+      return new PlaneSurface( v, D/v.length() );
+    }
+    else if( facet == 5 ){
+      //plane at end of third side vector
+      Vector3d v( args.at(12), args.at(13), args.at(14) );
+      double D = planePoint( args, 12, true );
+      return new PlaneSurface( v, D/v.length() );
+    }
+    else if( facet == 6 ){
+      //plane opposite facet 5
+      Vector3d v( -args.at(12), -args.at(13), -args.at(14) );
+      double D = planePoint( args, 12, true );
+      return new PlaneSurface( v, D/v.length() );
+    }  
+  }
+  else if( args.size() == 9 && ( facet <= 6 || facet >= 3 ) ){
+    //These facets go 1 3 5 2 4 6 counter clockwise, with 1 and 2 as they are for 12 argument version.
+    //planePoint function does not work here, so math is done in each call to PlaneSurface.
+    if( facet == 3 ){
+      Vector3d v1( args.at(6), args.at(7), args.at(8) );
+      Vector3d v2( args.at(3), args.at(4), args.at(5) );
+      Vector3d v( v1.rotate_about( v2, 60 ) );
+      return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
+    }
+    else if( facet == 4 ){
+      Vector3d v1( args.at(6), args.at(7), args.at(8) );
+      Vector3d v2( args.at(3), args.at(4), args.at(5) );
+      Vector3d v( -v1.rotate_about( v2, 60 ) );
+      return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
+    }
+    else if( facet == 5 ){
+      Vector3d v1( args.at(6), args.at(7), args.at(8) );
+      Vector3d v2( args.at(3), args.at(4), args.at(5) );
+      Vector3d v( v1.rotate_about( v2, 120 ) );
+      return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
+    }
+    else if( facet == 6 ){
+      Vector3d v1( args.at(6), args.at(7), args.at(8) );
+      Vector3d v2( args.at(3), args.at(4), args.at(5) );
+      Vector3d v( -v1.rotate_about( v2, 120 ) );
+      return new PlaneSurface( v, ( v.at(0) * ( args.at(0) + v.at(0) ) + v.at(1) * ( args.at(1) + v.at(1) ) + v.at(2) * ( args.at(2) + v.at(2) ) )/v.length() );
+    } 
+  }
+  if( facet == 7 ){
+    //plane at end of axis vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 8 ){
+    //plane at beginning of axis vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, false );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else{
+    throw std::runtime_error( "hex and rhp only have 8 facets." );
+  }
+}
+
+
+SurfaceVolume* recFacet( const std::vector< double > args, int facet ){
+  if( facet == 1 ){
+    //elliptical cylinder surface
+    if( args.size() == 10 ){
+      return new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), args.at(9), true );
+    }
+    else{
+      return new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9).length(), true );
+    }
+  }    
+ 
+  else if( facet == 2 ){
+    //plane at end of axis vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, true );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else if( facet == 3 ){
+    //plane at beginning of axis vector
+    Vector3d v( args.at(3), args.at(4), args.at(5) );
+    double D = planePoint( args, 3, false );
+    return new PlaneSurface( v, D/v.length() );
+  }
+  else{
+    throw std::runtime_error( "rec only has 3 facets." );
+  }
+}
+
