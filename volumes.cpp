@@ -172,16 +172,15 @@ protected:
   double radius;
   Vector3d center;
   bool onaxis;
-  double rotation_ph;
-  double rotation_th;
+  double rotation_th, rotation_ph, spin, scalef;
 
 public:
-  CylinderSurface( axis_t axis_p, double radius_p ):
-    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(true)
+  CylinderSurface( axis_t axis_p, double radius_p, double scalef_p ):
+    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(true), scalef(scalef_p)
   {}
 
-  CylinderSurface( axis_t axis_p, double radius_p, double trans1, double trans2 ):
-    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false)
+  CylinderSurface( axis_t axis_p, double radius_p, double trans1, double trans2, double scalef_p ):
+    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false), scalef(scalef_p)
   {
     switch(axis){
     case X: center.v[Y] += trans1; center.v[Z] += trans2; break;
@@ -191,8 +190,8 @@ public:
     }
   }
 
-  CylinderSurface( axis_t axis_p, double rotation_1, double rotation_2, double radius_p, double trans1, double trans2, double trans3 ):
-    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false), rotation_ph(rotation_1), rotation_th(rotation_2)
+  CylinderSurface( axis_t axis_p, double rotation_1, double rotation_2, double rotation_3, double radius_p, double trans1, double trans2, double trans3, double scalef_p ):
+    SurfaceVolume(), axis(axis_p), radius(radius_p), center(origin), onaxis(false), rotation_th(rotation_1), rotation_ph(rotation_2), spin(rotation_3), scalef(scalef_p)
   {
     center.v[X] += trans1; center.v[Y] += trans2; center.v[Z] += trans3;
   }
@@ -206,7 +205,7 @@ protected:
     int igm_result;
 
     iBase_EntityHandle cylinder;
-    iGeom_createCylinder( igm, 2.0 * world_size, radius, 0, &cylinder, &igm_result);
+    iGeom_createCylinder( igm, 2.0 * world_size, radius, scalef, &cylinder, &igm_result);
     CHECK_IGEOM( igm_result, "making cylinder" );
 
     
@@ -220,14 +219,17 @@ protected:
     }
     else if( axis == Z ){
     }
-    
     else{
-      iGeom_rotateEnt( igm, cylinder, rotation_ph, 0, 1, 0, &igm_result );
-      CHECK_IGEOM( igm_result, "rotating cylinder (phi)" );
-      iGeom_rotateEnt( igm, cylinder, rotation_th, 0, 0, 1, &igm_result );
+      iGeom_rotateEnt( igm, cylinder, 90 + spin, 0, 0, 1, &igm_result );
+      CHECK_IGEOM( igm_result, "spinning cylinder" );
+      iGeom_rotateEnt( igm, cylinder, rotation_th, 0, 1, 0, &igm_result );
       CHECK_IGEOM( igm_result, "rotating cylinder (theta)" );
-    }
+      iGeom_rotateEnt( igm, cylinder, rotation_ph, 0, 0, 1, &igm_result );
+      CHECK_IGEOM( igm_result, "rotating cylinder (phi)" );
+    
+  
 
+    }
 
     if( onaxis == false ){
       iGeom_moveEnt( igm, cylinder, center.v[0], center.v[1], center.v[2], &igm_result);
@@ -622,7 +624,7 @@ protected:
     
     iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );
     CHECK_IGEOM( igm_result, "creating rec" );
-    
+
 
     double movement_factor = length / 2.0;
     iGeom_moveEnt( igm, rec, 0, 0, movement_factor, &igm_result );
@@ -916,22 +918,22 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
       }
       else if( mnemonic == "cx" ){
-	surface = new CylinderSurface( X, args.at(0) );
+	surface = new CylinderSurface( X, args.at(0), 0 );
       }
       else if( mnemonic == "cy" ){
-	surface = new CylinderSurface( Y, args.at(0) );
+	surface = new CylinderSurface( Y, args.at(0), 0 );
       }
       else if( mnemonic == "cz" ){
-	surface = new CylinderSurface( Z, args.at(0) );
+	surface = new CylinderSurface( Z, args.at(0), 0 );
       }
       else if( mnemonic == "c/x"){
-	surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1) );
+	surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1), 0 );
       }
       else if( mnemonic == "c/y"){
-	surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1) );
+	surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1), 0 );
       }
       else if( mnemonic == "c/z"){
-	surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
+	surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1), 0 );
       }
   #ifdef HAVE_IGEOM_CONE
       else if( mnemonic == "kx"){
@@ -1005,7 +1007,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	  if ( args.at(0) == args.at(2) ) // plane
 	    surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
 	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( X, args.at(1) );
+	    surface = new CylinderSurface( X, args.at(1), 0 );
 	  else // cone
 	    {
 	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
@@ -1027,7 +1029,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	  if ( args.at(0) == args.at(2) ) // plane
 	    surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
 	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( Y, args.at(1) );
+	    surface = new CylinderSurface( Y, args.at(1), 0 );
 	  else // cone
 	    {
 	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
@@ -1049,7 +1051,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	  if ( args.at(0) == args.at(2) ) // plane
 	    surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
 	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( Z, args.at(1) );
+	    surface = new CylinderSurface( Z, args.at(1), 0 );
 	  else // cone
 	    {
 	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
@@ -1084,7 +1086,7 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
     if( facet == 1 ){
       //cylinder surface
       double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
-      return new CylinderSurface( W, atan2( lenP, args.at(5) ) * 180 / M_PI, atan2( args.at(4), args.at(3) ) * 180 / M_PI, args.at(6), args.at(0), args.at(1), args.at(2) );
+      return new CylinderSurface( W, atan2( lenP, args.at(5) ) * 180 / M_PI, atan2( args.at(4), args.at(3) ) * 180 / M_PI, 0, args.at(6), args.at(0), args.at(1), args.at(2), 0 );
     }
     else if( facet == 2 ){
       //plane at end of vector
@@ -1242,7 +1244,21 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
   else if( mnemonic == "rec" ){
     if( facet == 1 ){
       //elliptical prism surface
-      throw std::runtime_error( "We're not sure how to get the elliptical part quite yet..." );
+      double radius;
+      if( args.size() == 10 ){
+        radius = args.at(9);
+      }
+      else{
+        radius = sqrt( args.at(9)*args.at(9) + args.at(10)*args.at(10) + args.at(11)*args.at(11) );
+      }
+      double majRadius = sqrt( args.at(6)*args.at(6) + args.at(7)*args.at(7) + args.at(8)*args.at(8) );
+      double ratio = majRadius/radius;
+      double lenP = sqrt( pow( args.at(3), 2.0 ) + pow( args.at(4), 2.0 ) );
+      double theta = atan2( lenP, args.at(5) )*180/M_PI;
+      double phi = atan2( args.at(4), args.at(3) );
+      double xVal = args.at(6)*cos( phi ) + args.at(7)*sin( phi );
+      double yVal = args.at(7)*cos( phi ) - args.at(6)*sin( phi );
+      return new CylinderSurface( W, theta, phi*180/M_PI, atan2( yVal, sqrt( xVal*xVal + args.at(8)*args.at(8) ) )*180/M_PI, radius, args.at(0), args.at(1), args.at(2), ratio );
     }
     else if( facet == 2 ){
       //plane at end of axis vector
