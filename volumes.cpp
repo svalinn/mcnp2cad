@@ -1033,6 +1033,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	}
       }
       else if( mnemonic == "z" ) {
+<<<<<<< Updated upstream
 	switch (args.size()) {
 	case 2: // plane
 	  surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
@@ -1059,6 +1060,35 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
       }
     }
   
+=======
+        switch (args.size()) {
+          case 2: // plane
+            surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+            break;
+          case 4: // either plane, cylinder or cone
+            if ( args.at(0) == args.at(2) ) // plane
+              surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+            else if (args.at(1) == args.at(3)) // cylinder
+            surface = new CylinderSurface( Z, args.at(1) );
+            else // cone
+            {
+              double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+              double apex_p = args.at(0) - args.at(1)/m;
+              surface = new ConeSurface( Z, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+            }
+	        break;
+          default:
+	        throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+            break;
+        }
+      }
+      else if ( mnemonic == "gq" )
+        surface = new GeneralQuadraticSurface(args.at(0), args.at(1), args.at(2), args.at(3), args.at(4), args.at(5), args.at(6), args.at(7), args.at(8), args.at(9));
+      else{
+        throw std::runtime_error( mnemonic + " is not a supported surface" );
+      }
+    
+>>>>>>> Stashed changes
     if( card->getTransform().hasData() ){
       const Transform& transform = card->getTransform().getData();
       surface->setTransform( &transform );
