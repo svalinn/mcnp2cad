@@ -1089,11 +1089,11 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     const std::vector< double >& args = card->getArgs(); 
 
     // special function for macrobody facets
-//    if( facet != 0 ){
-//      surface = FacetSurface( mnemonic, args, facet );
-//    }
+    if( facet != 0 ){
+      surface = FacetSurface( mnemonic, args, facet );
+    }
 
-//    else{
+    else{
       if( mnemonic == "so"){
 	surface = new SphereSurface( origin, args.at(0) );
       }
@@ -1224,53 +1224,28 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 	surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
       }
       else if( mnemonic == "box" ){
-        if( facet != 0){
-          surface = boxFacet( args, facet );
-        }
-        else{
-          surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
-        }
+        surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
       }
       else if( mnemonic == "rpp" ){
-        if( facet != 0 ){
-          surface = rppFacet( args, facet );
-        }
-        else{
-	  surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
-        }
+        surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
       }
       else if( mnemonic == "rcc" ){
-        if( facet != 0 ){
-          surface = rccFacet( args, facet );
-        }
-        else{
-          surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), false );
-        }
+        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), false );
       }
       else if( mnemonic == "rec" ){
-        if( facet != 0 ){
-          surface = recFacet( args, facet );
+        if( args.size() == 10 ){
+          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9), false );
         }
         else{
-          if( args.size() == 10 ){
-            surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9), false );
-          }
-          else{
-            surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), false );
-          }
+          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), false );
         }
       }
       else if( mnemonic == "hex" || mnemonic == "rhp" ){
-        if( facet != 0 ){
-          surface = hexFacet( args, facet );
+        if( args.size() == 9 ){
+          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
         }
         else{
-          if( args.size() == 9 ){
-            surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
-          }
-          else{
-            surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
-          }
+          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
         }
       }
       else if( mnemonic == "x" ) {
@@ -1345,7 +1320,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
- 
+    } 
     if( card->getTransform().hasData() ){
       const Transform& transform = card->getTransform().getData();
       surface->setTransform( &transform );
@@ -1357,7 +1332,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   }
   
 }
-/*
+
 SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet ){
   if( mnemonic == "rcc" ){
     return rccFacet( args, facet );
@@ -1376,7 +1351,7 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
   }
   throw std::runtime_error( mnemonic + " does not have macrobody facet support at this time." );
 }    
-*/
+
 
 //This function is used to find D in the planar equation Ax + By + Cz - D = 0 when given two vectors.
 int planePoint( std::vector< double > args, int i, bool end ){
@@ -1492,8 +1467,10 @@ SurfaceVolume* hexFacet( const std::vector< double > args, int facet ){
   }
   else if( facet == 2 ){
     //plane opposite facet 1
+    double args2[] = { args.at(0), args.at(1), args.at(2), -args.at(6), -args.at(7), -args.at(8) };
+    std::vector<double> a(args2, args2 + sizeof(args2) / sizeof(double) );
     Vector3d v( -args.at(6), -args.at(7), -args.at(8) );
-    double D = planePoint( args, 6, true );
+    double D = planePoint( a, 3, true );
     return new PlaneSurface( v, D/v.length() );
   }
   if( args.size() == 15 ){
@@ -1505,8 +1482,10 @@ SurfaceVolume* hexFacet( const std::vector< double > args, int facet ){
     }
     else if( facet == 4 ){
       //plane opposite facet 3
+      double args2[] = { args.at(0), args.at(1), args.at(2), -args.at(9), -args.at(10), -args.at(11) };
+      std::vector<double> a(args2, args2 + sizeof(args2) / sizeof(double) );
       Vector3d v( -args.at(9), -args.at(10), -args.at(11) );
-      double D = planePoint( args, 9, true );
+      double D = planePoint( a, 3, true );
       return new PlaneSurface( v, D/v.length() );
     }
     else if( facet == 5 ){
@@ -1517,8 +1496,10 @@ SurfaceVolume* hexFacet( const std::vector< double > args, int facet ){
     }
     else if( facet == 6 ){
       //plane opposite facet 5
+      double args2[] = { args.at(0), args.at(1), args.at(2), -args.at(12), -args.at(13), -args.at(14) };
+      std::vector<double> a(args2, args2 + sizeof(args2) / sizeof(double) );
       Vector3d v( -args.at(12), -args.at(13), -args.at(14) );
-      double D = planePoint( args, 12, true );
+      double D = planePoint( a, 3, true );
       return new PlaneSurface( v, D/v.length() );
     }  
   }
