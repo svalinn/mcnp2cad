@@ -8,7 +8,7 @@
 #include "volumes.hpp"
 #include "geometry.hpp"
 #include "options.hpp"
-
+#include <armadillo>
 
 static Vector3d origin(0,0,0);
 
@@ -163,6 +163,266 @@ protected:
 
 typedef  enum { X=0, Y=1, Z=2 } axis_t;
 
+class GeneralQuadraticSurface : public SurfaceVolume {
+
+protected:
+  // coefficients of the GQ
+  double A_,B_,C_,D_,E_,F_,G_,H_,J_,K_;
+  // the cannonical GQ type
+  int type;
+  // translation from the canoncial GQ to final GQ
+  Vector3d translation;
+  // rotation matrix from canonical GQ to final GQ
+  double rotation_mat[9];
+  // principle axes extents of the GQ
+  double extents[3];
+  // tolerance used to determine
+  // if matrix determinant should be considered zero
+  const double gq_tol = 1e-6;
+
+  enum GQ_TYPE {UNKNOWN = 0,
+		ELLIPSOID,
+		ONE_SHEET_HYPERBOLOID,
+		TWO_SHEET_HYPERBOLOID,
+		ELLIPTIC_CONE,
+		ELLIPTIC_PARABOLOID,
+		HYPERBOLIC_PARABOLOID,
+		ELLIPTIC_CYL,
+		HYPERBOLIC_CYL,
+		PARABOLIC_CYL};
+public:
+  GeneralQuadraticSurface(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
+    SurfaceVolume(),A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {
+    //determine canonical form of GQ and determine transformation
+    make_canonical();
+  }
+  
+  virtual double getFarthestExtentFromOrigin() const{ return 0; }
+protected:
+  void make_canonical()
+  {
+  //create coefficient matrix
+  arma::mat Aa;
+  Aa << A_ << D_/2 << F_/2 << arma::endr
+     << D_/2 << B_ <<  E_/2 << arma::endr
+     << F_/2 << E_/2 << C_ << arma::endr;  
+  //create hessian matrix
+  arma::mat Ac;
+  Ac << A_ << D_/2 << F_/2 << G_/2 << arma::endr
+  << D_/2 << B_ << E_/2 <<H_/2 << arma::endr
+  << F_/2 << E_/2 << C_ << J_/2 << arma::endr
+  << G_/2 <<  H_/2 << J_/2 << K_ << arma::endr;
+  
+  //characterization values
+  int rnkAa, rnkAc, delta, S, D;
+  rnkAa = arma::rank(Aa);
+  rnkAc = arma::rank(Ac);
+
+  double determinant = arma::det(Ac);
+  if (fabs(determinant) < gq_tol)
+    delta = 0;
+  else
+    delta = (determinant < 0) ? -1:1;
+
+  arma::vec eigenvals;
+  arma::mat eigenvects;
+  arma::eig_sym(eigenvals, eigenvects, Aa);
+  arma::vec signs(3);
+
+  for(unsigned int i = 0; i < 3; i++) {
+    if (fabs(eigenvals[i]) < gq_tol)
+      signs[i] = 1;
+    else if (eigenvals[i] > 0)
+      signs[i] = 1;
+    else if (eigenvals[i] < 0)
+      signs[i] = -1;
+  }
+
+  S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
+  // may need to adjust delta for speical cases using the new scaling factor, K_
+  // so we'll calculate that now
+  arma:: mat b;
+  b << -G_/2 << arma::endr
+    << -H_/2 << arma::endr
+    << -J_/2 << arma::endr;
+  //use Moore-Penrose pseudoinverse to ensure minimal norm least squares solution
+  arma::mat Aai = pinv(Aa);
+  arma::mat c = Aai*b;
+  double dx = c[0], dy = c[1], dz = c[2];
+  K_ = K_ + (G_/2)*dx + (H_/2)*dy + (J_/2)*dz;
+  if (rnkAa == 2 && rnkAc == 3 && S == 1)
+  delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
+  D = (K_*signs[0]) ? -1:1;
+  //based on characteristic values, get the GQ type
+  type = find_type(rnkAa,rnkAc,delta,S,D);
+  //set the translation while we're at it
+  translation = Vector3d(dx,dy,dz);
+  //set the rotaion matrix
+  std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
+  //set the new canonical values
+  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
+  A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
+  D_ = 0; E_ = 0; F_ = 0;
+  G_ = 0; H_ = 0; J_ = 0;
+  //K is set above
+  }
+
+  GQ_TYPE find_type(int rt, int rf, int del, int s, int d) {
+    GQ_TYPE t;
+    if( 3 == rt && 4 == rf && -1 == del && 1 == s)
+      t = ELLIPSOID;
+    else if( 3 == rt && 4 == rf && 1 == del && -1 == s)
+      t = ONE_SHEET_HYPERBOLOID;
+    else if( 3 == rt && 4 == rf && -1 == del && -1 == s)
+      t = TWO_SHEET_HYPERBOLOID;
+    else if( 3 == rt && 3 == rf && 0 == del && -1 == s)
+      t = ELLIPTIC_CONE;
+    else if( 2 == rt && 4 == rf && -1 == del && 1 == s)
+      t = ELLIPTIC_PARABOLOID;
+    else if( 2 == rt && 4 == rf && 1 == del && -1 == s)
+      t = HYPERBOLIC_PARABOLOID;
+    else if( 2 == rt && 3 == rf && -1 == del && 1 == s)
+      t = ELLIPTIC_CYL;
+    else if( 2 == rt && 3 == rf && 0 == del && -1 == s)
+      t = HYPERBOLIC_CYL;
+    else if( 1 == rt && 3 == rf && 0 == del && 1 == s)
+      t = PARABOLIC_CYL;
+    else
+      t = UNKNOWN;
+
+    //special case, replace delta with D
+    if( 2 == rt && 3 == rf && 1 == s && d != 0) {
+      t = find_type(rt, rf, d, s, 0);
+      return t;
+    }
+    else {
+      return t;
+    }
+  }
+
+  iBase_EntityHandle elliptic_cyl(iGeom_Instance &igm, double world_size) {
+    int igm_result;
+    double r1,r2;
+    int axis;
+    //figure out which direction is zero
+    if (A_ == 0) {
+	axis = 0;
+	r1 = sqrt(fabs(K_/C_));
+	r2 = sqrt(fabs(K_/B_));
+    }
+    else if (B_ == 0) {
+	axis = 1;
+	r1 = sqrt(fabs(K_/A_));
+	r2 = sqrt(fabs(K_/C_));
+    }
+    else if (C_ == 0) {
+	axis = 2;
+	r1 = sqrt(fabs(K_/A_));
+	r2 = sqrt(fabs(K_/B_));
+    }
+
+    iBase_EntityHandle cyl;
+    iGeom_createCylinder(igm,2*world_size,r1,r2,&cyl,&igm_result);
+    CHECK_IGEOM(igm_result, "Creating elliptic cylinder for GQ.");
+
+    if (1 == axis) {
+      iGeom_rotateEnt(igm,cyl,90,1,0,0,&igm_result);
+    }
+    else if (0 == axis) {
+      iGeom_rotateEnt(igm,cyl,90,0,1,0,&igm_result);
+    }
+    else if (2 == axis) {
+      igm_result = iBase_SUCCESS;
+    }
+    CHECK_IGEOM(igm_result, "Rotating canonical elliptic cylinder into place.");
+
+    return cyl;
+  }
+  
+  iBase_EntityHandle elliptic_cone(iGeom_Instance &igm, double world_size) {
+    assert(0 != A_ && 0 != B_ && 0 != C_);
+
+    iBase_EntityHandle gq_handle;
+    int igm_result=0;
+
+    double minor_radius,major_radius,rot_angle;
+    int rot_axis;
+    //establish orientation
+    if (A_ < 0) {
+	minor_radius = 2*world_size*sqrt(-A_/C_);
+	major_radius = 2*world_size*sqrt(-A_/B_);
+	rot_angle = -90;
+	rot_axis = 1;
+    }
+    else if (B_ < 0) { 
+	minor_radius = 2*world_size*sqrt(-B_/A_);
+	major_radius = 2*world_size*sqrt(-B_/C_);
+	rot_angle = 90;
+	rot_axis = 0;
+    }
+    else if (C_ < 0) {
+	minor_radius = 2*world_size*sqrt(-C_/A_);
+	major_radius = 2*world_size*sqrt(-C_/B_);
+	rot_angle = 180;
+	rot_axis = 0;
+    }
+
+    //create cone
+    iBase_EntityHandle pos_cone;
+    iGeom_createCone(igm, 2*world_size, major_radius, minor_radius, 0, &pos_cone, &igm_result);
+    CHECK_IGEOM(igm_result, "Creating positive cone for GQ.");
+
+    //now move the cone s.t. the point is on the origin
+    iGeom_moveEnt(igm, pos_cone, 0, 0, -world_size, &igm_result);
+    CHECK_IGEOM(igm_result, "Moving positive cone for GQ.");
+
+    double rot_vec[3] = {0,0,0};
+    rot_vec[rot_axis] = 1;
+
+    //rotate to proper axis
+    iGeom_rotateEnt(igm, pos_cone, rot_angle, rot_vec[0], rot_vec[1], rot_vec[2], &igm_result);
+    CHECK_IGEOM(igm_result, "Rotating positive cone for GQ.");
+
+    //create a copy
+    iBase_EntityHandle neg_cone;
+    iGeom_copyEnt(igm, pos_cone, &neg_cone, &igm_result);
+    CHECK_IGEOM(igm_result, "Copying positive cone for GQ.");
+
+    iGeom_rotateEnt(igm, neg_cone, 180, rot_vec[0], rot_vec[1], rot_vec[2], &igm_result);
+    CHECK_IGEOM(igm_result, "Rotating negative cone for GQ.");
+
+    iBase_EntityHandle cones[2] = {pos_cone, neg_cone};
+    iGeom_uniteEnts(igm, cones, 2, &gq_handle, &igm_result);
+    CHECK_IGEOM(igm_result, "Uniting positive and negative cones for GQ.");
+
+    return gq_handle;
+  }
+  
+  virtual iBase_EntityHandle getHandle(bool positive, iGeom_Instance &igm, double world_size) {
+
+    iBase_EntityHandle gq;
+    switch(type){
+    case ELLIPTIC_CONE:
+      gq = elliptic_cone(igm, world_size);
+      break;
+    case ELLIPTIC_CYL:
+      gq = elliptic_cyl(igm, world_size);
+      break;
+    default:
+      std::cout << "GQ type is currently unsupported" << std::endl;
+    }
+
+    //re-orient gq into original position
+    Transform rotation_transform(rotation_mat, Vector3d(0,0,0));    
+    applyReverseTransform( rotation_transform, igm, gq);
+    Transform translation_transform(translation);    
+    applyTransform(translation_transform, igm, gq);
+    
+    iBase_EntityHandle final_gq = embedWithinWorld(-positive, igm, world_size, gq, true);
+    return final_gq;
+  }
+
+};
 
 class CylinderSurface : public SurfaceVolume {
 
@@ -1036,6 +1296,8 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
         break;
       }
     }
+    else if ( mnemonic == "gq" )
+      surface = new GeneralQuadraticSurface(args.at(0), args.at(1), args.at(2), args.at(3), args.at(4), args.at(5), args.at(6), args.at(7), args.at(8), args.at(9));
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
