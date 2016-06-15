@@ -602,7 +602,7 @@ protected:
     iBase_EntityHandle rec;
     
     if( facet ){
-      iGeom_createCylinder( igm, 2.0*world_size, radius1, radius2, &rec, &igm_result );
+      iGeom_createCylinder( igm, 2.0 * world_size, radius1, radius2, &rec, &igm_result );
     }
     else{
       iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );

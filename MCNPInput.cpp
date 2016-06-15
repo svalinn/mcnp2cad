@@ -812,7 +812,8 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
 SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets ):
   Card(deck)
 {
-// If macrobody of a type with facets, loop here to create a seperate card for each potential facet that is the same as the macrobody itself, but with a different ident or token1.
+      // If macrobody of a type with facets, loop here to create a seperate card for each potential facet that is the same as the macrobody itself, 
+      // but with an ident (or token1) equal to ten times its reciprocal.
       size_t idx = 0;
       std::string token1 = tokens.at(idx++);
       if(token1.find_first_of("*+") != token1.npos){
@@ -1292,7 +1293,6 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
     else if( mnemonic == "hex" || mnemonic == "rhp" ){
       numFacets = 8;
     }
-//lookatme
     for(int i = 0; i <= numFacets; ++i)
     {
       SurfaceCard* s = new SurfaceCard(*this, token_buffer, i);
