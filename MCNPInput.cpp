@@ -49,6 +49,27 @@ static void strlower( std::string& str ){
   }
 }
 
+static std::string findMnemonic( std::string token1, std::string token2 ){
+  std::string mnemonic;
+  if(token1.find_first_of("1234567890-") != 0){
+    mnemonic = token1;
+  }
+  else{
+    mnemonic = token2;
+  }
+  return mnemonic;
+}
+
+static int mnemToNumFacets( std::string mnemonic ){
+  std::map<std::string, int> facetKey;
+  facetKey["hex"] = 8;
+  facetKey["rhp"] = 8;
+  facetKey["rcc"] = 3;
+  facetKey["rec"] = 3;
+  facetKey["box"] = 6;
+  facetKey["rpp"] = 6;
+  return facetKey[mnemonic];
+}
 
 static int makeint( const std::string& token ){
   const char* str = token.c_str();
@@ -827,10 +848,10 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets
         ident = -makeint(token1) * 10 - facets;
       }
       std::string token2 = tokens.at(idx++);
-      if(token2.find_first_of("1234567890-") != 0){
+      mnemonic = findMnemonic( token2, tokens.at(idx) );
+      if(token2 == mnemonic){
         //token2 is the mnemonic
         coord_xform = new NullRef<Transform>();
-        mnemonic = token2;
       }
       else{
         // token2 is a coordinate transform identifier
@@ -847,7 +868,7 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets
           coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
         }
 
-        mnemonic = tokens.at(idx++);
+        idx++;
       }
 
       while( idx < tokens.size() ){
@@ -1275,27 +1296,13 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
     if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
-    int numFacets = 0;
-    
-    if(token_buffer.at(1).find_first_of("1234567890-") != 0){
-      mnemonic = token_buffer.at(1);
-    }
-    else{
-      mnemonic = token_buffer.at(2);
-    }
-    
-    if( mnemonic == "box" || mnemonic == "rpp" ){
-      numFacets = 6;
-    }
-    else if( mnemonic == "rcc" || mnemonic == "rec" ){
-      numFacets = 3;
-    }
-    else if( mnemonic == "hex" || mnemonic == "rhp" ){
-      numFacets = 8;
-    }
-    for(int i = 0; i <= numFacets; ++i)
+    mnemonic = findMnemonic( token_buffer.at(1), token_buffer.at(2) );
+   
+    int numFacets = mnemToNumFacets( mnemonic );
+
+    for(int facetNum = 0; facetNum <= numFacets; ++facetNum)
     {
-      SurfaceCard* s = new SurfaceCard(*this, token_buffer, i);
+      SurfaceCard* s = new SurfaceCard(*this, token_buffer, facetNum);
 
       if( OPT_VERBOSE) s->print(std::cout);
 
@@ -1370,6 +1377,7 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
   }
 
 }
+
 
 InputDeck& InputDeck::build( std::istream& input){
  
