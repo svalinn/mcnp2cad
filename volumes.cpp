@@ -1073,6 +1073,7 @@ static VolumeCache default_volume_cache;
 // Facet number is 0 if not provided
 SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   VolumeCache& cache = default_volume_cache;
+  SurfaceVolume* surface;
   if( v != NULL ){
     cache = *v;
   }
@@ -1081,256 +1082,256 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   if( cache.contains( card ) && facet == 0){
     return *cache.get( card );
   }
-  else{ 
+  else if(facet != 0 ){ 
     // SurfaceCard variables:  mnemonic, args, coord_xform  
-    SurfaceVolume* surface;
+    const std::string& mnemonic = card->getMnemonic();
+    const std::vector< double >& args = card->getArgs(); 
+    // special function for macrobody facets
+    surface = FacetSurface( mnemonic, args, facet );
+  }
+
+  else{
+  // SurfaceCard variables:  mnemonic, args, coord_xform  
     const std::string& mnemonic = card->getMnemonic();
     const std::vector< double >& args = card->getArgs(); 
 
-    // special function for macrobody facets
-    if( facet != 0 ){
-      surface = FacetSurface( mnemonic, args, facet );
+    if( mnemonic == "so"){
+      surface = new SphereSurface( origin, args.at(0) );
+    }
+    else if( mnemonic == "sx"){
+      surface = new SphereSurface( Vector3d( args.at(0), 0, 0 ), args.at(1) );
+    }
+    else if( mnemonic == "sy"){
+      surface = new SphereSurface( Vector3d( 0, args.at(0), 0 ), args.at(1) );
+    }
+    else if( mnemonic == "sz"){
+      surface = new SphereSurface( Vector3d( 0, 0, args.at(0) ), args.at(1) );
+    }
+    else if( mnemonic == "s" || mnemonic == "sph" ){
+      surface = new SphereSurface( Vector3d( args ), args.at(3) );
+    }
+    else if( mnemonic == "sq" && sqIsEllipsoid(args) ){
+      surface = new EllipsoidSurface( Vector3d( args.at(7), args.at(8), args.at(9) ), Vector3d( args )* (-1/args.at(6)) );
+    }
+    else if( mnemonic == "p"){
+      if( args.size() == 4 ){
+        // plane given as ABCD coefficients (Ax+By+Cz-D=0)
+        Vector3d v(args);
+        surface = new PlaneSurface( v, args.at(3)/v.length() );
+      }
+      else if( args.size() == 9 ){
+        // plane is given at three points in space
+        Vector3d v1(args), v2(args,3), v3(args,6);
+
+        // ordering of the points is arbitrary, but make sure v1 is furthest from origin.
+        if( v1.length() < v2.length() ){
+          std::swap( v1, v2 );
+        }
+        if( v1.length() < v3.length() ){
+          std::swap( v1, v3 );
+        }
+
+        // the normal (up to reversal) of the plane 
+        // The normal may need to be reversed to ensure that the origin
+        // has negative sense, as required by MCNP
+        Vector3d normal = v1.add(-v2).cross( v1.add(-v3) ).normalize();
+
+        // If a ray started from the origin and followed the normal vector,
+        // p is the point where it intersects the plane
+        Vector3d p = normal.scale( v1.dot(normal) );
+
+        // cos of the angle between v1 and normal 
+        double angle = normal.dot( v1.normalize() );
+	  
+        // invert the normal if the angle is > 90 degrees, which indicates
+        // that reversal is required.
+        if( angle < 0 ){
+          normal   = -normal;
+        }
+
+        //std::cout << normal << " " << p.length() << " : " << angle << std::endl;
+        surface = new PlaneSurface( normal, p.length() );
+
+
+      }
+      else{ 
+        throw std::runtime_error( "P surface with unsupported number of params" );
+      }
+
+    }
+    else if( mnemonic == "px"){
+      surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+    }
+    else if( mnemonic == "py"){
+      surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
+    }
+    else if( mnemonic == "pz"){
+      surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+    }
+    else if( mnemonic == "cx" ){
+      surface = new CylinderSurface( X, args.at(0) );
+    }
+    else if( mnemonic == "cy" ){
+      surface = new CylinderSurface( Y, args.at(0) );
+    }
+    else if( mnemonic == "cz" ){
+      surface = new CylinderSurface( Z, args.at(0) );
+    }
+    else if( mnemonic == "c/x"){
+      surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1) );
+    }
+    else if( mnemonic == "c/y"){
+      surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1) );
+    }
+    else if( mnemonic == "c/z"){
+      surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
+    }
+  #ifdef HAVE_IGEOM_CONE
+    else if( mnemonic == "kx"){
+      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+      surface = new ConeSurface( X, args.at(1), args.at(0), arg3 );
+    } 
+    else if( mnemonic == "ky"){
+      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+      surface = new ConeSurface( Y, args.at(1), args.at(0), arg3 );
+    }
+    else if( mnemonic == "kz"){
+      double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
+      surface = new ConeSurface( Z, args.at(1), args.at(0), arg3 );
+    }
+    else if( mnemonic == "k/x" ){
+      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+      surface = new ConeSurface( X, args.at(3), Vector3d(args),  arg5 );
+    }
+    else if( mnemonic == "k/y" ){
+      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+      surface = new ConeSurface( Y, args.at(3), Vector3d(args),  arg5 );
+    }
+    else if( mnemonic == "k/z" ){
+      double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
+      surface = new ConeSurface( Z, args.at(3), Vector3d(args),  arg5 );
+    }
+    else if( mnemonic == "trc" ){
+      surface = new TrcVolume( Vector3d(args), Vector3d(args,3), args.at(6), args.at(7) );
+    }
+  #endif /*HAVE_IGEOM_CONE */
+    else if( mnemonic == "tx" ){
+      surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+    } 
+    else if( mnemonic == "ty" ){
+      surface = new TorusSurface( Y, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+    } 
+    else if( mnemonic == "tz" ){
+      surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
+    }
+    else if( mnemonic == "box" ){
+      surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+    }
+    else if( mnemonic == "rpp" ){
+      surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
+    }
+    else if( mnemonic == "rcc" ){
+      surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), false );
+    }
+    else if( mnemonic == "rec" ){
+      if( args.size() == 10 ){
+        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9), false );
+      }
+      else{
+        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), false );
+      }
+    }
+    else if( mnemonic == "hex" || mnemonic == "rhp" ){
+      if( args.size() == 9 ){
+        surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
+      }
+      else{
+        surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
+      }
+    }
+    else if( mnemonic == "x" ) {
+      switch (args.size()) {
+      case 2: // plane
+        surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+        break;
+      case 4: // either plane, cylinder or cone
+        if ( args.at(0) == args.at(2) ) // plane
+          surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
+        else if (args.at(1) == args.at(3)) // cylinder
+          surface = new CylinderSurface( X, args.at(1) );
+        else // cone
+        {
+          double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+          double apex_p = args.at(0) - args.at(1)/m;
+          surface = new ConeSurface( X, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	    }
+        break;
+      default:
+        throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+        break;
+      }
+    }
+    else if( mnemonic == "y" ) {
+      switch (args.size()) {
+      case 2: // plane
+        surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
+        break;
+      case 4: // either plane, cylinder or cone
+        if ( args.at(0) == args.at(2) ) // plane
+          surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
+        else if (args.at(1) == args.at(3)) // cylinder
+          surface = new CylinderSurface( Y, args.at(1) );
+        else // cone
+          {
+          double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+          double apex_p = args.at(0) - args.at(1)/m;
+          surface = new ConeSurface( Y, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+        }
+        break;
+      default:
+        throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+        break;
+      }
     }
 
-    else{
-      if( mnemonic == "so"){
-	surface = new SphereSurface( origin, args.at(0) );
+    else if( mnemonic == "z" ) {
+      switch (args.size()) {
+      case 2: // plane
+        surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+        break;
+      case 4: // either plane, cylinder or cone
+        if ( args.at(0) == args.at(2) ) // plane
+          surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
+        else if (args.at(1) == args.at(3)) // cylinder
+          surface = new CylinderSurface( Z, args.at(1) );
+        else // cone
+          {
+            double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+            double apex_p = args.at(0) - args.at(1)/m;
+            surface = new ConeSurface( Z, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+          }
+        break;
+      default:
+        throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
+        break;
       }
-      else if( mnemonic == "sx"){
-	surface = new SphereSurface( Vector3d( args.at(0), 0, 0 ), args.at(1) );
-      }
-      else if( mnemonic == "sy"){
-	surface = new SphereSurface( Vector3d( 0, args.at(0), 0 ), args.at(1) );
-      }
-      else if( mnemonic == "sz"){
-	surface = new SphereSurface( Vector3d( 0, 0, args.at(0) ), args.at(1) );
-      }
-      else if( mnemonic == "s" || mnemonic == "sph" ){
-	surface = new SphereSurface( Vector3d( args ), args.at(3) );
-      }
-      else if( mnemonic == "sq" && sqIsEllipsoid(args) ){
-	surface = new EllipsoidSurface( Vector3d( args.at(7), args.at(8), args.at(9) ), Vector3d( args )* (-1/args.at(6)) );
-      }
-      else if( mnemonic == "p"){
-	if( args.size() == 4 ){
-	  // plane given as ABCD coefficients (Ax+By+Cz-D=0)
-	  Vector3d v(args);
-	  surface = new PlaneSurface( v, args.at(3)/v.length() );
-	}
-	else if( args.size() == 9 ){
-	  // plane is given at three points in space
-	  Vector3d v1(args), v2(args,3), v3(args,6);
-
-	  // ordering of the points is arbitrary, but make sure v1 is furthest from origin.
-	  if( v1.length() < v2.length() ){
-	    std::swap( v1, v2 );
-	  }
-	  if( v1.length() < v3.length() ){
-	    std::swap( v1, v3 );
-	  }
-
-	  // the normal (up to reversal) of the plane 
-	  // The normal may need to be reversed to ensure that the origin
-	  // has negative sense, as required by MCNP
-	  Vector3d normal = v1.add(-v2).cross( v1.add(-v3) ).normalize();
-
-	  // If a ray started from the origin and followed the normal vector,
-	  // p is the point where it intersects the plane
-	  Vector3d p = normal.scale( v1.dot(normal) );
-
-	  // cos of the angle between v1 and normal 
-	  double angle = normal.dot( v1.normalize() );
-	  
-	  // invert the normal if the angle is > 90 degrees, which indicates
-	  // that reversal is required.
-	  if( angle < 0 ){
-	    normal   = -normal;
-	  }
-
-	  //std::cout << normal << " " << p.length() << " : " << angle << std::endl;
-	  surface = new PlaneSurface( normal, p.length() );
-
-
-	}
-	else{ 
-	  throw std::runtime_error( "P surface with unsupported number of params" );
-	}
-
-      }
-      else if( mnemonic == "px"){
-	surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-      }
-      else if( mnemonic == "py"){
-	surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
-      }
-      else if( mnemonic == "pz"){
-	surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
-      }
-      else if( mnemonic == "cx" ){
-	surface = new CylinderSurface( X, args.at(0) );
-      }
-      else if( mnemonic == "cy" ){
-	surface = new CylinderSurface( Y, args.at(0) );
-      }
-      else if( mnemonic == "cz" ){
-	surface = new CylinderSurface( Z, args.at(0) );
-      }
-      else if( mnemonic == "c/x"){
-	surface = new CylinderSurface( X, args.at(2), args.at(0), args.at(1) );
-      }
-      else if( mnemonic == "c/y"){
-	surface = new CylinderSurface( Y, args.at(2), args.at(0), args.at(1) );
-      }
-      else if( mnemonic == "c/z"){
-	surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
-      }
-  #ifdef HAVE_IGEOM_CONE
-      else if( mnemonic == "kx"){
-	double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-	surface = new ConeSurface( X, args.at(1), args.at(0), arg3 );
-      } 
-      else if( mnemonic == "ky"){
-	double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-	surface = new ConeSurface( Y, args.at(1), args.at(0), arg3 );
-      }
-      else if( mnemonic == "kz"){
-	double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
-	surface = new ConeSurface( Z, args.at(1), args.at(0), arg3 );
-      }
-      else if( mnemonic == "k/x" ){
-	double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-	surface = new ConeSurface( X, args.at(3), Vector3d(args),  arg5 );
-      }
-      else if( mnemonic == "k/y" ){
-	double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-	surface = new ConeSurface( Y, args.at(3), Vector3d(args),  arg5 );
-      }
-      else if( mnemonic == "k/z" ){
-	double arg5 = ( args.size() == 5 ? args.at(4) : 0.0 );
-	surface = new ConeSurface( Z, args.at(3), Vector3d(args),  arg5 );
-      }
-      else if( mnemonic == "trc" ){
-	surface = new TrcVolume( Vector3d(args), Vector3d(args,3), args.at(6), args.at(7) );
-      }
-  #endif /*HAVE_IGEOM_CONE */
-      else if( mnemonic == "tx" ){
-	surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-      } 
-      else if( mnemonic == "ty" ){
-	surface = new TorusSurface( Y, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-      } 
-      else if( mnemonic == "tz" ){
-	surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-      }
-      else if( mnemonic == "box" ){
-        surface = new BoxVolume( Vector3d(args), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
-      }
-      else if( mnemonic == "rpp" ){
-        surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
-      }
-      else if( mnemonic == "rcc" ){
-        surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), false );
-      }
-      else if( mnemonic == "rec" ){
-        if( args.size() == 10 ){
-          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9), false );
-        }
-        else{
-          surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), false );
-        }
-      }
-      else if( mnemonic == "hex" || mnemonic == "rhp" ){
-        if( args.size() == 9 ){
-          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6) );
-        }
-        else{
-          surface = new HexVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), Vector3d(args,12) );
-        }
-      }
-      else if( mnemonic == "x" ) {
-	switch (args.size()) {
-	case 2: // plane
-	  surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-	  break;
-	case 4: // either plane, cylinder or cone
-	  if ( args.at(0) == args.at(2) ) // plane
-	    surface = new PlaneSurface( Vector3d( 1, 0, 0), args.at(0) );
-	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( X, args.at(1) );
-	  else // cone
-	    {
-	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-	      double apex_p = args.at(0) - args.at(1)/m;
-	      surface = new ConeSurface( X, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-	    }
-	  break;
-	default:
-	  throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
-	  break;
-	}
-      }
-      else if( mnemonic == "y" ) {
-	switch (args.size()) {
-	case 2: // plane
-	  surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
-	  break;
-	case 4: // either plane, cylinder or cone
-	  if ( args.at(0) == args.at(2) ) // plane
-	    surface = new PlaneSurface( Vector3d( 0, 1, 0), args.at(0) );
-	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( Y, args.at(1) );
-	  else // cone
-	    {
-	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-	      double apex_p = args.at(0) - args.at(1)/m;
-	      surface = new ConeSurface( Y, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-	    }
-	  break;
-	default:
-	  throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
-	  break;
-	}
-      }
-
-      else if( mnemonic == "z" ) {
-	switch (args.size()) {
-	case 2: // plane
-	  surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
-	  break;
-	case 4: // either plane, cylinder or cone
-	  if ( args.at(0) == args.at(2) ) // plane
-	    surface = new PlaneSurface( Vector3d( 0, 0, 1), args.at(0) );
-	  else if (args.at(1) == args.at(3)) // cylinder
-	    surface = new CylinderSurface( Z, args.at(1) );
-	  else // cone
-	    {
-	      double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-	      double apex_p = args.at(0) - args.at(1)/m;
-	      surface = new ConeSurface( Z, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-	    }
-	  break;
-	default:
-	  throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
-	  break;
-	}
     }
     else if ( mnemonic == "gq" )
       surface = new GeneralQuadraticSurface(args.at(0), args.at(1), args.at(2), args.at(3), args.at(4), args.at(5), args.at(6), args.at(7), args.at(8), args.at(9));
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
-    } 
-    if( card->getTransform().hasData() ){
-      const Transform& transform = card->getTransform().getData();
-      surface->setTransform( &transform );
-    }
-    
-    cache.insert( card, surface );
-    return *surface;
-    
+  } 
+  if( card->getTransform().hasData() ){
+    const Transform& transform = card->getTransform().getData();
+    surface->setTransform( &transform );
   }
   
+  cache.insert( card, surface );
+  return *surface;
+    
 }
+  
 
 SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet ){
   if( mnemonic == "rcc" ){
