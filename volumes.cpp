@@ -1358,7 +1358,7 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
 //the first argument of the vector to which the plane will be parallel.  If 
 //end is true, the plane is at the end of the second vector in relation to the 
 //end of the first vector, otherwise it intersects the end of the first vector.
-int planePoint( std::vector< double > args, int i, bool end ){
+double planePoint( std::vector< double > args, int i, bool end ){
   if( end ){
     return args.at(i)*( args.at(0) + args.at(i) ) + args.at(i + 1)*( args.at(1) + args.at(i + 1) ) + args.at(i + 2)*( args.at(2) + args.at(i + 2) );
   }
