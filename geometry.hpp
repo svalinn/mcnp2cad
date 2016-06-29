@@ -62,10 +62,6 @@ public:
     return Vector3d(v[0]*d, v[1]*d, v[2]*d);
   }
 
-  double at( int i ) const {
-    return v[i];
-  }
-
   Vector3d operator*( double d ) const {
     return scale(d);
   }

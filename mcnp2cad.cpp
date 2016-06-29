@@ -785,13 +785,13 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
     case CellCard::SURFNUM:
       {      
         int surface = token.second;
-        bool pos = true;
+        bool positive = true;
         if( surface < 0){
-          pos = false; surface = -surface;
+          positive = false; surface = -surface;
         }
         try{
           SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( surface ) );
-          iBase_EntityHandle surf_handle = surf.define( pos, igm, world_size );
+          iBase_EntityHandle surf_handle = surf.define( positive, igm, world_size );
           stack.push_back(surf_handle);
         }
         catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
@@ -800,33 +800,33 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
     case CellCard::MBODYFACET:
       {
         int identifier = -std::abs( token.second );
-        int cellnum = -identifier / 10;
-        int facet = -identifier - ( cellnum * 10 );
+        int surfacenum = -identifier / 10;
+        int facet = -identifier - ( surfacenum * 10 );
 
         try{
           makeSurface( deck.lookup_surface_card( identifier ), NULL, facet);
           SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
           const std::string& mnemonic = deck.lookup_surface_card( identifier )->getMnemonic();
-          bool pos = true;
+          bool positive = true;
           if( mnemonic == "rcc" || mnemonic == "rec" ){
             if( ( token.second < 0 ) ^ ( facet == 3 ) ){
-              pos = false;
+              positive = false;
             }
           }
           else if( mnemonic == "box" || mnemonic == "rpp" ){
             if( ( token.second < 0 ) ^ ( facet == 2 || facet == 4 || facet == 6 ) ){
-              pos = false;
+              positive = false;
             }
           }
           else if( mnemonic == "hex" || mnemonic == "rhp" ){
             if( ( token.second < 0 ) ^ ( facet == 8 ) ){
-              pos = false;
+              positive = false;
             }
           }
           else if( token.second < 0 ){
-            pos = false;
+            positive = false;
           }
-          iBase_EntityHandle surf_handle = surf.define ( pos, igm, world_size );
+          iBase_EntityHandle surf_handle = surf.define ( positive, igm, world_size );
           stack.push_back(surf_handle);
         }
         catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }

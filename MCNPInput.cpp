@@ -830,7 +830,7 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
  * SURFACE CARDS
  ******************/
 
-SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets ):
+SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facetNum ):
   Card(deck)
 {
       // If macrobody of a type with facets, loop here to create a seperate card for each potential facet that is the same as the macrobody itself, 
@@ -841,11 +841,11 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facets
         std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
       token1[0] = ' ';
       }
-      if( facets == 0){
+      if( facetNum == 0){
         ident = makeint(token1);
       }
       else{
-        ident = -makeint(token1) * 10 - facets;
+        ident = -makeint(token1) * 10 - facetNum;
       }
       std::string token2 = tokens.at(idx++);
       mnemonic = findMnemonic( token2, tokens.at(idx) );
