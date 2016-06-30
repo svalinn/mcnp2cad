@@ -49,18 +49,8 @@ static void strlower( std::string& str ){
   }
 }
 
-static std::string findMnemonic( std::string token1, std::string token2 ){
-  std::string mnemonic;
-  if(token1.find_first_of("1234567890-") != 0){
-    mnemonic = token1;
-  }
-  else{
-    mnemonic = token2;
-  }
-  return mnemonic;
-}
-
 static int mnemToNumFacets( std::string mnemonic ){
+  //The number of facets of each macrobody
   std::map<std::string, int> facetKey;
   facetKey["hex"] = 8;
   facetKey["rhp"] = 8;
@@ -79,6 +69,30 @@ static int makeint( const std::string& token ){
     std::cerr << "Warning: string [" << token << "] did not convert to int as expected." << std::endl;
   }
   return ret;
+}
+
+static std::vector<std::string> parseID( const token_list_t tokens ){
+  //This function returns the first two or three arguments in token_list, which
+  //name and define the type of surface.
+  std::vector<std::string> identifier (3);
+  identifier[0] = tokens.at(0);
+  if(identifier[0].find_first_of("*+") != identifier[0].npos){
+    std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
+    identifier[0][0] = ' ';
+  } 
+  
+  if(tokens.at(1).find_first_of("1234567890-") != 0){
+    identifier[1] = '0';
+    identifier[2] = tokens.at(1);
+  }
+  else{
+    identifier[1] = tokens.at(1);
+    identifier[2] = tokens.at(2);
+    if( makeint( identifier.at(1) ) == 0 ){
+      std::cerr << "I don't think 0 is a valid surface transformation ID, so I'm ignoring it." << std::endl;
+    }
+  }
+  return identifier;
 }
 
 static double makedouble( const std::string& token ){
@@ -834,40 +848,28 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facetN
   Card(deck)
 {
       // If macrobody of a type with facets, loop here to create a seperate card for each potential facet that is the same as the macrobody itself, 
-      // but with an ident (or token1) equal to ten times its reciprocal.
-      size_t idx = 0;
-      std::string token1 = tokens.at(idx++);
-      if(token1.find_first_of("*+") != token1.npos){
-        std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
-      token1[0] = ' ';
-      }
-      if( facetNum == 0){
-        ident = makeint(token1);
+      // but with an ident equal to ten times its reciprocal.
+      std::vector<std::string> identifier = parseID( tokens );
+      if( facetNum == 0 ){
+        ident = makeint(identifier.at(0));
       }
       else{
-        ident = -makeint(token1) * 10 - facetNum;
+        ident = -makeint(identifier.at(0)) * 10 - facetNum;
       }
-      std::string token2 = tokens.at(idx++);
-      mnemonic = findMnemonic( token2, tokens.at(idx) );
-      if(token2 == mnemonic){
-        //token2 is the mnemonic
+      int tx_id = makeint(identifier.at(1));
+      mnemonic = identifier.at(2);
+      size_t idx = 2;
+      if( tx_id == 0 ){
         coord_xform = new NullRef<Transform>();
       }
-      else{
-        // token2 is a coordinate transform identifier
-        int tx_id = makeint(token2);
-
-        if( tx_id == 0 ){
-          coord_xform = new NullRef<Transform>();
-        }
-        else if ( tx_id < 0 ){
-          // abs(tx_id) is the ID of surface with respect to which this surface is periodic.
-          std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
-        }
-        else{ // tx_id is positive and nonzero
-          coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
-        }
-
+      else if ( tx_id < 0 ){
+        // abs(tx_id) is the ID of surface with respect to which this surface is periodic.
+        std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
+      }
+      else{ // tx_id is positive and nonzero
+        coord_xform = new CardRef<Transform>( deck, DataCard::TR, tx_id );
+      }
+      if( tokens.at(2) == mnemonic ){
         idx++;
       }
 
@@ -1287,8 +1289,6 @@ void InputDeck::parseTitle( LineExtractor& lines ){
 void InputDeck::parseSurfaces( LineExtractor& lines ){
   std::string line;
   token_list_t token_buffer;
-  std::string mnemonic;
-
   while( !isblank(line = lines.takeLine()) ){
 
     tokenizeLine(line, token_buffer );
@@ -1296,10 +1296,8 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
     if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
-    mnemonic = findMnemonic( token_buffer.at(1), token_buffer.at(2) );
-   
-    int numFacets = mnemToNumFacets( mnemonic );
-
+    int numFacets = mnemToNumFacets( parseID( token_buffer ).at(2) );
+    //Create a surface card for each surface and facet
     for(int facetNum = 0; facetNum <= numFacets; ++facetNum)
     {
       SurfaceCard* s = new SurfaceCard(*this, token_buffer, facetNum);

@@ -1079,7 +1079,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   }
 
   
-  if( cache.contains( card ) && facet == 0){
+  if( cache.contains( card ) && facet == 0 ){
     return *cache.get( card );
   }
   else if(facet != 0 ){ 

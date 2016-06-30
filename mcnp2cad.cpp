@@ -804,8 +804,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
         int facet = -identifier - ( surfacenum * 10 );
 
         try{
-          makeSurface( deck.lookup_surface_card( identifier ), NULL, facet);
-          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
+          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ), NULL, facet);
           const std::string& mnemonic = deck.lookup_surface_card( identifier )->getMnemonic();
           bool positive = true;
           if( mnemonic == "rcc" || mnemonic == "rec" ){
@@ -823,9 +822,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
               positive = false;
             }
           }
-          else if( token.second < 0 ){
-            positive = false;
-          }
+
           iBase_EntityHandle surf_handle = surf.define ( positive, igm, world_size );
           stack.push_back(surf_handle);
         }
