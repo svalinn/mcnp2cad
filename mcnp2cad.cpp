@@ -804,7 +804,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
         int facet = -identifier - ( surfacenum * 10 );
 
         try{
-          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ), NULL, facet);
+          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
           const std::string& mnemonic = deck.lookup_surface_card( identifier )->getMnemonic();
           bool positive = true;
           if( mnemonic == "rcc" || mnemonic == "rec" ){
@@ -1025,6 +1025,8 @@ void GeometryContext::createGeometry( ){
   InputDeck::cell_card_list    cells     = deck.getCells();
   InputDeck::surface_card_list surfaces  = deck.getSurfaces();
   InputDeck::data_card_list    datacards = deck.getDataCards();
+  int k = 0;
+  int ident, facet;
 
   // estimate how large the geometry will need to be to accomodate all the surfaces
   for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
@@ -1032,7 +1034,16 @@ void GeometryContext::createGeometry( ){
     // more properly be displayed to the user at a later time.  Right now we just want
     // to estimate a size and failures can be ignored.
     try{
-      world_size = std::max( world_size, makeSurface( *i ).getFarthestExtentFromOrigin() );
+      if( surfaces.at(k)->getIdent() < 0 ){
+        ident = surfaces.at(k)->getIdent()/10;
+        facet = -( surfaces.at(k)->getIdent() - 10*ident );
+      }
+      else{
+        facet = 0;
+      }
+        k++;
+      
+      world_size = std::max( world_size, makeSurface( *i, NULL, facet ).getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
   }
 

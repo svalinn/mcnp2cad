@@ -132,9 +132,31 @@ protected:
   double offset;
 
 public:
+  PlaneSurface( const Vector3d& normal_p, const Vector3d& pos, bool end ) :
+    SurfaceVolume(), normal(normal_p)
+  {
+    //This is used to find D in the planar equation Ax + By + Cz - D = 0 when 
+    //given two vectors.
+    //This comes from the form A(x-a) + B(y-b) + C(z-c) = 0, so D = Aa + Bb + Cc.
+    //normal is the vector to which the plane will be perpendicular, pos is to 
+    //help determine the position.  If end is true, the plane the end of normal
+    //in relation to the end of pos1 will intersect, otherwise the plane and the
+    //end of pos will intersect.
+    double D;
+    if( end ){
+      D = normal.v[0]*( pos.v[0] + normal.v[0] ) + normal.v[1]*( pos.v[1] + normal.v[1] ) + normal.v[2]*( pos.v[2] + normal.v[2] );
+    }
+    else{
+      D = normal.v[0]*pos.v[0] + normal.v[1]*pos.v[1] + normal.v[2]*pos.v[2];
+    }
+    offset = D/normal.length() ;
+  }
+
+
   PlaneSurface( const Vector3d& normal_p, double offset_p ) :
     SurfaceVolume(), normal(normal_p), offset(offset_p) 
   {}
+
   
   virtual double getFarthestExtentFromOrigin() const{
     // this is a funny situation, since planes are technically infinte...
@@ -861,7 +883,7 @@ protected:
     iBase_EntityHandle rec;
     
     if( facet ){
-      iGeom_createCylinder( igm, 2.0 * world_size, radius1, radius2, &rec, &igm_result );
+      iGeom_createCylinder( igm, 2.0 * world_size + length / 2.0, radius1, radius2, &rec, &igm_result );
     }
     else{
       iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );
@@ -1079,7 +1101,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   }
 
   
-  if( cache.contains( card ) && facet == 0 ){
+  if( cache.contains( card ) ){
     return *cache.get( card );
   }
   else if(facet != 0 ){ 
@@ -1353,20 +1375,7 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
 }    
 
 
-//This function is used to find D in the planar equation Ax + By + Cz - D = 0 
-//when given two vectors.
-//The positioning vector always uses the first three arguments; i determines 
-//the first argument of the vector to which the plane will be parallel.  If 
-//end is true, the plane is at the end of the second vector in relation to the 
-//end of the first vector, otherwise it intersects the end of the first vector.
-double planePoint( std::vector< double > args, int i, bool end ){
-  if( end ){
-    return args.at(i)*( args.at(0) + args.at(i) ) + args.at(i + 1)*( args.at(1) + args.at(i + 1) ) + args.at(i + 2)*( args.at(2) + args.at(i + 2) );
-  }
-  else{
-    return args.at(i)*args.at(0) + args.at(i + 1)*args.at(1) + args.at(i + 2)*args.at(2);
-  }
-}
+
 
 
 SurfaceVolume* rccFacet( const std::vector< double > args, int facet ){
@@ -1376,10 +1385,9 @@ SurfaceVolume* rccFacet( const std::vector< double > args, int facet ){
   }
   else if( facet == 2 || facet == 3 ){
     //the two end planes
-    bool end = ( facet == 2);
-    Vector3d v( args.at(3), args.at(4), args.at(5) );
-    double D = planePoint( args, 3, end );
-    return new PlaneSurface( v, D/v.length() );
+    Vector3d v1( args, 3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet == 2 );
   }
   else{
     throw std::runtime_error( "rcc only has 3 facets" );
@@ -1391,11 +1399,10 @@ SurfaceVolume* boxFacet( const std::vector< double > args, int facet ){
   if( facet >= 1 && facet <= 6 ){
     //if the facet number is odd, the plane is at the end of the vector specified
     //which consists of arguments 3,4,5 for 1 & 2, 6,7,8 for 3 & 4, and so on.
-    int  i = ( ( facet + facet%2 ) / 2 ) * 3;
-    bool  end = ( facet%2 == 1 );
-    Vector3d v( args.at(i), args.at(i + 1), args.at(i + 2) );
-    double D = planePoint( args, i, end );
-    return new PlaneSurface( v, D/v.length() );
+    int direction = ( facet - 1 )/2;
+    Vector3d v1( args, ( direction + 1 )*3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet%2 );
   }
   else{
     throw std::runtime_error( "box only has 6 facets");
@@ -1403,13 +1410,14 @@ SurfaceVolume* boxFacet( const std::vector< double > args, int facet ){
 }
 
 SurfaceVolume* rppFacet( const std::vector< double > args, int facet ){
-  if( facet >= 1 || facet <= 6 ){
-  //The vector3d determines which plane; 1 and 2 becomes (1,0,0), 2 and 3 (0,1,0), etc
-    Vector3d v( 0, 0, 0 );
-    v.v[facet/2 - 1 + facet%2] = 1;
+  if( facet >= 1 && facet <= 6 ){
+    //The vector3d determines which plane; 1 and 2 becomes (1,0,0), 3 and 4 (0,1,0), etc
+    Vector3d v;
+    int direction = ( facet - 1 )/2;
+    v.v[direction] = 1;
     //The assignment of the facets is kind of backwards given the ordering of the arguments,
     //so there needs to be interesting math to get 1 0 3 2 5 4.
-    return new PlaneSurface( v, args.at( facet - 2 + 2*( facet%2 ) ) );
+    return new PlaneSurface( v, args.at( 2*direction + facet%2 ) );
   }
   else{
     throw std::runtime_error( "rpp only has 6 facets." );
@@ -1419,33 +1427,25 @@ SurfaceVolume* rppFacet( const std::vector< double > args, int facet ){
 SurfaceVolume* hexFacet( const std::vector< double > args, int facet ){
   if( args.size() == 9 && facet <= 6 && facet >= 3 ){
     //These facets go 1 3 5 2 4 6 counter clockwise, with 1 and 2 as they are for 12 argument version.
-    //planePoint function does not work here, so math is done in each call to PlaneSurface.
-    Vector3d v1( args.at(6), args.at(7), args.at(8) );
-    Vector3d v2( args.at(3), args.at(4), args.at(5) );
-    Vector3d v( v1.rotate_about( v2, 60*( ( facet + facet%2 )/2 - 1) ).scale( -1.0 + 2*(facet%2) ) );
-    return new PlaneSurface( v, ( v.v[0] * ( args.at(0) + v.v[0] ) + v.v[1] * ( args.at(1) + v.v[1] ) + v.v[2] * ( args.at(2) + v.v[2] ) )/v.length() );
+    Vector3d v1( args, 6 );
+    Vector3d v2( args, 3 );
+    Vector3d v3( args, 0 );
+    //even vectors are opposite the odd vector one less than them; thus the scaling.
+    Vector3d v( v1.rotate_about( v2, 60*( ( facet - 1 )/2) ).scale( -1.0 + 2*(facet%2) ) );
+    return new PlaneSurface( v, v3, true );
   }
   else if( facet >= 1 && facet <= 6 ){
     //Similar to the box geometry, except that the even facets go in the opposite direction, instead
     //of being at the point of origin of the second vector.
-    int i = ( ( facet + facet%2 )/2 + 1 )*3;
-    double D;
-    Vector3d v( args.at(i), args.at(i+1), args.at(i+2) );
-    if( facet%2 == 1 ){
-      D = planePoint( args, i, true );
-    }
-    else{
-      double args2[] = { args.at(0), args.at(1), args.at(2), -args.at(i), -args.at(i+1), -args.at(i+2) };
-      std::vector<double> a( args2, args2 + sizeof(args2) / sizeof(double) );
-      D = planePoint( a, 3, true );
-    }
-    return new PlaneSurface( v.scale( -1 + 2*(facet%2) ), D/v.length() );
+    int direction = ( facet + facet%2 )/2;
+    Vector3d v1( args, ( direction + 1 )*3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1.scale( -1.0 + 2*(facet%2) ), v2, true );
   }
   else if( facet == 7 || facet == 8 ){
-    bool end = ( facet == 7 );
-    Vector3d v( args.at(3), args.at(4), args.at(5) );
-    double D = planePoint( args, 3, end );
-    return new PlaneSurface( v, D/v.length() );
+    Vector3d v1( args, 3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet == 7 );
   }
   else{
     throw std::runtime_error( "hex and rhp only have 8 facets." );
@@ -1457,17 +1457,16 @@ SurfaceVolume* recFacet( const std::vector< double > args, int facet ){
   if( facet == 1 ){
     //elliptical cylinder surface
     if( args.size() == 10 ){
-      return new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), args.at(9), true );
+      return new RecVolume( Vector3d( args ), Vector3d(args, 3), Vector3d(args,6), args.at(9), true );
     }
     else{
       return new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9).length(), true );
     }
   }    
   else if( facet == 2 || facet == 3 ){
-    bool end = ( facet == 2 );
-    Vector3d v( args.at(3), args.at(4), args.at(5) );
-    double D = planePoint( args, 3, end );
-    return new PlaneSurface( v, D/v.length() );
+    Vector3d v1( args, 3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet == 2 );
   }
   else{
     throw std::runtime_error( "rec only has 3 facets." );
