@@ -1,3 +1,4 @@
+
 MCNP2CAD README
 ===============
 
@@ -11,6 +12,14 @@ The home of mcnp2cad on the web is https://github.com/svalinn/mcnp2cad
 
 This tool is based on an concept first developed at Argonne National
 Laboratory.
+
+Prerequisites:
+--------------
+
+The Armadillo (http://arma.sourceforge.net/) linear algebra library is now required as part of suport for GQ/SQ surfaces.
+
+Armadillo is supported on various platforms. Instructions for installation can be found at http://arma.sourceforge.net/download.html.
+
 
 Compiling (with CGM):
 ---------------------
@@ -73,7 +82,7 @@ Unsupported Features:
      many possible contexts
 
 * Could be added with substantial effort:
-   * General support for `SQ`, `GQ`, `X`, `Y`, and `Z` surfaces.  
+   * General support for `SQ`, `GQ`, `X`, `Y`, and `Z` surfaces. (Elliptic Cylinders and Elliptic Cones currently supported.)
      (Simple `X`, `Y`, `Z` surfaces are already supported.)
    * Robust error detection and reporting for ill-formed MCNP inputs.
 
