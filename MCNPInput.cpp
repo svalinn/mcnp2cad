@@ -49,18 +49,6 @@ static void strlower( std::string& str ){
   }
 }
 
-static int mnemToNumFacets( std::string mnemonic ){
-  //The number of facets of each macrobody.  Returns 0 if not in the facetKey.
-  std::map<std::string, int> facetKey;
-  facetKey["hex"] = 8;
-  facetKey["rhp"] = 8;
-  facetKey["rcc"] = 3;
-  facetKey["rec"] = 3;
-  facetKey["box"] = 6;
-  facetKey["rpp"] = 6;
-  return facetKey[mnemonic];
-}
-
 static int makeint( const std::string& token ){
   const char* str = token.c_str();
   char* end;
@@ -844,19 +832,12 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
  * SURFACE CARDS
  ******************/
 
-SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facetNum ):
+SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
   Card(deck)
 {
-      // If macrobody of a type with facets, loop here to create a seperate card for each potential facet that is the same as the macrobody itself, 
-      // but with an ident equal to ten times its reciprocal.
       std::vector<std::string> identifier = parseID( tokens );
-      if( facetNum == 0 ){
-        ident = makeint(identifier.at(0));
-      }
-      else{
-        ident = -makeint(identifier.at(0)) * 10 - facetNum;
-      }
-      int tx_id = makeint(identifier.at(1));
+      ident = makeint(identifier.at(0));
+      tx_id = makeint(identifier.at(1));
       mnemonic = identifier.at(2);
       size_t idx = 2;
       if( tx_id == 0 ){
@@ -877,6 +858,27 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens, int facetN
         args.push_back( makedouble(tokens[idx++]) );
       }
 }
+
+SurfaceCard::SurfaceCard( InputDeck& deck, const SurfaceCard s, int facetNum ):
+  Card(deck)
+{
+  //This form of SurfaceCard makes a copy of a macrobody for use with one of its facets.
+  ident = facetNum;
+  mnemonic = s.getMnemonic();
+  args = s.getArgs();
+  tx_id = s.getTxid();
+  if( tx_id == 0 ){
+    coord_xform = new NullRef<Transform>();
+  }
+  else if ( tx_id < 0 ){
+    // abs(tx_id) is the ID of surface with respect to which this surface is periodic.
+    std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
+  }
+  else{ // tx_id is positive and nonzero
+    coord_xform = new CardRef<Transform>( deck, DataCard::TR, tx_id );
+  }
+}
+
 const DataRef<Transform>& SurfaceCard::getTransform() const {
   return *coord_xform;
 }
@@ -1292,27 +1294,23 @@ void InputDeck::parseSurfaces( LineExtractor& lines ){
   while( !isblank(line = lines.takeLine()) ){
 
     tokenizeLine(line, token_buffer );
-    
+
     if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
-    int numFacets = mnemToNumFacets( parseID( token_buffer ).at(2) );
-    //Create a surface card for each surface and facet
-    for(int facetNum = 0; facetNum <= numFacets; ++facetNum)
-    {
-      SurfaceCard* s = new SurfaceCard(*this, token_buffer, facetNum);
+    //Create a surface card for each surface
+    SurfaceCard* s = new SurfaceCard(*this, token_buffer);
 
-      if( OPT_VERBOSE) s->print(std::cout);
+    if( OPT_VERBOSE) s->print(std::cout);
 
-      this->surfaces.push_back(s);
-      this->surface_map.insert( std::make_pair(s->getIdent(), s) );
-    }
+    this->surfaces.push_back(s);
+    this->surface_map.insert( std::make_pair(s->getIdent(), s) );
+    
     token_buffer.clear();
   }
 }
 
 void InputDeck::parseDataCards( LineExtractor& lines ){
-
   std::string line;
   token_list_t token_buffer;
 
@@ -1376,6 +1374,35 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
 
 }
 
+void InputDeck::copyMacrobodies(){
+  //If a macrobody facet is used, this creates a copy of the surface card of the macrobody with a different id.
+  for( cell_card_list::iterator k = cells.begin(); k!=cells.end(); ++k){
+    CellCard* c = *k;
+    const CellCard::geom_list_t& geom = c->getGeom();
+    for(CellCard::geom_list_t::const_iterator i = geom.begin(); i!=geom.end(); ++i){
+    
+      const CellCard::geom_list_entry_t& token = (*i);
+ 
+      if( token.first == 7 ){
+        //this is a macrobody facet
+        int ident = -std::abs( token.second );
+        if( surface_map.find(ident) == surface_map.end() ){ 
+          //It won't create multiple copies if a facet is used more than once.
+          int surfaceNum = -ident/10;
+
+          SurfaceCard* surface = this->lookup_surface_card( surfaceNum );
+          SurfaceCard* s = new SurfaceCard( *this, *surface, ident );
+
+          if( OPT_VERBOSE ) s->print(std::cout);
+
+          this->surfaces.push_back(s);
+          this->surface_map.insert( std::make_pair(s->getIdent(), s) );
+        }
+      }
+    }
+  }
+}
+
 
 InputDeck& InputDeck::build( std::istream& input){
  
@@ -1387,6 +1414,7 @@ InputDeck& InputDeck::build( std::istream& input){
   deck->parseCells(lines);
   deck->parseSurfaces(lines);
   deck->parseDataCards(lines);
+  deck->copyMacrobodies();
 
 
   for( std::vector<CellCard*>::iterator i = deck->cells.begin(); i!=deck->cells.end(); ++i){

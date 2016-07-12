@@ -273,7 +273,6 @@ public:
   entity_collection_t defineCell( CellCard& cell, bool defineEmbedded, iBase_EntityHandle lattice_shell );
   entity_collection_t populateCell( CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell );
  
-
   entity_collection_t defineUniverse( int universe, iBase_EntityHandle container, const Transform* transform );
   
 

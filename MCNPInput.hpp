@@ -90,15 +90,17 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
  */
 class SurfaceCard : public Card {
 protected:
-  int ident;
+  int ident, tx_id;
   DataRef<Transform> *coord_xform;
   std::string mnemonic;
   std::vector<double> args;
 
 public:
-  SurfaceCard( InputDeck& deck, const token_list_t tokens, int facetNum = 0 );
+  SurfaceCard( InputDeck& deck, const token_list_t tokens );
+  SurfaceCard( InputDeck& deck, const SurfaceCard s, int facetNum );
 
   int getIdent() const { return ident; } 
+  int getTxid() const { return tx_id; }
   void print( std::ostream& s ) const ;
 
   const DataRef<Transform>& getTransform() const ; 
@@ -154,6 +156,7 @@ protected:
   void parseCells( LineExtractor& lines );
   void parseSurfaces( LineExtractor& lines );
   void parseDataCards( LineExtractor& lines );
+  void copyMacrobodies();
 
 public:
 
