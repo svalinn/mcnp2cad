@@ -1,3 +1,4 @@
+
 MCNP2CAD README
 ===============
 
@@ -15,9 +16,9 @@ Laboratory.
 Compiling (with CGM):
 ---------------------
 
-At present CGM_BASE_DIR must be specifed as a make paramter, e.g.
+At present CGM_BASE_DIR and ARMADILLO_BASE_DIR must be specifed as make paramters, e.g.
 
-    make CGM_BASE_DIR=<path to CGM>
+    make CGM_BASE_DIR=<path to CGM> ARMADILLO_BASE_DIR=<path to ARMADILLO>
 
 CGM_BASE_DIR must point to a valid installation of the CGM library.  Information and instructions
 for getting and using CGM are available at 
@@ -29,6 +30,13 @@ LD_LIBRARY_PATH environment variable.  If your version of CGM was compiled
 against CUBIT, you  will likely need to set LD_LIBRARY_PATH as follows:
 
     export LD_LIBRARY_PATH=/path/to/cubit13.1/bin 
+
+ARMADILLO_BASE_DIR must point to a valid installation of the Armadillo
+linear algebra library as part of support for GQ/SQ surfaces.
+Armadillo is supported on various platforms. Instructions for
+installation can be found at http://arma.sourceforge.net/download.html.
+(The default value of Armadillo's installation directory is /usr/local but
+this may vary platform to platform or for manually built installations.)
 
 Running:
 ---------
@@ -73,7 +81,7 @@ Unsupported Features:
      many possible contexts
 
 * Could be added with substantial effort:
-   * General support for `SQ`, `GQ`, `X`, `Y`, and `Z` surfaces.  
+   * General support for `SQ`, `GQ`, `X`, `Y`, and `Z` surfaces. (Elliptic Cylinders and Elliptic Cones currently supported.)
      (Simple `X`, `Y`, `Z` surfaces are already supported.)
    * Robust error detection and reporting for ill-formed MCNP inputs.
 
