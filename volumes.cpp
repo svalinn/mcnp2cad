@@ -132,9 +132,31 @@ protected:
   double offset;
 
 public:
+  PlaneSurface( const Vector3d& normal_p, const Vector3d& pos, bool end ) :
+    SurfaceVolume(), normal(normal_p)
+  {
+    //This is used to find D in the planar equation Ax + By + Cz - D = 0 when 
+    //given two vectors.
+    //This comes from the form A(x-a) + B(y-b) + C(z-c) = 0, so D = Aa + Bb + Cc.
+    //normal is the vector to which the plane will be perpendicular, pos is to 
+    //help determine the position.  If end is true, the plane the end of normal
+    //in relation to the end of pos1 will intersect, otherwise the plane and the
+    //end of pos will intersect.
+    double D;
+    if( end ){
+      D = normal.v[0]*( pos.v[0] + normal.v[0] ) + normal.v[1]*( pos.v[1] + normal.v[1] ) + normal.v[2]*( pos.v[2] + normal.v[2] );
+    }
+    else{
+      D = normal.v[0]*pos.v[0] + normal.v[1]*pos.v[1] + normal.v[2]*pos.v[2];
+    }
+    offset = D/normal.length() ;
+  }
+
+
   PlaneSurface( const Vector3d& normal_p, double offset_p ) :
     SurfaceVolume(), normal(normal_p), offset(offset_p) 
   {}
+
   
   virtual double getFarthestExtentFromOrigin() const{
     // this is a funny situation, since planes are technically infinte...
@@ -159,7 +181,6 @@ protected:
   }
 
 };
-
 
 typedef  enum { X=0, Y=1, Z=2 } axis_t;
 
@@ -446,7 +467,7 @@ public:
     case Z: center.v[X] += trans1; center.v[Y] += trans2; break;
     }
   }
-  
+
   virtual double getFarthestExtentFromOrigin( ) const{
     return radius + center.length();
   }
@@ -839,16 +860,17 @@ protected:
   Vector3d base_center;
   Transform transform;
   double length, radius1, radius2;
+  bool facet;
 
 public:
-  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, const Vector3d& v2 ) :
+  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, const Vector3d& v2, bool facet_p ) :
     base_center( center_p ), transform( axesImage( v1, v2, axis, center_p ) ), 
-    length( axis.length() ), radius1( v1.length() ), radius2( v2.length() )
+    length( axis.length() ), radius1( v1.length() ), radius2( v2.length() ), facet( facet_p)
   {}
 
-  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, double length2 ) :
+  RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, double length2, bool facet_p ) :
     base_center( center_p ), transform( axesImage( v1, v1.cross(axis), axis, center_p ) ), 
-    length( axis.length() ), radius1( v1.length() ), radius2( length2 )
+    length( axis.length() ), radius1( v1.length() ), radius2( length2 ), facet( facet_p )
   {}
 
   virtual double getFarthestExtentFromOrigin ( ) const {
@@ -860,9 +882,14 @@ protected:
     int igm_result;
     iBase_EntityHandle rec;
     
-    iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );
+    if( facet ){
+      iGeom_createCylinder( igm, 2.0 * world_size + length / 2.0, radius1, radius2, &rec, &igm_result );
+    }
+    else{
+      iGeom_createCylinder( igm, length, radius1, radius2, &rec, &igm_result );
+    }
     CHECK_IGEOM( igm_result, "creating rec" );
-    
+
 
     double movement_factor = length / 2.0;
     iGeom_moveEnt( igm, rec, 0, 0, movement_factor, &igm_result );
@@ -881,10 +908,11 @@ protected:
   Vector3d base_center;
   Transform transform;
   double length, radius;
+  bool facet;
 
 public:
-  RccVolume( const Vector3d& center_p, const Vector3d& axis, double radius_p ) :
-    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), radius(radius_p) 
+  RccVolume( const Vector3d& center_p, const Vector3d& axis, double radius_p, bool facet_p ) :
+    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), radius(radius_p), facet( facet_p ) 
   {}
 
   virtual double getFarthestExtentFromOrigin ( ) const {
@@ -896,7 +924,12 @@ protected:
     int igm_result;
     iBase_EntityHandle rcc;
 
-    iGeom_createCylinder( igm, length, radius, 0, &rcc, &igm_result );
+    if( facet ){
+      iGeom_createCylinder( igm, 2.0 * world_size, radius, 0, &rcc, &igm_result );
+    }
+    else{
+      iGeom_createCylinder( igm, length, radius, 0, &rcc, &igm_result );
+    }
     CHECK_IGEOM( igm_result, "creating rcc" );
     
     double movement_factor = length / 2.0;
@@ -1059,9 +1092,10 @@ bool sqIsEllipsoid(const std::vector< double >& args) {
 // the VolumeCache to use if none is provided to makeSurface() calls.
 static VolumeCache default_volume_cache;
 
-SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
-  
+// Facet number is 0 if not provided
+SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   VolumeCache& cache = default_volume_cache;
+  SurfaceVolume* surface;
   if( v != NULL ){
     cache = *v;
   }
@@ -1070,12 +1104,19 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
   if( cache.contains( card ) ){
     return *cache.get( card );
   }
-  else{ 
+  else if(facet != 0 ){ 
     // SurfaceCard variables:  mnemonic, args, coord_xform  
-    SurfaceVolume* surface;
     const std::string& mnemonic = card->getMnemonic();
     const std::vector< double >& args = card->getArgs(); 
-    
+    // special function for macrobody facets
+    surface = FacetSurface( mnemonic, args, facet );
+  }
+
+  else{
+  // SurfaceCard variables:  mnemonic, args, coord_xform  
+    const std::string& mnemonic = card->getMnemonic();
+    const std::vector< double >& args = card->getArgs(); 
+
     if( mnemonic == "so"){
       surface = new SphereSurface( origin, args.at(0) );
     }
@@ -1123,7 +1164,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
 
         // cos of the angle between v1 and normal 
         double angle = normal.dot( v1.normalize() );
-        
+	  
         // invert the normal if the angle is > 90 degrees, which indicates
         // that reversal is required.
         if( angle < 0 ){
@@ -1167,7 +1208,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
     else if( mnemonic == "c/z"){
       surface = new CylinderSurface( Z, args.at(2), args.at(0), args.at(1) );
     }
-#ifdef HAVE_IGEOM_CONE
+  #ifdef HAVE_IGEOM_CONE
     else if( mnemonic == "kx"){
       double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
       surface = new ConeSurface( X, args.at(1), args.at(0), arg3 );
@@ -1195,7 +1236,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
     else if( mnemonic == "trc" ){
       surface = new TrcVolume( Vector3d(args), Vector3d(args,3), args.at(6), args.at(7) );
     }
-#endif /*HAVE_IGEOM_CONE */
+  #endif /*HAVE_IGEOM_CONE */
     else if( mnemonic == "tx" ){
       surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
     } 
@@ -1212,14 +1253,14 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
       surface = new RppVolume( Vector3d(args.at(0), args.at(2), args.at(4)), Vector3d(args.at(1), args.at(3), args.at(5)) );
     }
     else if( mnemonic == "rcc" ){
-      surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6) );
+      surface = new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), false );
     }
     else if( mnemonic == "rec" ){
       if( args.size() == 10 ){
-        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9) );
+        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6),  args.at(9), false );
       }
       else{
-        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9) );
+        surface = new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9), false );
       }
     }
     else if( mnemonic == "hex" || mnemonic == "rhp" ){
@@ -1241,11 +1282,11 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
         else if (args.at(1) == args.at(3)) // cylinder
           surface = new CylinderSurface( X, args.at(1) );
         else // cone
-          {
-            double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-            double apex_p = args.at(0) - args.at(1)/m;
-            surface = new ConeSurface( X, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-          }
+        {
+          double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+          double apex_p = args.at(0) - args.at(1)/m;
+          surface = new ConeSurface( X, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+	    }
         break;
       default:
         throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
@@ -1264,16 +1305,17 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
           surface = new CylinderSurface( Y, args.at(1) );
         else // cone
           {
-            double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
-            double apex_p = args.at(0) - args.at(1)/m;
-            surface = new ConeSurface( Y, m*m, apex_p, (m > 0 ? 1 : -1 ) );
-          }
+          double m = (args.at(3) - args.at(1))/(args.at(2)-args.at(0));
+          double apex_p = args.at(0) - args.at(1)/m;
+          surface = new ConeSurface( Y, m*m, apex_p, (m > 0 ? 1 : -1 ) );
+        }
         break;
       default:
         throw std::runtime_error( mnemonic + " is only a supported surface with 2 or 4 arguments" );
         break;
       }
     }
+
     else if( mnemonic == "z" ) {
       switch (args.size()) {
       case 2: // plane
@@ -1301,18 +1343,133 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v){
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
-    
-    if( card->getTransform().hasData() ){
-      const Transform& transform = card->getTransform().getData();
-      surface->setTransform( &transform );
-    }
-    
-    cache.insert( card, surface );
-    return *surface;
-    
+  } 
+  if( card->getTransform().hasData() ){
+    const Transform& transform = card->getTransform().getData();
+    surface->setTransform( &transform );
   }
   
+  cache.insert( card, surface );
+  return *surface;
+    
+}
   
+
+SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet ){
+  if( mnemonic == "rcc" ){
+    return rccFacet( args, facet );
+  }
+  else if(mnemonic == "box"){
+    return boxFacet( args, facet );
+  }
+  else if( mnemonic == "rpp"){
+    return rppFacet( args, facet );
+  }
+  else if( mnemonic == "hex" || mnemonic == "rhp" ){
+    return hexFacet( args, facet );
+  }
+  else if( mnemonic == "rec" ){
+    return recFacet( args, facet );
+  }
+  throw std::runtime_error( mnemonic + " does not have macrobody facet support at this time." );
+}    
+
+
+
+
+
+SurfaceVolume* rccFacet( const std::vector< double > args, int facet ){
+  if( facet == 1 ){
+    //cylinder surface
+    return new RccVolume( Vector3d(args), Vector3d(args,3), args.at(6), true );
+  }
+  else if( facet == 2 || facet == 3 ){
+    //the two end planes
+    Vector3d v1( args, 3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet == 2 );
+  }
+  else{
+    throw std::runtime_error( "rcc only has 3 facets" );
+  }
 }
 
+SurfaceVolume* boxFacet( const std::vector< double > args, int facet ){
+  //This function creates the planes for the facets of box.
+  if( facet >= 1 && facet <= 6 ){
+    //if the facet number is odd, the plane is at the end of the vector specified
+    //which consists of arguments 3,4,5 for 1 & 2, 6,7,8 for 3 & 4, and so on.
+    int direction = ( facet - 1 )/2;
+    Vector3d v1( args, ( direction + 1 )*3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet%2 );
+  }
+  else{
+    throw std::runtime_error( "box only has 6 facets");
+  }
+}
+
+SurfaceVolume* rppFacet( const std::vector< double > args, int facet ){
+  if( facet >= 1 && facet <= 6 ){
+    //The vector3d determines which plane; 1 and 2 becomes (1,0,0), 3 and 4 (0,1,0), etc
+    Vector3d v;
+    int direction = ( facet - 1 )/2;
+    v.v[direction] = 1;
+    //The assignment of the facets is kind of backwards given the ordering of the arguments,
+    //so there needs to be interesting math to get 1 0 3 2 5 4.
+    return new PlaneSurface( v, args.at( 2*direction + facet%2 ) );
+  }
+  else{
+    throw std::runtime_error( "rpp only has 6 facets." );
+  }
+}
+
+SurfaceVolume* hexFacet( const std::vector< double > args, int facet ){
+  if( args.size() == 9 && facet <= 6 && facet >= 3 ){
+    //These facets go 1 3 5 2 4 6 counter clockwise, with 1 and 2 as they are for 12 argument version.
+    Vector3d v1( args, 6 );
+    Vector3d v2( args, 3 );
+    Vector3d v3( args, 0 );
+    //even vectors are opposite the odd vector one less than them; thus the scaling.
+    Vector3d v( v1.rotate_about( v2, 60*( ( facet - 1 )/2) ).scale( -1.0 + 2*(facet%2) ) );
+    return new PlaneSurface( v, v3, true );
+  }
+  else if( facet >= 1 && facet <= 6 ){
+    //Similar to the box geometry, except that the even facets go in the opposite direction, instead
+    //of being at the point of origin of the second vector.
+    int direction = ( facet + facet%2 )/2;
+    Vector3d v1( args, ( direction + 1 )*3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1.scale( -1.0 + 2*(facet%2) ), v2, true );
+  }
+  else if( facet == 7 || facet == 8 ){
+    Vector3d v1( args, 3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet == 7 );
+  }
+  else{
+    throw std::runtime_error( "hex and rhp only have 8 facets." );
+  }
+}
+
+
+SurfaceVolume* recFacet( const std::vector< double > args, int facet ){
+  if( facet == 1 ){
+    //elliptical cylinder surface
+    if( args.size() == 10 ){
+      return new RecVolume( Vector3d( args ), Vector3d(args, 3), Vector3d(args,6), args.at(9), true );
+    }
+    else{
+      return new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9).length(), true );
+    }
+  }    
+  else if( facet == 2 || facet == 3 ){
+    Vector3d v1( args, 3 );
+    Vector3d v2( args, 0 );
+    return new PlaneSurface( v1, v2, facet == 2 );
+  }
+  else{
+    throw std::runtime_error( "rec only has 3 facets." );
+  }
+}
 

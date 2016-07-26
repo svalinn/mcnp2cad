@@ -60,9 +60,6 @@ Unsupported Features:
      hexgons
    * Support for ``ELL`` (ellipse), ``WED`` (wedge), and ``ARB`` (arbitrary polyhedron) 
      macrobodies
-   * Ability to refer to individual facets of macrobodies as surfaces in cell
-     specification, using the ``NNNN.MM`` syntax.  Parsing support for this feature
-     exists, but output support does not.
    * Support for lattices in universe 0
    * Faster/more efficient generation of embedded universes within lattices.
    * Complete support for ``M=-1`` argument in ``TRn`` (transform) cards.

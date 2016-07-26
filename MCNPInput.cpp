@@ -49,7 +49,6 @@ static void strlower( std::string& str ){
   }
 }
 
-
 static int makeint( const std::string& token ){
   const char* str = token.c_str();
   char* end;
@@ -58,6 +57,30 @@ static int makeint( const std::string& token ){
     std::cerr << "Warning: string [" << token << "] did not convert to int as expected." << std::endl;
   }
   return ret;
+}
+
+static std::vector<std::string> parseID( const token_list_t tokens ){
+  //This function returns the first two or three arguments in token_list, which
+  //name and define the type of surface.
+  std::vector<std::string> identifier (3);
+  identifier[0] = tokens.at(0);
+  if(identifier[0].find_first_of("*+") != identifier[0].npos){
+    std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
+    identifier[0][0] = ' ';
+  } 
+  
+  if(tokens.at(1).find_first_of("1234567890-") != 0){
+    identifier[1] = '0';
+    identifier[2] = tokens.at(1);
+  }
+  else{
+    identifier[1] = tokens.at(1);
+    identifier[2] = tokens.at(2);
+    if( makeint( identifier.at(1) ) == 0 ){
+      std::cerr << "I don't think 0 is a valid surface transformation ID, so I'm ignoring it." << std::endl;
+    }
+  }
+  return identifier;
 }
 
 static double makedouble( const std::string& token ){
@@ -226,7 +249,6 @@ std::ostream& operator<<( std::ostream& out, const std::vector<T>& list ){
  ******************/
 
 class CellCardImpl : public CellCard { 
-
 protected:
   static geom_list_entry_t make_geom_entry(geom_token_t t, int param = 0){
     return std::make_pair(t, param);
@@ -813,26 +835,12 @@ std::ostream& operator<<(std::ostream& str, const CellCard::geom_list_entry_t& t
 SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
   Card(deck)
 {
-    size_t idx = 0;
-    std::string token1 = tokens.at(idx++);
-    if(token1.find_first_of("*+") != token1.npos){
-      std::cerr << "Warning: no special handling for reflecting or white-boundary surfaces" << std::endl;
-    token1[0] = ' ';
-    }
-    ident = makeint(token1);
-
-    std::string token2 = tokens.at(idx++);
-    if(token2.find_first_of("1234567890-") != 0){
-      //token2 is the mnemonic
-      coord_xform = new NullRef<Transform>();
-      mnemonic = token2;
-    }
-    else{
-      // token2 is a coordinate transform identifier
-      int tx_id = makeint(token2);
-
+      std::vector<std::string> identifier = parseID( tokens );
+      ident = makeint(identifier.at(0));
+      tx_id = makeint(identifier.at(1));
+      mnemonic = identifier.at(2);
+      size_t idx = 2;
       if( tx_id == 0 ){
-        std::cerr << "I don't think 0 is a valid surface transformation ID, so I'm ignoring it." << std::endl;
         coord_xform = new NullRef<Transform>();
       }
       else if ( tx_id < 0 ){
@@ -840,17 +848,35 @@ SurfaceCard::SurfaceCard( InputDeck& deck, const token_list_t tokens ):
         std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
       }
       else{ // tx_id is positive and nonzero
-        coord_xform = new CardRef<Transform>( deck, DataCard::TR, makeint(token2) );
+        coord_xform = new CardRef<Transform>( deck, DataCard::TR, tx_id );
+      }
+      if( tokens.at(2) == mnemonic ){
+        idx++;
       }
 
-      mnemonic = tokens.at(idx++);
-      
-    }
+      while( idx < tokens.size() ){
+        args.push_back( makedouble(tokens[idx++]) );
+      }
+}
 
-    while( idx < tokens.size() ){
-      args.push_back( makedouble(tokens[idx++]) );
-    }
-
+SurfaceCard::SurfaceCard( InputDeck& deck, const SurfaceCard s, int facetNum ):
+  Card(deck)
+{
+  //This form of SurfaceCard makes a copy of a macrobody for use with one of its facets.
+  ident = facetNum;
+  mnemonic = s.getMnemonic();
+  args = s.getArgs();
+  tx_id = s.getTxid();
+  if( tx_id == 0 ){
+    coord_xform = new NullRef<Transform>();
+  }
+  else if ( tx_id < 0 ){
+    // abs(tx_id) is the ID of surface with respect to which this surface is periodic.
+    std::cerr << "Warning: surface " << ident << " periodic, but this program has no special handling for periodic surfaces";
+  }
+  else{ // tx_id is positive and nonzero
+    coord_xform = new CardRef<Transform>( deck, DataCard::TR, tx_id );
+  }
 }
 
 const DataRef<Transform>& SurfaceCard::getTransform() const {
@@ -1265,29 +1291,26 @@ void InputDeck::parseTitle( LineExtractor& lines ){
 void InputDeck::parseSurfaces( LineExtractor& lines ){
   std::string line;
   token_list_t token_buffer;
-
   while( !isblank(line = lines.takeLine()) ){
 
     tokenizeLine(line, token_buffer );
-    
+
     if( do_line_continuation( lines, token_buffer ) ){
       continue;
     }
-   
+    //Create a surface card for each surface
     SurfaceCard* s = new SurfaceCard(*this, token_buffer);
 
     if( OPT_VERBOSE) s->print(std::cout);
 
     this->surfaces.push_back(s);
     this->surface_map.insert( std::make_pair(s->getIdent(), s) );
-
+    
     token_buffer.clear();
-
   }
 }
 
 void InputDeck::parseDataCards( LineExtractor& lines ){
-
   std::string line;
   token_list_t token_buffer;
 
@@ -1351,6 +1374,36 @@ void InputDeck::parseDataCards( LineExtractor& lines ){
 
 }
 
+void InputDeck::copyMacrobodies(){
+  //If a macrobody facet is used, this creates a copy of the surface card of the macrobody with a different id.
+  for( cell_card_list::iterator k = cells.begin(); k!=cells.end(); ++k){
+    CellCard* c = *k;
+    const CellCard::geom_list_t& geom = c->getGeom();
+    for(CellCard::geom_list_t::const_iterator i = geom.begin(); i!=geom.end(); ++i){
+    
+      const CellCard::geom_list_entry_t& token = (*i);
+ 
+      if( token.first == 7 ){
+        //this is a macrobody facet
+        int ident = -std::abs( token.second );
+        if( surface_map.find(ident) == surface_map.end() ){ 
+          //It won't create multiple copies if a facet is used more than once.
+          int surfaceNum = -ident/10;
+
+          SurfaceCard* surface = this->lookup_surface_card( surfaceNum );
+          SurfaceCard* s = new SurfaceCard( *this, *surface, ident );
+
+          if( OPT_VERBOSE ) s->print(std::cout);
+
+          this->surfaces.push_back(s);
+          this->surface_map.insert( std::make_pair(s->getIdent(), s) );
+        }
+      }
+    }
+  }
+}
+
+
 InputDeck& InputDeck::build( std::istream& input){
  
   LineExtractor lines(input);
@@ -1361,6 +1414,7 @@ InputDeck& InputDeck::build( std::istream& input){
   deck->parseCells(lines);
   deck->parseSurfaces(lines);
   deck->parseDataCards(lines);
+  deck->copyMacrobodies();
 
 
   for( std::vector<CellCard*>::iterator i = deck->cells.begin(); i!=deck->cells.end(); ++i){

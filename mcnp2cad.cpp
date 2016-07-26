@@ -273,7 +273,6 @@ public:
   entity_collection_t defineCell( CellCard& cell, bool defineEmbedded, iBase_EntityHandle lattice_shell );
   entity_collection_t populateCell( CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell );
  
-
   entity_collection_t defineUniverse( int universe, iBase_EntityHandle container, const Transform* transform );
   
 
@@ -785,13 +784,13 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
     case CellCard::SURFNUM:
       {      
         int surface = token.second;
-        bool pos = true;
+        bool positive = true;
         if( surface < 0){
-          pos = false; surface = -surface;
+          positive = false; surface = -surface;
         }
         try{
           SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( surface ) );
-          iBase_EntityHandle surf_handle = surf.define( pos, igm, world_size );
+          iBase_EntityHandle surf_handle = surf.define( positive, igm, world_size );
           stack.push_back(surf_handle);
         }
         catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
@@ -799,10 +798,36 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
       break;
     case CellCard::MBODYFACET:
       {
-        int cellnum = std::abs(token.second) / 10;
-        int facet = std::abs(token.second) - (cellnum*10);
-        std::cerr << "Attempting to define facet " << facet << " of cell " << cellnum << std::endl;
-        throw std::runtime_error( "Macrobody facets are not yet supported by mcnp2cad." );
+        int identifier = -std::abs( token.second );
+        int surfacenum = -identifier / 10;
+        int facet = -identifier - ( surfacenum * 10 );
+
+        try{
+          SurfaceVolume& surf = makeSurface( deck.lookup_surface_card( identifier ) );
+          const std::string& mnemonic = deck.lookup_surface_card( identifier )->getMnemonic();
+          bool positive = true;
+          if( mnemonic == "rcc" || mnemonic == "rec" ){
+            if( ( token.second < 0 ) ^ ( facet == 3 ) ){
+              positive = false;
+            }
+          }
+          else if( mnemonic == "box" || mnemonic == "rpp" ){
+            if( ( token.second < 0 ) ^ ( facet == 2 || facet == 4 || facet == 6 ) ){
+              positive = false;
+            }
+          }
+          else if( mnemonic == "hex" || mnemonic == "rhp" ){
+            if( ( token.second < 0 ) ^ ( facet == 8 ) ){
+              positive = false;
+            }
+          }
+
+          iBase_EntityHandle surf_handle = surf.define ( positive, igm, world_size );
+          stack.push_back(surf_handle);
+        }
+        catch(std::runtime_error& e) { std::cerr << e.what() << std::endl; }
+
+
       }
       break;
     case CellCard::INTERSECT:
@@ -999,6 +1024,8 @@ void GeometryContext::createGeometry( ){
   InputDeck::cell_card_list    cells     = deck.getCells();
   InputDeck::surface_card_list surfaces  = deck.getSurfaces();
   InputDeck::data_card_list    datacards = deck.getDataCards();
+  int k = 0;
+  int ident, facet;
 
   // estimate how large the geometry will need to be to accomodate all the surfaces
   for( InputDeck::surface_card_list::iterator i = surfaces.begin(); i!=surfaces.end(); ++i){
@@ -1006,7 +1033,16 @@ void GeometryContext::createGeometry( ){
     // more properly be displayed to the user at a later time.  Right now we just want
     // to estimate a size and failures can be ignored.
     try{
-      world_size = std::max( world_size, makeSurface( *i ).getFarthestExtentFromOrigin() );
+      if( surfaces.at(k)->getIdent() < 0 ){
+        ident = surfaces.at(k)->getIdent()/10;
+        facet = -( surfaces.at(k)->getIdent() - 10*ident );
+      }
+      else{
+        facet = 0;
+      }
+        k++;
+      
+      world_size = std::max( world_size, makeSurface( *i, NULL, facet ).getFarthestExtentFromOrigin() );
     } catch(std::runtime_error& e){}
   }
 

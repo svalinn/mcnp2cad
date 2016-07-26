@@ -38,8 +38,27 @@ class VolumeCache;
  * there will need to be a way to get multiple VolumeCache objects;
  * that's not an issue right now, so I haven't coded it.
  */
+
 extern 
-SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v = NULL );
+SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v = NULL, int facet = 0 );
+
+//extern
+SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< double > args, int facet );
+
+extern
+SurfaceVolume* rccFacet( const std::vector< double > args, int facet );
+
+extern
+SurfaceVolume* boxFacet( const std::vector< double > args, int facet );
+
+extern
+SurfaceVolume* rppFacet( const std::vector< double > args, int facet );
+
+extern
+SurfaceVolume* hexFacet( const std::vector< double > args, int facet );
+
+extern
+SurfaceVolume* recFacet( const std::vector< double > args, int facet );
 
 extern 
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ); 
