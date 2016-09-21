@@ -199,7 +199,7 @@ protected:
   double extents[3];
   // tolerance used to determine
   // if matrix determinant should be considered zero
-  const double gq_tol = 1e-6;
+  const double gq_tol = 1e-8;
 
   enum GQ_TYPE {UNKNOWN = 0,
 		ELLIPSOID,
@@ -274,14 +274,21 @@ protected:
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
   D = (K_*signs[0]) ? -1:1;
-  //based on characteristic values, get the GQ type
-  type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the translation while we're at it
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix
   std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
   //set the new canonical values
-  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
+  for(unsigned int i = 0; i < 3; i ++ ) {
+    if (fabs(eigenvals[i]) < gq_tol) {
+      eigenvals[i] = 0;
+      rnkAa -= 1;
+      rnkAc -= 1;
+    }
+  }
+  //based on characteristic values, get the GQ type
+  type = find_type(rnkAa,rnkAc,delta,S,D);
+
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
@@ -289,6 +296,7 @@ protected:
   }
 
   GQ_TYPE find_type(int rt, int rf, int del, int s, int d) {
+    
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
       t = ELLIPSOID;
@@ -317,10 +325,27 @@ protected:
       return t;
     }
     else {
+
+      if ( UNKNOWN == t ) {
+	t = find_type(rt,rf,1,s,d);
+      }
       return t;
     }
   }
 
+  iBase_EntityHandle ellipsoid(iGeom_Instance &igm) {
+    int igm_result;
+    iBase_EntityHandle gq_handle;
+    double radius = 1;
+
+    iGeom_createSphere( igm, radius, &gq_handle, &igm_result);
+    CHECK_IGEOM( igm_result, "making sphere" );
+
+    iGeom_scaleEnt( igm, gq_handle, 0, 0, 0, sqrt(-K_/A_),sqrt(-K_/B_),sqrt(-K_/C_), &igm_result);
+    CHECK_IGEOM( igm_result, "scaling sphere to ellipsoid" );
+
+    return gq_handle;
+  }
   iBase_EntityHandle elliptic_cyl(iGeom_Instance &igm, double world_size) {
     int igm_result;
     double r1,r2;
@@ -423,6 +448,17 @@ protected:
 
     iBase_EntityHandle gq;
     switch(type){
+    case ELLIPSOID:
+      gq = ellipsoid(igm);
+      break;
+    case ONE_SHEET_HYPERBOLOID:
+      K_=0;
+      gq = elliptic_cone(igm,world_size);
+      break;
+    case TWO_SHEET_HYPERBOLOID:
+      K_=0;
+      gq = elliptic_cone(igm, world_size);
+      break;
     case ELLIPTIC_CONE:
       gq = elliptic_cone(igm, world_size);
       break;
@@ -631,11 +667,11 @@ protected:
 
     iBase_EntityHandle torus;
 
-    iGeom_createTorus( igm, radius, ellipse_perp_rad, &torus, &igm_result );
+    iGeom_createTorus( igm, fabs(radius), fabs(ellipse_perp_rad), &torus, &igm_result );
     CHECK_IGEOM( igm_result, "Creating initial torus");
 
     if( ellipse_axis_rad != ellipse_perp_rad ){
-      double scalef = ellipse_axis_rad / ellipse_perp_rad;
+      double scalef = fabs(ellipse_axis_rad) / fabs(ellipse_perp_rad);
       iGeom_scaleEnt( igm, torus, 0, 0, 0, 1.0, 1.0, scalef, &igm_result );
       CHECK_IGEOM( igm_result, "Scaling torus" );
     }
