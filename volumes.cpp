@@ -657,7 +657,7 @@ public:
   {}
 
   virtual double getFarthestExtentFromOrigin ( ) const {
-    return center.length() + radius + std::max( ellipse_axis_rad, ellipse_perp_rad );
+    return center.length() + fabs(radius) + std::max( fabs(ellipse_axis_rad), fabs(ellipse_perp_rad) );
   }
 
 protected:
@@ -667,7 +667,7 @@ protected:
 
     iBase_EntityHandle torus;
 
-    iGeom_createTorus( igm, fabs(radius), fabs(ellipse_perp_rad), &torus, &igm_result );
+    iGeom_createTorus( igm, radius, fabs(ellipse_perp_rad), &torus, &igm_result );
     CHECK_IGEOM( igm_result, "Creating initial torus");
 
     if( ellipse_axis_rad != ellipse_perp_rad ){
