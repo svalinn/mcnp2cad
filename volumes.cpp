@@ -200,6 +200,7 @@ protected:
   // tolerance used to determine
   // if matrix determinant should be considered zero
   const double gq_tol = 1e-8;
+  const double equivalence_tol = 1e-02;
 
   enum GQ_TYPE {UNKNOWN = 0,
 		ELLIPSOID,
@@ -240,10 +241,7 @@ protected:
   rnkAc = arma::rank(Ac);
 
   double determinant = arma::det(Ac);
-  if (fabs(determinant) < gq_tol)
-    delta = 0;
-  else
-    delta = (determinant < 0) ? -1:1;
+  delta = (determinant < 0) ? -1:1;
 
   arma::vec eigenvals;
   arma::mat eigenvects;
@@ -278,23 +276,61 @@ protected:
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix
   std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
-  //set the new canonical values
-  for(unsigned int i = 0; i < 3; i ++ ) {
-    if (fabs(eigenvals[i]) < gq_tol) {
-      eigenvals[i] = 0;
-      rnkAa -= 1;
-      rnkAc -= 1;
-    }
-  }
   //based on characteristic values, get the GQ type
   type = find_type(rnkAa,rnkAc,delta,S,D);
-
+  //set the new canonical values
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
   //K is set above
+
+  // simplify the GQ if possible
+  reduce_type();
   }
 
+  // this method reduces a complex GQ to a geometrically equivalent
+  // and more CAD-friendly form if appropriate
+  void reduce_type() {
+
+    if( ONE_SHEET_HYPERBOLOID == type ) {
+      // if the K value is near-zero, reduce to Elliptic Cone
+      if ( fabs(K_) < equivalence_tol ) {
+	K_ = 0;
+	type = ELLIPTIC_CONE;
+	return;
+      }
+    }
+
+    if ( TWO_SHEET_HYPERBOLOID == type ) {
+      // if the K value is near-zero, reduce to Elliptic Cone
+      if ( fabs(K_) < equivalence_tol ) {
+	K_ = 0;
+	type = ELLIPTIC_CONE;
+	return;
+      }
+    }
+
+    if ( ELLIPSOID == type ) {
+      //if any of the 2nd order terms are near-zero, reduce to Elliptic Cylinder
+      if ( fabs(A_) < equivalence_tol ) {
+	A_ = 0;
+	type = ELLIPTIC_CYL;
+	return;
+      }	
+      else if ( fabs(B_) < equivalence_tol ) {
+	B_ = 0;
+	type = ELLIPTIC_CYL;
+	return;
+      }	
+      else if ( fabs(C_) < equivalence_tol ) {
+	C_ = 0;
+	type = ELLIPTIC_CYL;
+	return;
+      }
+    }
+    
+  };
+		   
   GQ_TYPE find_type(int rt, int rf, int del, int s, int d) {
     
     GQ_TYPE t;
@@ -322,15 +358,9 @@ protected:
     //special case, replace delta with D
     if( 2 == rt && 3 == rf && 1 == s && d != 0) {
       t = find_type(rt, rf, d, s, 0);
-      return t;
     }
-    else {
-
-      if ( UNKNOWN == t ) {
-	t = find_type(rt,rf,1,s,d);
-      }
-      return t;
-    }
+    
+    return t;
   }
 
   iBase_EntityHandle ellipsoid(iGeom_Instance &igm) {
@@ -450,14 +480,6 @@ protected:
     switch(type){
     case ELLIPSOID:
       gq = ellipsoid(igm);
-      break;
-    case ONE_SHEET_HYPERBOLOID:
-      K_=0;
-      gq = elliptic_cone(igm,world_size);
-      break;
-    case TWO_SHEET_HYPERBOLOID:
-      K_=0;
-      gq = elliptic_cone(igm, world_size);
       break;
     case ELLIPTIC_CONE:
       gq = elliptic_cone(igm, world_size);
@@ -667,7 +689,7 @@ protected:
 
     iBase_EntityHandle torus;
 
-    iGeom_createTorus( igm, fabs(radius), fabs(ellipse_perp_rad), &torus, &igm_result );
+    iGeom_createTorus( igm, radius, ellipse_perp_rad, &torus, &igm_result );
     CHECK_IGEOM( igm_result, "Creating initial torus");
 
     if( ellipse_axis_rad != ellipse_perp_rad ){
