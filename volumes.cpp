@@ -200,7 +200,7 @@ protected:
   // tolerance used to determine
   // if matrix determinant should be considered zero
   const double gq_tol = 1e-8;
-  const double equivalence_tol = 1e-02;
+  const double equivalence_tol = 1e-06;
 
   enum GQ_TYPE {UNKNOWN = 0,
 		ELLIPSOID,
@@ -238,7 +238,7 @@ protected:
   //characterization values
   int rnkAa, rnkAc, delta, S, D;
   rnkAa = arma::rank(Aa);
-  rnkAc = arma::rank(Ac);
+  rnkAc = arma::rank(Ac, 1e-16);
 
   double determinant = arma::det(Ac);
   delta = (determinant < 0) ? -1:1;
@@ -286,6 +286,7 @@ protected:
 
   // simplify the GQ if possible
   reduce_type();
+  std::cout << "GQ Type is: " << type << std::endl;
   }
 
   // this method reduces a complex GQ to a geometrically equivalent
@@ -356,7 +357,7 @@ protected:
       t = UNKNOWN;
 
     //special case, replace delta with D
-    if( 2 == rt && 3 == rf && 1 == s && d != 0) {
+    if( /*2 == rt && 3 == rf && 1 == s && */ d != 0) {
       t = find_type(rt, rf, d, s, 0);
     }
     
