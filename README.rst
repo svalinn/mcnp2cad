@@ -5,55 +5,17 @@ MCNP2CAD README
 MCNP to iGeom/CAD converter: a program to extract the geomtery from MCNP 
 input files and write it out using any ITAPS iGeom backend. 
 
-This program is currently maintained by Julie Zachman (zachman@engr.wisc.edu).
-Bug reports are appreciated.
+This project is currently in transition based on changes to the underlying CGM
+library, with modified versions available as `a runtime plugin
+<http://github.com/svalinn/DAGMC-Trelis>`_ to Trelis for an ACIS based
+implementation and as a tool in `the CGM-ANL project
+<http://sigma.mcs.anl.gov/cgm-library/>`_ for OpenCascade based
+implementation.
 
-The home of mcnp2cad on the web is https://github.com/svalinn/mcnp2cad
+Bug reports are appreciated.
 
 This tool is based on an concept first developed at Argonne National
 Laboratory.
-
-Compiling (with CGM):
----------------------
-
-At present CGM_BASE_DIR and ARMADILLO_BASE_DIR must be specifed as make paramters, e.g.
-
-    make CGM_BASE_DIR=<path to CGM> ARMADILLO_BASE_DIR=<path to ARMADILLO>
-
-CGM_BASE_DIR must point to a valid installation of the CGM library.  Information and instructions
-for getting and using CGM are available at 
-https://trac.mcs.anl.gov/projects/ITAPS/wiki/CGM
-
-In addition, any shared libraries required by CGM must be located either in 
-standard system directories, or in a location pointed to by the 
-LD_LIBRARY_PATH environment variable.  If your version of CGM was compiled 
-against CUBIT, you  will likely need to set LD_LIBRARY_PATH as follows:
-
-    export LD_LIBRARY_PATH=/path/to/cubit13.1/bin 
-
-ARMADILLO_BASE_DIR must point to a valid installation of the Armadillo
-linear algebra library as part of support for GQ/SQ surfaces.
-Armadillo is supported on various platforms. Instructions for
-installation can be found at http://arma.sourceforge.net/download.html.
-(The default value of Armadillo's installation directory is /usr/local but
-this may vary platform to platform or for manually built installations.)
-
-Running:
----------
-
-The program requires a single command-line argument: the path to an MCNP
-input file.  Optionally, the -o flag can be used to specify the file to
-which output should be written.  The iGeom backend will choose the output
-format based on the extension of the output file name; .sat is the default
-format for an ACIS-based or CUBIT-based CGM.
-
-Help on other command-line flags is available by invoking the program with
-the `-h` (or `--help`) flag.  
-
-The program will, by default, create a boundary volume named "graveyard"
-around all created geometry.  This volume is needed for DAGMC analysis,
-but users who are only interested in visualization may want to use the `-G`
-flag to turn the graveyard volume off. 
 
 Unsupported Features: 
 -----------------------
@@ -85,15 +47,4 @@ Unsupported Features:
      (Simple `X`, `Y`, `Z` surfaces are already supported.)
    * Robust error detection and reporting for ill-formed MCNP inputs.
 
-
-Compiling a 32-bit mcnp2cad: 
------------------------------
-
-Users on 64-bit Linux may need to compile a 32-bit version of this program 
-under certain conditions, for example, if only a 32-bit copy of Cubit 10.2 
-is available.  This is a two-step process:
-
-* Ensure that CGM is built for 32-bit by configuring it with the `--enable-32bit` 
-  flag, and
-* Add `-m32` to the `CXXFLAGS` in the mcnp2cad Makefile.
 
