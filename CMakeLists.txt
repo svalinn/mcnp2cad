@@ -41,11 +41,16 @@ SET(CLI_SRC
     ProgOptions.hpp)
 
 add_library(mcnp2cad SHARED ${LIB_SRC})
-target_link_libraries(mcnp2cad ${IGEOM_LIB})
+target_link_libraries(mcnp2cad ${IGEOM_LIB} armadillo)
 
 if(${BUILD_CLI})
     add_executable(convertMCNP ${CLI_SRC})
 #    target_link_libraries(convertMCNP ${MCNP_LIB} armadillo)
     target_link_libraries(convertMCNP mcnp2cad armadillo)
 #    target_link_libraries(convertMCNP ${Cubit_DIR}/libcubiti19.so mcnp2cad armadillo)
+if(Cubit_DIR)
+    set_target_properties(convertMCNP PROPERTIES INSTALL_RPATH ${Cubit_DIR} BUILD_WITH_INSTALL_RPATH TRUE)
+else()
+    set_target_properties(convertMCNP PROPERTIES INSTALL_RPATH ${CMAKE_PREFIX_PATH} BUILD_WITH_INSTALL_RPATH TRUE)
+endif()
 endif()
