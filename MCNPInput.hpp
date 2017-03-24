@@ -3,12 +3,14 @@
 
 #include <vector>
 #include <map>
-#include <iosfwd>
+//#include <iosfwd>
 #include <string>
+#include <cmath>
+#include <cstdlib>
 
 typedef std::vector< std::string > token_list_t;
 
-#include "dataref.hpp"
+//#include "dataref.hpp"
 #include "geometry.hpp"
 
 class InputDeck;

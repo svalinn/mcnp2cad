@@ -15,6 +15,8 @@ struct program_option_struct{
   bool imprint_geom;
   bool merge_geom;
   bool uwuw_names;
+  bool din;
+  bool dout;
   
   std::string output_file;
   std::string input_file;

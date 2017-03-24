@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <iosfwd>
+#include <cmath>
+#include <cstdlib>
 
 #include "dataref.hpp"
 
@@ -12,7 +14,7 @@
 #define _USE_MATH_DEFINES
 #endif 
 
-#include <cmath>
+#include <math.h>
 
 class Vector3d{
 
@@ -102,8 +104,9 @@ public:
 
 };
 
-std::ostream& operator<<(std::ostream& str, const Vector3d& v );
+std::ostream& operator<<( std::ostream& str, const Vector3d& v );
 
+//std::string to_string( const Vector3d& v );
 
 // determinant of 3x3 matrix (C-style matrix ordering)
 double matrix_det( double mat[9] );

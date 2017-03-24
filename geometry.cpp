@@ -1,8 +1,8 @@
 #include "geometry.hpp"
 #include <cfloat>
 #include <iostream>
-#include <cassert>
 
+#include "mcnp2cad.hpp"
 #include "options.hpp"
 
 std::ostream& operator<<(std::ostream& str, const Vector3d& v ){
@@ -50,15 +50,15 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
   double det = matrix_det(raw_matrix); // determinant is the same regardless of ordering
 
   if( OPT_DEBUG ){
-    std::cout << "Constructing rotation: " << std::endl;
+    record << "Constructing rotation: " << std::endl;
     for( int i = 0; i < 3; i++ ){
-      std::cout << "  [ ";
+      record << "  [ ";
       for ( int j = 0; j < 3; j++ ){
-        std::cout << mat[i][j] << " ";
+        record << mat[i][j] << " ";
       }
-      std::cout << "]" << std::endl;
+      record << "]" << std::endl;
     }
-    std::cout << "  det = " << det << std::endl;
+    record << "  det = " << det << std::endl;
   }
 
   if( det < 0.0 ){
@@ -66,11 +66,11 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     invert = true;
     det *= -1;
     for( int i = 0; i < 9; i++){  mat[i/3][i%3] = -mat[i/3][i%3]; } 
-    if( OPT_DEBUG ) std::cout << "  negative determinant => improper rotation (adding inversion)" << std::endl;
+    if( OPT_DEBUG ) record << "  negative determinant => improper rotation (adding inversion)" << std::endl;
   }
   
   if( fabs( det - 1.0 ) > DBL_EPSILON ){
-    std::cout << "Warning: determinant of rotation matrix " << det << " != +-1" << std::endl;
+    record << "Warning: determinant of rotation matrix " << det << " != +-1" << std::endl;
   }
 
   /* Older, more straightforward approach:
@@ -97,15 +97,16 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
   theta = atan2(r,t-1);
   
   if( OPT_DEBUG ){
-    std:: cout << "  r = " << r << " t = " << t << " theta = " << theta << std::endl;
-    std:: cout << "  x = " << x << " y = " << y << " z = " << z << std::endl;
+    record << "  r = " << r << " t = " << t << " theta = " << theta << std::endl;
+    record << "  x = " << x << " y = " << y << " z = " << z << std::endl;
   }
+  
 
   if( std::fabs(theta) <= DBL_EPSILON ){ 
     // theta is 0 or extremely close to it, so let's say there's no rotation after all.
     has_rot = false; 
     axis = Vector3d(); // zero vector
-    if( OPT_DEBUG ) std::cout << "  (0) "; // std::endl comes below
+    if( OPT_DEBUG ) record << "  (0) "; // std::endl comes below
   }
   else if( std::fabs( theta - M_PI ) <= DBL_EPSILON ){
     // theta is pi (180 degrees) or extremely close to it
@@ -119,7 +120,7 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
     axis.v[(col+1)%3] = mat[col][(col+1)%3] / denom;
     axis.v[(col+2)%3] = mat[col][(col+2)%3] / denom;
 
-    if( OPT_DEBUG ) std::cout << "  (180) "; // std::endl comes below
+    if( OPT_DEBUG ) record << "  (180) "; // std::endl comes below
 
   }
   else{ 
@@ -134,6 +135,7 @@ void Transform::set_rots_from_matrix( double raw_matrix[9], enum mat_format f ){
   theta *= 180.0 / M_PI;
   
   if( OPT_DEBUG ) std::cerr << "computed rotation: " << *this << std::endl;
+  if( OPT_DEBUG ) record << "computed rotation: " << *this << std::endl;
 
 }
 
@@ -176,8 +178,8 @@ Transform::Transform( const std::vector< double >& inputs,  bool degree_format_p
         raw_matrix[i-3] = degree_format_p ? cos(inputs.at(i) * M_PI / 180.0 ) : inputs.at(i);
       }
       if( num_inputs == 13 && inputs.at(12) == -1.0 ){
-        std::cout << "Notice: a transformation has M = -1.  Inverting the translation;" << std::endl;
-        std::cout << " though this might not be what you wanted." << std::endl;
+        record << "Notice: a transformation has M = -1.  Inverting the translation;" << std::endl;
+        record << " though this might not be what you wanted." << std::endl;
         translation = -translation;
       }
     }
@@ -187,6 +189,8 @@ Transform::Transform( const std::vector< double >& inputs,  bool degree_format_p
   }
   else if( num_inputs != 3 ){
     // an unsupported number of transformation inputs
+    record << "Warning: transformation with " << num_inputs << " input items is unsupported" << std::endl;
+    record << "  (will pretend there's no rotation: expect incorrect geometry.)" << std::endl;
     std::cerr << "Warning: transformation with " << num_inputs << " input items is unsupported" << std::endl;
     std::cerr << "  (will pretend there's no rotation: expect incorrect geometry.)" << std::endl;
   }
@@ -232,7 +236,13 @@ size_t Fill::indicesToSerialIndex( int x, int y, int z ) const {
   
   int index = grid_z * (dy*dx) + grid_y * dx + grid_x;
 
-  assert( index >= 0 && (unsigned)(index) <= nodes.size() );
+  if( index < 0 || (unsigned)(index) > nodes.size() ){
+    if( OPT_DEBUG ){
+      record << "Error in Fill::indicesToSerialIndex( int x, int y, int z ) in geometry.cpp" << std::endl;
+      record << "index < 0 || (unsigned)(index) > nodes.size()" << std::endl;
+    }
+    throw std::runtime_error("Error creating grid.");
+  }
   return static_cast<size_t>( index );
 }
 
@@ -244,7 +254,13 @@ const FillNode& Fill::getOriginNode() const {
 }
 
 const FillNode& Fill::getNode( int x, int y, int z ) const {
-  assert( has_grid );
+  if( !has_grid ){
+    if( OPT_DEBUG ){
+      record << "Error in Fill::getNode( int x, int y, int z ) in geometry.cpp" << std::endl;
+      record << "!has_grid" << std::endl;
+    }
+    throw std::runtime_error("Grid expected and not found.");
+  }
   return nodes.at( indicesToSerialIndex(x, y, z) );
 }
 
@@ -306,4 +322,4 @@ const FillNode& Lattice::getFillForNode( int x, int y, int z ) const {
   }
 }
 
-  
+
