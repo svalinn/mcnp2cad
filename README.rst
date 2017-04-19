@@ -17,6 +17,23 @@ Bug reports are appreciated.
 This tool is based on an concept first developed at Argonne National
 Laboratory.
 
+Build Instructions:
+--------------------
+
+Using cmake:
+When installing using cmake, be sure to include the following flag:
+-DCubit_DIR= path to Cubit or Trelis
+-DIGEOM_INCLUDE_DIR= path to iGeom include directory
+(If building with the Svalinn Trelis plugin, this will likely be
+/path/to/DAGMC-Trelis/export_dagmc_cmd/igeom)
+-DMOAB_INCLUDE_DIR= path to moab include directory
+
+If building the command line interface, also include the following flag:
+-DBUILD_CLI=true
+
+If having trouble finding iGeom, also add the following flag:
+-DIGEOM_LIB_DIR= path to libiGeom
+
 Unsupported Features: 
 -----------------------
 
@@ -30,10 +47,6 @@ Unsupported Features:
    * Correct handling of hexagonal prism lattices for lattices based on irregular
      hexgons
    * Support for `ELL` (ellipse), `WED` (wedge), and `ARB` (arbitrary polyhedron) 
-     macrobodies
-   * Ability to refer to individual facets of macrobodies as surfaces in cell
-     specification, using the `NNNN.MM` syntax.  Parsing support for this feature
-     exists, but output support does not.
    * Support for lattices in universe 0
    * Faster/more efficient generation of embedded universes within lattices.
    * Complete support for `M=-1` argument in `TRn` (transform) cards.
