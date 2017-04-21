@@ -26,7 +26,7 @@ Install Armadillo.
 
 When installing using cmake, be sure to include the following flags:
 
-`-DCubit_DIR= path to Cubit or Trelis'
+`-DCubit_DIR= path to Cubit or Trelis`
 
 `-DIGEOM_INCLUDE_DIR= path to iGeom include directory`
 (If building with the Svalinn Trelis plugin, this will likely be
