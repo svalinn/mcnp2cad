@@ -21,18 +21,26 @@ Build Instructions:
 --------------------
 
 Using cmake:
-When installing using cmake, be sure to include the following flag:
--DCubit_DIR= path to Cubit or Trelis
--DIGEOM_INCLUDE_DIR= path to iGeom include directory
+
+Install Armadillo.
+
+When installing using cmake, be sure to include the following flags:
+
+`-DCubit_DIR= path to Cubit or Trelis'
+
+`-DIGEOM_INCLUDE_DIR= path to iGeom include directory`
 (If building with the Svalinn Trelis plugin, this will likely be
 /path/to/DAGMC-Trelis/export_dagmc_cmd/igeom)
--DMOAB_INCLUDE_DIR= path to moab include directory
+
+`-DMOAB_INCLUDE_DIR= path to moab include directory`
 
 If building the command line interface, also include the following flag:
--DBUILD_CLI=true
+
+`-DBUILD_CLI=true`
 
 If having trouble finding iGeom, also add the following flag:
--DIGEOM_LIB_DIR= path to libiGeom
+
+`-DIGEOM_LIB_DIR= path to libiGeom`
 
 Unsupported Features: 
 -----------------------
