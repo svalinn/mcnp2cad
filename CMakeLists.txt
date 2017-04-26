@@ -1,6 +1,5 @@
 project(libMCNP2CAD)
 
-# cmake_minimum_required(VERSION 3.1)
 cmake_minimum_required(VERSION 2.8)
 
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -DHAVE_IGEOM_CONE" )
@@ -20,7 +19,6 @@ include_directories(${CUBIT_INCLUDE_DIRS})
 
 # These directories need to be defined by the user.
 include_directories(${IGEOM_INCLUDE_DIR})
-include_directories(${MOAB_INCLUDE_DIR})
 
 find_library(IGEOM_LIB NAMES iGeom PATHS ${IGEOM_LIB_DIR})
 
@@ -35,9 +33,9 @@ SET(LIB_SRC
     volumes.hpp)
 
 SET(CLI_SRC
-    mcnp2cadex.cpp
-    ProgOptions.cpp
-    ProgOptions.hpp)
+    cli/mcnp2cadex.cpp
+    cli/ProgOptions.cpp
+    cli/ProgOptions.hpp)
 
 add_library(mcnp2cad SHARED ${LIB_SRC})
 target_link_libraries(mcnp2cad ${IGEOM_LIB} armadillo)

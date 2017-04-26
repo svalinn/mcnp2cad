@@ -1,6 +1,7 @@
 #include "mcnp2cad.hpp"
 
 #include <string>
+#include <iostream>
 #include <stdexcept>
 #include <vector>
 #include <map>
@@ -12,8 +13,7 @@
 #include "volumes.hpp"
 #include "version.hpp"
 
-#include "moab/GeomTopoTool.hpp"
-
+#include "GeometryModifyTool.hpp"
 
 //Writes the output to mcnp_import.log.
 std::ofstream record;

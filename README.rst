@@ -12,6 +12,9 @@ implementation and as a tool in `the CGM-ANL project
 <http://sigma.mcs.anl.gov/cgm-library/>`_ for OpenCascade based
 implementation.
 
+This project creates a shared object file which is called by the Trelis plugin
+or the command line interface created with the -DBUILD_CLI=true flag.
+
 Bug reports are appreciated.
 
 This tool is based on an concept first developed at Argonne National
@@ -24,23 +27,27 @@ Using cmake:
 
 Install Armadillo.
 
-When installing using cmake, be sure to include the following flags:
+When installing mcnp2cad, be sure to include the following flags:
 
-`-DCubit_DIR= path to Cubit or Trelis`
+-DCubit_DIR= path to Cubit or Trelis
 
-`-DIGEOM_INCLUDE_DIR= path to iGeom include directory`
+-DIGEOM_LIB_DIR= path to directory containing libigeom
+(If builiding with Trelis, this will likely be unnecessary as long as libigeom
+is in Cubit_DIR)
+
+-DIGEOM_INCLUDE_DIR= path to iGeom include directory
 (If building with the Svalinn Trelis plugin, this will likely be
 /path/to/DAGMC-Trelis/export_dagmc_cmd/igeom)
 
-`-DMOAB_INCLUDE_DIR= path to moab include directory`
+-DMOAB_INCLUDE_DIR= path to moab include directory
 
 If building the command line interface, also include the following flag:
 
-`-DBUILD_CLI=true`
+-DBUILD_CLI=true
 
 If having trouble finding iGeom, also add the following flag:
 
-`-DIGEOM_LIB_DIR= path to libiGeom`
+-DIGEOM_LIB_DIR= path to libiGeom
 
 Unsupported Features: 
 -----------------------
@@ -55,6 +62,7 @@ Unsupported Features:
    * Correct handling of hexagonal prism lattices for lattices based on irregular
      hexgons
    * Support for `ELL` (ellipse), `WED` (wedge), and `ARB` (arbitrary polyhedron) 
+     macrobodies
    * Support for lattices in universe 0
    * Faster/more efficient generation of embedded universes within lattices.
    * Complete support for `M=-1` argument in `TRn` (transform) cards.
