@@ -13,14 +13,13 @@ if(CMAKE_SYSTEM_NAME MATCHES Linux AND CMAKE_COMPILER_IS_GNUCXX)
   endif()
 endif()
 
-# Get the packages needed to use the SDK
-find_package(Cubit REQUIRED CONFIG)
-include_directories(${CUBIT_INCLUDE_DIRS})
+if(${BUILD_CLI})
+    add_subdirectory(${CMAKE_SOURCE_DIR}/cli)
+endif()
 
 # These directories need to be defined by the user.
 include_directories(${IGEOM_INCLUDE_DIR})
-
-find_library(IGEOM_LIB NAMES iGeom PATHS ${IGEOM_LIB_DIR})
+find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_LIB_DIR})
 
 SET(LIB_SRC
     mcnp2cad.cpp
@@ -32,20 +31,5 @@ SET(LIB_SRC
     volumes.cpp
     volumes.hpp)
 
-SET(CLI_SRC
-    cli/mcnp2cadex.cpp
-    cli/ProgOptions.cpp
-    cli/ProgOptions.hpp)
-
 add_library(mcnp2cad SHARED ${LIB_SRC})
 target_link_libraries(mcnp2cad ${IGEOM_LIB} armadillo)
-
-if(${BUILD_CLI})
-    add_executable(convertMCNP ${CLI_SRC})
-    target_link_libraries(convertMCNP mcnp2cad armadillo)
-    if(Cubit_DIR)
-        set_target_properties(convertMCNP PROPERTIES INSTALL_RPATH ${Cubit_DIR} BUILD_WITH_INSTALL_RPATH TRUE)
-    else()
-        set_target_properties(convertMCNP PROPERTIES INSTALL_RPATH ${CMAKE_PREFIX_PATH} BUILD_WITH_INSTALL_RPATH TRUE)
-    endif()
-endif()

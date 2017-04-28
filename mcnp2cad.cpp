@@ -1,6 +1,8 @@
 #include "mcnp2cad.hpp"
 
 #include <string>
+#include <sstream>
+#include <set>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -12,8 +14,6 @@
 #include "MCNPInput.hpp"
 #include "volumes.hpp"
 #include "version.hpp"
-
-#include "GeometryModifyTool.hpp"
 
 //Writes the output to mcnp_import.log.
 std::ofstream record;
@@ -1160,11 +1160,15 @@ bool convert_mcnp(std::string filename, bool plugin_build)
     context.createGeometry( plugin_build );
   }
   catch(std::runtime_error& e){
+
     record << e.what() << std::endl;
-    PRINT_INFO( e.what() );
-    PRINT_INFO( "\n" );
-    std::cerr << e.what() << std::endl;
     record.close();
+
+    //The plugin needs to catch an exception to print to Trelis.
+    if (plugin_build) {
+      throw e;
+    }
+    std::cerr << e.what() << std::endl;
     return false;
   }
   

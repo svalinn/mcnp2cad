@@ -1,5 +1,5 @@
-#include "options.hpp"
-#include "mcnp2cad.hpp"
+#include "../options.hpp"
+#include "../mcnp2cad.hpp"
 #include "ProgOptions.hpp"
 
 //Stores all of the options selected
