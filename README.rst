@@ -8,7 +8,7 @@ input files and write it out using any ITAPS iGeom backend.
 **This project is currently in transition based on changes to the underlying
 CGM library.  The end state of this code will be a library that relies upon an
 iGeom-like implementation to perform the solid model manipulations.  That
-iGeom-like implementation will be supported by other groups.
+iGeom-like implementation will be supported by other groups.**
 
 The following groups intend to support such implementations:
 
