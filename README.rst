@@ -19,7 +19,7 @@ The following groups intend to support such implementations:
   implementation of CGM_ that is based on the OpenCascade_ solid modeling
   engine.  This version may support a command line tool.
 
-Bug reports are appreciated - please post an issue in our `Github repository<https://github.com/svalinn/mcnp2cad/issues>`_.
+Bug reports are appreciated - please post an issue in our `Github repository <https://github.com/svalinn/mcnp2cad/issues>`_.
 
 This tool is based on an concept first developed at Argonne National
 Laboratory.
