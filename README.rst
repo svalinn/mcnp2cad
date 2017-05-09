@@ -5,14 +5,21 @@ MCNP2CAD README
 MCNP to iGeom/CAD converter: a program to extract the geomtery from MCNP 
 input files and write it out using any ITAPS iGeom backend. 
 
-This project is currently in transition based on changes to the underlying CGM
-library, with modified versions available as `a runtime plugin
-<http://github.com/svalinn/DAGMC-Trelis>`_ to Trelis for an ACIS based
-implementation and as a tool in `the CGM-ANL project
-<http://sigma.mcs.anl.gov/cgm-library/>`_ for OpenCascade based
-implementation.
+**This project is currently in transition based on changes to the underlying
+CGM library.  The end state of this code will be a library that relies upon an
+iGeom-like implementation to perform the solid model manipulations.  That
+iGeom-like implementation will be supported by other groups.**
 
-Bug reports are appreciated.
+The following groups intend to support such implementations:
+
+* CNERG_ will develop an iGeom-like interface as part of a Trelis_ & Cubit_
+  plugin that uses this library to import MCNP geometry into Trelis/Cubit.
+
+* The SIGMA_ team will develop an iGeom-like interface as part of an
+  implementation of CGM_ that is based on the OpenCascade_ solid modeling
+  engine.  This version may support a command line tool.
+
+Bug reports are appreciated - please post an issue in our `Github repository <https://github.com/svalinn/mcnp2cad/issues>`_.
 
 This tool is based on an concept first developed at Argonne National
 Laboratory.
@@ -47,4 +54,11 @@ Unsupported Features:
      (Simple `X`, `Y`, `Z` surfaces are already supported.)
    * Robust error detection and reporting for ill-formed MCNP inputs.
 
+
+.. _CNERG: http://cnerg.engr.wisc.edu
+.. _Trelis: http://csimsoft.com
+.. _Cubit: http://cubit.sandia.gov
+.. _SIGMA: http://sigma.mcs.anl.gov
+.. _CGM: http://sigma.mcs.anl.gov/cgm-library/
+.. _OpenCascade: https://www.opencascade.com/
 
