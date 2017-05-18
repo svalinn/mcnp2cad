@@ -199,7 +199,8 @@ protected:
   double extents[3];
   // tolerance used to determine
   // if matrix determinant should be considered zero
-  const double gq_tol = 1e-6;
+  const double gq_tol = 1e-8;
+  const double equivalence_tol = 1e-02;
 
   enum GQ_TYPE {UNKNOWN = 0,
 		ELLIPSOID,
@@ -240,10 +241,7 @@ protected:
   rnkAc = arma::rank(Ac);
 
   double determinant = arma::det(Ac);
-  if (fabs(determinant) < gq_tol)
-    delta = 0;
-  else
-    delta = (determinant < 0) ? -1:1;
+  delta = (determinant < 0) ? -1:1;
 
   arma::vec eigenvals;
   arma::mat eigenvects;
@@ -274,21 +272,67 @@ protected:
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
   D = (K_*signs[0]) ? -1:1;
-  //based on characteristic values, get the GQ type
-  type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the translation while we're at it
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix
   std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
+  //based on characteristic values, get the GQ type
+  type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the new canonical values
-  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
   //K is set above
+
+  // simplify the GQ if possible
+  reduce_type();
   }
 
+  // this method reduces a complex GQ to a geometrically equivalent
+  // and more CAD-friendly form if appropriate
+  void reduce_type() {
+
+    if( ONE_SHEET_HYPERBOLOID == type ) {
+      // if the K value is near-zero, reduce to Elliptic Cone
+      if ( fabs(K_) < equivalence_tol ) {
+	K_ = 0;
+	type = ELLIPTIC_CONE;
+	return;
+      }
+    }
+
+    if ( TWO_SHEET_HYPERBOLOID == type ) {
+      // if the K value is near-zero, reduce to Elliptic Cone
+      if ( fabs(K_) < equivalence_tol ) {
+	K_ = 0;
+	type = ELLIPTIC_CONE;
+	return;
+      }
+    }
+
+    if ( ELLIPSOID == type ) {
+      //if any of the 2nd order terms are near-zero, reduce to Elliptic Cylinder
+      if ( fabs(A_) < equivalence_tol ) {
+	A_ = 0;
+	type = ELLIPTIC_CYL;
+	return;
+      }	
+      else if ( fabs(B_) < equivalence_tol ) {
+	B_ = 0;
+	type = ELLIPTIC_CYL;
+	return;
+      }	
+      else if ( fabs(C_) < equivalence_tol ) {
+	C_ = 0;
+	type = ELLIPTIC_CYL;
+	return;
+      }
+    }
+    
+  };
+		   
   GQ_TYPE find_type(int rt, int rf, int del, int s, int d) {
+    
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
       t = ELLIPSOID;
@@ -314,13 +358,24 @@ protected:
     //special case, replace delta with D
     if( 2 == rt && 3 == rf && 1 == s && d != 0) {
       t = find_type(rt, rf, d, s, 0);
-      return t;
     }
-    else {
-      return t;
-    }
+    
+    return t;
   }
 
+  iBase_EntityHandle ellipsoid(iGeom_Instance &igm) {
+    int igm_result;
+    iBase_EntityHandle gq_handle;
+    double radius = 1;
+
+    iGeom_createSphere( igm, radius, &gq_handle, &igm_result);
+    CHECK_IGEOM( igm_result, "making sphere" );
+
+    iGeom_scaleEnt( igm, gq_handle, 0, 0, 0, sqrt(-K_/A_),sqrt(-K_/B_),sqrt(-K_/C_), &igm_result);
+    CHECK_IGEOM( igm_result, "scaling sphere to ellipsoid" );
+
+    return gq_handle;
+  }
   iBase_EntityHandle elliptic_cyl(iGeom_Instance &igm, double world_size) {
     int igm_result;
     double r1,r2;
@@ -423,6 +478,9 @@ protected:
 
     iBase_EntityHandle gq;
     switch(type){
+    case ELLIPSOID:
+      gq = ellipsoid(igm);
+      break;
     case ELLIPTIC_CONE:
       gq = elliptic_cone(igm, world_size);
       break;
@@ -635,7 +693,7 @@ protected:
     CHECK_IGEOM( igm_result, "Creating initial torus");
 
     if( ellipse_axis_rad != ellipse_perp_rad ){
-      double scalef = ellipse_axis_rad / ellipse_perp_rad;
+      double scalef = fabs(ellipse_axis_rad) / fabs(ellipse_perp_rad);
       iGeom_scaleEnt( igm, torus, 0, 0, 0, 1.0, 1.0, scalef, &igm_result );
       CHECK_IGEOM( igm_result, "Scaling torus" );
     }
