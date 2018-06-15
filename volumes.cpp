@@ -8,6 +8,7 @@
 #include "geometry.hpp"
 #include "options.hpp"
 #include <armadillo>
+#include <Eigen/Dense>
 
 static Vector3d origin(0,0,0);
 
@@ -222,31 +223,36 @@ protected:
   void make_canonical()
   {
   //create coefficient matrix
-  arma::mat Aa;
-  Aa << A_ << D_/2 << F_/2 << arma::endr
-     << D_/2 << B_ <<  E_/2 << arma::endr
-     << F_/2 << E_/2 << C_ << arma::endr;
+  Eigen::Matrix3f Aa;
+  Aa << A_, D_/2, F_/2,
+        D_/2, B_, E_/2,
+        F_/2, E_/2, C_;
   //create hessian matrix
-  arma::mat Ac;
-  Ac << A_ << D_/2 << F_/2 << G_/2 << arma::endr
-  << D_/2 << B_ << E_/2 <<H_/2 << arma::endr
-  << F_/2 << E_/2 << C_ << J_/2 << arma::endr
-  << G_/2 <<  H_/2 << J_/2 << K_ << arma::endr;
+  Eigen::Matrix4f Ac;
+  Ac << A_, D_/2, F_/2, G_/2,
+        D_/2, B_, E_/2, H_/2,
+        F_/2, E_/2, C_, J_/2,
+        G_/2,  H_/2, J_/2, K_;
 
   //characterization values
   int rnkAa, rnkAc, delta, S, D;
-  rnkAa = arma::rank(Aa);
-  rnkAc = arma::rank(Ac, 1e-16);
+  Eigen::FullPivLU<Matrix3f> lu_decomp_Aa(Aa);
+  Eigen::FullPivLU<Matrix4f> lu_decomp_Ac(Ac);
+  rnkAa = lu_decomp_Aa.rank();
+  rnkAc = lu_decomp_Ac.rank();
 
-  double determinant = arma::det(Ac);
-  delta = (determinant < 0) ? -1:1;
+  double determinant = lu_decomp_Ac.determinant();
+  if (fabs(determinant) < gq_tol)
+    delta = 0;
+  else
+    delta = (determinant < 0) ? -1:1;
 
-  arma::vec eigenvals;
-  arma::mat eigenvects;
-  arma::eig_sym(eigenvals, eigenvects, Aa);
-  arma::vec signs(3);
+  Eigen::Vector3f eigenvals;
+  Eigen::Matrix3f eigenvects;
+  Eigen::eig_sym(eigenvals, eigenvects, Aa);
+  Eigen::Vector3f signs;
 
-  for(unsigned int i = 0; i < 3; i++) {
+  for(unsigned int i = 0; i < eigenvals.diagonalSize(); i++) {
     if (fabs(eigenvals[i]) < gq_tol)
       signs[i] = 1;
     else if (eigenvals[i] > 0)
@@ -255,28 +261,42 @@ protected:
       signs[i] = -1;
   }
 
-  S = (fabs(arma::sum(signs)) == 3) ? 1:-1;
+  S = (fabs(signs(0)+signs(1)+signs(2)) == 3) ? 1:-1;
   // may need to adjust delta for speical cases using the new scaling factor, K_
   // so we'll calculate that now
-  arma:: mat b;
-  b << -G_/2 << arma::endr
-    << -H_/2 << arma::endr
-    << -J_/2 << arma::endr;
+  Eigen::Vector3f b;
+  b << -G_/2, -H_/2, -J_/2;
   //use Moore-Penrose pseudoinverse to ensure minimal norm least squares solution
-  arma::mat Aai = pinv(Aa);
-  arma::mat c = Aai*b;
+  //arma::mat Aai = pinv(Aa); //Original code; Working on the 3x3 Coefficient matrix
+  double pinvToler = 1.e-6 //Tolerance; how close to 0 is "0"?
+  //Remember to change pinvToler to work based on expected input values
+
+  Eigen::JacobiSVD<Matrix3f> m_singularValues(Aa, ComputeFullU|ComputeFullV);
+  //ComputeFullU and ComputeFullV tell it to specifically get U and V ready
+  Eigen::Matrix3f singularValues_inv = m_singularValues; //Copy original SVDs
+  Eigen::Matrix3f m_matrixV = singularValues_inv.matrixV;
+  Eigen::Matrix3f m_matrixU = singularValues_inv.matrixU;
+  for ( long i=0; i<Aa.cols(); ++i) { //Iterate through each column of Aa (3 iterations)
+     if ( m_singularValues(i) > pinvToler )
+        singularValues_inv(i)=1.0/m_singularValues(i); //Invert nonzero SVs one by one
+     else singularValues_inv(i)=0; //SVs close to zero are not inverted
+  }
+  Eigen::Matrix3f Aai=(m_matrixV*singularValues_inv.asDiagonal()*m_matrixU.transpose());
+
+  Eigen::Vector3f c = Aai*b;
   double dx = c[0], dy = c[1], dz = c[2];
   K_ = K_ + (G_/2)*dx + (H_/2)*dy + (J_/2)*dz;
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
   delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
   D = (K_*signs[0]) ? -1:1;
+  //based on characteristic values, get the GQ type
+  type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the translation while we're at it
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix
   std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
-  //based on characteristic values, get the GQ type
-  type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the new canonical values
+  for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
