@@ -7,7 +7,6 @@
 #include "volumes.hpp"
 #include "geometry.hpp"
 #include "options.hpp"
-#include <armadillo>
 #include <Eigen/Dense>
 
 static Vector3d origin(0,0,0);
