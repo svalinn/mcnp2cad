@@ -7,7 +7,7 @@
 #include "volumes.hpp"
 #include "geometry.hpp"
 #include "options.hpp"
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Eigen>
 
 static Vector3d origin(0,0,0);
 
