@@ -235,8 +235,8 @@ protected:
 
   //characterization values
   int rnkAa, rnkAc, delta, S, D;
-  Eigen::FullPivLU<Matrix3f> lu_decomp_Aa(Aa);
-  Eigen::FullPivLU<Matrix4f> lu_decomp_Ac(Ac);
+  Eigen::FullPivLU<Eigen::Matrix3f> lu_decomp_Aa(Aa);
+  Eigen::FullPivLU<Eigen::Matrix4f> lu_decomp_Ac(Ac);
   rnkAa = lu_decomp_Aa.rank();
   rnkAc = lu_decomp_Ac.rank();
 
@@ -248,7 +248,10 @@ protected:
 
   Eigen::Vector3f eigenvals;
   Eigen::Matrix3f eigenvects;
-  Eigen::eig_sym(eigenvals, eigenvects, Aa);
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> AaEigs;
+  AaEigs.compute(Aa, Eigen::ComputeEigenvectors); //Computes eig-stuff, stored in AaEigs
+  eigenvals = AaEigs.eigenvalues();
+  eigenvects = AaEigs.eigenvectors();
   Eigen::Vector3f signs;
 
   for(unsigned int i = 0; i < eigenvals.diagonalSize(); i++) {
@@ -267,10 +270,10 @@ protected:
   b << -G_/2, -H_/2, -J_/2;
   //use Moore-Penrose pseudoinverse to ensure minimal norm least squares solution
   //arma::mat Aai = pinv(Aa); //Original code; Working on the 3x3 Coefficient matrix
-  double pinvToler = 1.e-6 //Tolerance; how close to 0 is "0"?
+  double pinvToler = 1.e-6; //Tolerance; how close to 0 is "0"?
   //Remember to change pinvToler to work based on expected input values
 
-  Eigen::JacobiSVD<Matrix3f> m_singularValues(Aa, ComputeFullU|ComputeFullV);
+  Eigen::JacobiSVD<Eigen::Matrix3f> m_singularValues(Aa, Eigen::ComputeFullU|Eigen::ComputeFullV);
   //ComputeFullU and ComputeFullV tell it to specifically get U and V ready
   Eigen::Matrix3f singularValues_inv = m_singularValues; //Copy original SVDs
   Eigen::Matrix3f m_matrixV = singularValues_inv.matrixV;
