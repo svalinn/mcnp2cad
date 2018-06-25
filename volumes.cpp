@@ -275,13 +275,14 @@ protected:
 
   Eigen::JacobiSVD<Eigen::Matrix3f> m_singularValues(Aa, Eigen::ComputeFullU|Eigen::ComputeFullV);
   //ComputeFullU and ComputeFullV tell it to specifically get U and V ready
-  Eigen::Matrix3f singularValues_inv = m_singularValues; //Copy original SVDs
-  Eigen::Matrix3f m_matrixV = singularValues_inv.matrixV;
-  Eigen::Matrix3f m_matrixU = singularValues_inv.matrixU;
+  Eigen::Matrix3f m_matrixV = m_singularValues.matrixV();
+  Eigen::Matrix3f m_matrixU = m_singularValues.matrixU();
+  Eigen::Vector3f sv_list = m_singularValues.singularValues();
+  Eigen::Matrix3f singularValues_inv;
   for ( long i=0; i<Aa.cols(); ++i) { //Iterate through each column of Aa (3 iterations)
-     if ( m_singularValues(i) > pinvToler )
-        singularValues_inv(i)=1.0/m_singularValues(i); //Invert nonzero SVs one by one
-     else singularValues_inv(i)=0; //SVs close to zero are not inverted
+     if ( sv_list(i) > pinvToler )
+        singularValues_inv(i,i)=1.0/sv_list(i); //Invert nonzero SVs one by one
+     else singularValues_inv(i,i)=0; //SVs close to zero are not inverted
   }
   Eigen::Matrix3f Aai=(m_matrixV*singularValues_inv.asDiagonal()*m_matrixU.transpose());
 
