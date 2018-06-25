@@ -284,7 +284,7 @@ protected:
         singularValues_inv(i,i)=1.0/sv_list(i); //Invert nonzero SVs one by one
      else singularValues_inv(i,i)=0; //SVs close to zero are not inverted
   }
-  Eigen::Matrix3f Aai=(m_matrixV*singularValues_inv.asDiagonal()*m_matrixU.transpose());
+  Eigen::Matrix3f Aai=(m_matrixV*singularValues_inv*m_matrixU.transpose());
 
   Eigen::Vector3f c = Aai*b;
   double dx = c[0], dy = c[1], dz = c[2];
@@ -296,8 +296,8 @@ protected:
   type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the translation while we're at it
   translation = Vector3d(dx,dy,dz);
-  //set the rotaion matrix
-  std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
+  //set the rotaion matrix. LINE BELOW MAY BE UNNECESSARY
+  //std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
   //set the new canonical values
   for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
