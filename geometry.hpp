@@ -43,6 +43,13 @@ public:
     v[2] = p.at(idx+2);
   }
 
+
+  Vector3d( const Vector3d& other ) {
+    v[0] = other.v[0];
+    v[1] = other.v[1];
+    v[2] = other.v[2];
+  }
+  
   double length() const{
     return sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2] );
   }
@@ -52,6 +59,13 @@ public:
     return Vector3d( v[0]/length, v[1]/length, v[2]/length );
   }
 
+  Vector3d& operator=( const Vector3d& other) {
+    v[0] = other.v[0];
+    v[1] = other.v[1];
+    v[2] = other.v[2];
+    return *this;
+  }
+  
   Vector3d operator-() const {
     return Vector3d(-v[0], -v[1], -v[2]);
   }
@@ -131,6 +145,8 @@ public:
   Transform( double rot[9], const Vector3d& trans,  enum mat_format = C_STYLE );
 
   const Vector3d& getTranslation() const { return translation; }
+  void modify_translation( const Vector3d& translation_addition );
+  void modify_translation( const Vector3d& translation_addition ) const;
   bool hasRot() const{ return has_rot; }
   bool hasInversion() const{ return invert; }
   double getTheta() const { return theta; }
