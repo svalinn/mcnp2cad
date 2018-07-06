@@ -1071,8 +1071,8 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
     if( cell.getTrcl().hasData() ) {
       Transform trcl = cell.getTrcl().getData();
       if( trans ) {
-	Vector3d temp = trcl.getTranslation();
-	trans->modify_translation( temp  );
+	Transform temp = combine(*trans, trcl);
+	trans = &temp;
       }
       else {
 	trans = &(trcl);
