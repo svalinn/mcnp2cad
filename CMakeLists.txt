@@ -32,4 +32,4 @@ SET(LIB_SRC
     volumes.hpp)
 
 add_library(mcnp2cad SHARED ${LIB_SRC})
-target_link_libraries(mcnp2cad ${IGEOM_LIB} armadillo)
+target_link_libraries(mcnp2cad ${IGEOM_LIB})
