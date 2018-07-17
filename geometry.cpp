@@ -24,11 +24,6 @@ void Transform::modify_translation( const Vector3d& translation_addition ) {
   return;
 }
 
-// void Transform::modify_translation( const Vector3d& translation_addition ) const {
-//   translation = translation + translation_addition;
-//   return;
-// }
-
 /**
  * Compute Euler axis/angle, given a rotation matix.
  * See en.wikipedia.org/wiki/Rotation_representation_(mathematics) 
