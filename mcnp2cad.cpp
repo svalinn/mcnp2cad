@@ -1033,13 +1033,6 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
   iGeom_copyEnt( igm, cell_shell, &cell_copy, &igm_result );
   CHECK_IGEOM( igm_result, "Copying a lattice cell shell" );
   cell_copy = applyTransform( t, igm, cell_copy );
-
-  // if the containing cell has a transform applied, apply to all lattice nodes
-  // if( cell.getTrcl().hasData() ){
-  //   Transform trcl = cell.getTrcl().getData();
-  //   t.modify_translation(trcl.getTranslation());
-  // }
-    
   
   if( !boundBoxesIntersect( igm, cell_copy, lattice_shell ) ){
     iGeom_deleteEnt( igm, cell_copy, &igm_result);
