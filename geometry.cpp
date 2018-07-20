@@ -19,6 +19,11 @@ double matrix_det( double mat[9] ){
           mat[2]*mat[4]*mat[6]);
 }
 
+void Transform::modify_translation( const Vector3d& translation_addition ) {
+  translation = translation + translation_addition;
+  return;
+}
+
 /**
  * Compute Euler axis/angle, given a rotation matix.
  * See en.wikipedia.org/wiki/Rotation_representation_(mathematics) 
