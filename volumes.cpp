@@ -7,7 +7,7 @@
 #include "volumes.hpp"
 #include "geometry.hpp"
 #include "options.hpp"
-#include <eigen3/Eigen/Eigen>
+#include "GQ_Characterize.hpp"
 
 static Vector3d origin(0,0,0);
 
@@ -182,43 +182,21 @@ protected:
 
 typedef  enum { X=0, Y=1, Z=2 } axis_t;
 
-class GeneralQuadraticSurface : public SurfaceVolume {
+class GeneralQuadraticSurface : public SurfaceVolume, public GQ_Characterize {
 
 protected:
-  // coefficients of the GQ
-  double A_,B_,C_,D_,E_,F_,G_,H_,J_,K_;
-  // the cannonical GQ type
-  int type;
-  // translation from the canoncial GQ to final GQ
-  Vector3d translation;
   // rotation matrix from canonical GQ to final GQ
   double rotation_mat[9];
   // principle axes extents of the GQ
   double extents[3];
-  // tolerance used to determine
-  // if matrix determinant should be considered zero
-  const double gq_tol = 1e-8;
-  const double equivalence_tol = 1e-06;
 
-  enum GQ_TYPE {UNKNOWN = 0,
-               ELLIPSOID,
-               ONE_SHEET_HYPERBOLOID,
-               TWO_SHEET_HYPERBOLOID,
-               ELLIPTIC_CONE,
-               ELLIPTIC_PARABOLOID,
-               HYPERBOLIC_PARABOLOID,
-               ELLIPTIC_CYL,
-               HYPERBOLIC_CYL,
-               PARABOLIC_CYL};
 public:
   GeneralQuadraticSurface(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
-    SurfaceVolume(),A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {
-    //determine canonical form of GQ and determine transformation
-    make_canonical();
-  }
+    SurfaceVolume(),GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K) {}
 
   virtual double getFarthestExtentFromOrigin() const{ return 0; }
 protected:
+
   void make_canonical()
   {
   //create coefficient matrix
@@ -386,6 +364,7 @@ protected:
   }
 
   iBase_EntityHandle ellipsoid(iGeom_Instance &igm) {
+
     int igm_result;
     iBase_EntityHandle gq_handle;
     double radius = 1;
