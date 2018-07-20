@@ -1,39 +1,20 @@
 #include <eigen3/Eigen/Eigen>
+#include <cfloat>
+#include <iostream>
+#include <GQ_Characterize.hpp>
 
-class GQ_Characterize{
-
-protected:
-  // coefficients of the GQ
-  double A_,B_,C_,D_,E_,F_,G_,H_,J_,K_;
-  // the cannonical GQ type
-  int type;
-  // translation from the canoncial GQ to final GQ
-  Vector3d translation;
   // tolerance used to determine
   // if matrix determinant should be considered zero
-  const double gq_tol = 1e-8;
-  const double equivalence_tol = 1e-06;
-	
-  enum GQ_TYPE {UNKNOWN = 0,
-               ELLIPSOID,
-               ONE_SHEET_HYPERBOLOID,
-               TWO_SHEET_HYPERBOLOID,
-               ELLIPTIC_CONE,
-               ELLIPTIC_PARABOLOID,
-               HYPERBOLIC_PARABOLOID,
-               ELLIPTIC_CYL,
-               HYPERBOLIC_CYL,
-               PARABOLIC_CYL};
+  GQ_Characterize::gq_tol = 1e-8;
+  GQ_Characterize::equivalence_tol = 1e-06;
 
-public:
-  GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
+  GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
     A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {
     //determine canonical form of GQ and determine transformation
     make_canonical();
   }
 
-protected:
-  void make_canonical()
+  void GQ_Characterize::make_canonical()
   {
   //create coefficient matrix
   Eigen::Matrix3f Aa;
@@ -127,7 +108,7 @@ protected:
 
   // this method reduces a complex GQ to a geometrically equivalent
   // and more CAD-friendly form if appropriate
-  void reduce_type() {
+  void GQ_Characterize::reduce_type() {
 
     if( ONE_SHEET_HYPERBOLOID == type ) {
       // if the K value is near-zero, reduce to Elliptic Cone
@@ -168,7 +149,7 @@ protected:
     
   };
     
-  GQ_TYPE find_type(int rt, int rf, int del, int s, int d) {
+  GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
       t = ELLIPSOID;
@@ -198,4 +179,3 @@ protected:
     cout << t << "\n" //Temporary line, for testing
     return t;
   }
-}
