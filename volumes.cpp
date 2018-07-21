@@ -8,9 +8,8 @@
 #include "geometry.hpp"
 #include "options.hpp"
 #include "GQ_Characterize.hpp"
-#include <eigen3/Eigen/Eigen>
 
-static Vector3d origin(0,0,0);
+static Vector3d(0,0,0) origin;
 
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
   iBase_EntityHandle world_sphere;
