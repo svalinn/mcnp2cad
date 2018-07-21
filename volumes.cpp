@@ -9,7 +9,7 @@
 #include "options.hpp"
 #include "GQ_Characterize.hpp"
 
-static Vector3d(0,0,0) origin;
+static Vector3d origin(0,0,0);
 
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
   iBase_EntityHandle world_sphere;
