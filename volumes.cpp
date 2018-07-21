@@ -8,6 +8,7 @@
 #include "geometry.hpp"
 #include "options.hpp"
 #include "GQ_Characterize.hpp"
+#include <eigen3/Eigen/Eigen>
 
 static Vector3d origin(0,0,0);
 
@@ -192,7 +193,7 @@ protected:
 
 public:
   GeneralQuadraticSurface(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
-    SurfaceVolume(),GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K) {}
+    SurfaceVolume(),GQ_Characterize(A,B,C,D,E,F,G,H,J,K) {}
 
   virtual double getFarthestExtentFromOrigin() const{ return 0; }
 protected:
