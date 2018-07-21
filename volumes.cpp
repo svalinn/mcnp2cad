@@ -9,7 +9,7 @@
 #include "options.hpp"
 #include "GQ_Characterize.hpp"
 
-static Vector3d origin_pt(0,0,0);
+static Vector3d origin(0,0,0);
 
 iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
   iBase_EntityHandle world_sphere;
@@ -1194,7 +1194,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     const std::vector< double >& args = card->getArgs();
 
     if( mnemonic == "so"){
-      surface = new SphereSurface( origin_pt, args.at(0) );
+      surface = new SphereSurface( origin, args.at(0) );
     }
     else if( mnemonic == "sx"){
       surface = new SphereSurface( Vector3d( args.at(0), 0, 0 ), args.at(1) );
