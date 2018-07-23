@@ -13,7 +13,7 @@ protected:
   // the cannonical GQ type
   int type;
   // translation from the canoncial GQ to final GQ
-  Vector3d translation;
+  Eigen::Vector3d translation;
   // tolerance used to determine
   // if matrix determinant should be considered zero
   const double gq_tol = 1e-6;
