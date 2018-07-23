@@ -5,8 +5,6 @@
 
   // tolerance used to determine
   // if matrix determinant should be considered zero
-  GQ_Characterize::gq_tol = 1e-8;
-  GQ_Characterize::equivalence_tol = 1e-06;
 
   GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
     A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {

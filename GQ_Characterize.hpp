@@ -16,8 +16,8 @@ protected:
   Vector3d translation;
   // tolerance used to determine
   // if matrix determinant should be considered zero
-  const double gq_tol;
-  const double equivalence_tol;
+  const double gq_tol = 1e-6;
+  const double equivalence_tol = 1e-8;
 	
   enum GQ_TYPE {UNKNOWN = 0,
                ELLIPSOID,
