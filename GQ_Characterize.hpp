@@ -42,6 +42,6 @@ protected:
   void reduce_type();
     
   GQ_TYPE find_type(int rt, int rf, int del, int s, int d);
-}
+};
 
 #endif
