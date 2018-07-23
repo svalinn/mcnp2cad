@@ -1,7 +1,7 @@
 #include <eigen3/Eigen/Eigen>
 #include <cfloat>
 #include <iostream>
-#include <GQ_Characterize.hpp>
+#include "GQ_Characterize.hpp"
 
   // tolerance used to determine
   // if matrix determinant should be considered zero
