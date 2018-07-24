@@ -81,7 +81,7 @@ iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBas
   }
 
 
-  const geometry.hpp::Vector3d& translation = t.getTranslation();
+  const Vector3d& translation = t.getTranslation();
   iGeom_moveEnt( igm, e, translation.v[0], translation.v[1], translation.v[2], &igm_result);
   CHECK_IGEOM( igm_result, "applying translation" );
 
