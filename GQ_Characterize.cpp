@@ -175,6 +175,6 @@
     if( /*2 == rt && 3 == rf && 1 == s && */ d != 0) {
       t = find_type(rt, rf, d, s, 0);
     }
-    std::cout << t << "\n" //Temporary line, for testing
+    std::cout << t << "\n"; //Temporary line, for testing
     return t;
   }
