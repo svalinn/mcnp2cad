@@ -148,7 +148,7 @@
     
   };
     
-  GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
+  GQ_Characterize::GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
       t = ELLIPSOID;
