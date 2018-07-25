@@ -88,7 +88,7 @@
   //based on characteristic values, get the GQ type
   type = find_type(rnkAa,rnkAc,delta,S,D);
   //set the translation while we're at it
-  translation = Eigen::Vector3d(dx,dy,dz);
+  translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix. LINE BELOW MAY BE UNNECESSARY but is saved in case it is needed
   //std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
   //set the new canonical values

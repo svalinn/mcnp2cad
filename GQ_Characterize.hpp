@@ -4,6 +4,7 @@
 #include <eigen3/Eigen/Eigen>
 #include <cfloat>
 #include <iostream>
+#include <geometry.hpp>
 
 class GQ_Characterize{
 
@@ -13,7 +14,7 @@ protected:
   // the cannonical GQ type
   int type;
   // translation from the canoncial GQ to final GQ
-  Eigen::Vector3d translation;
+  Vector3d translation;
   // tolerance used to determine
   // if matrix determinant should be considered zero
   const double gq_tol = 1e-6;
