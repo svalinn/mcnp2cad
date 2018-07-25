@@ -4,7 +4,7 @@
 #include <eigen3/Eigen/Eigen>
 #include <cfloat>
 #include <iostream>
-#include <geometry.hpp>
+#include "geometry.hpp"
 
 class GQ_Characterize{
 
