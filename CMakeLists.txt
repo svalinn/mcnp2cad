@@ -32,6 +32,7 @@ SET(LIB_SRC
     volumes.hpp
     GQ_Characterize.cpp
     GQ_Characterize.hpp
+    test_GQ.cpp
 )
 
 add_library(mcnp2cad SHARED ${LIB_SRC})
