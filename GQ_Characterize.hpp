@@ -33,7 +33,7 @@ protected:
 
 public:
   //Constructor
-  GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K);
+  GQ_Characterize(double, double, double, double, double, double, double, double, double, double);
 
 protected:
   void make_canonical();
