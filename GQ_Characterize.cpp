@@ -150,31 +150,52 @@
     
   GQ_Characterize::GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
     GQ_TYPE t;
-    if( 3 == rt && 4 == rf && -1 == del && 1 == s)
+    if( 3 == rt && 4 == rf && -1 == del && 1 == s){
       t = ELLIPSOID;
-    else if( 3 == rt && 4 == rf && 1 == del && -1 == s)
+      std::cout << "ELLIPSOID\n";
+    }
+    else if( 3 == rt && 4 == rf && 1 == del && -1 == s){
       t = ONE_SHEET_HYPERBOLOID;
-    else if( 3 == rt && 4 == rf && -1 == del && -1 == s)
+      std::cout << "ONE_SHEET_HYPERBOLOID\n";
+    }
+    else if( 3 == rt && 4 == rf && -1 == del && -1 == s){
       t = TWO_SHEET_HYPERBOLOID;
-    else if( 3 == rt && 3 == rf && 0 == del && -1 == s)
+      std::cout << "TWO_SHEET_HYPERBOLOID\n";
+    }
+    else if( 3 == rt && 3 == rf && 0 == del && -1 == s){
       t = ELLIPTIC_CONE;
-    else if( 2 == rt && 4 == rf && -1 == del && 1 == s)
+      std::cout << "ELLIPTIC_CONE\n";
+    }
+    else if( 2 == rt && 4 == rf && -1 == del && 1 == s){
       t = ELLIPTIC_PARABOLOID;
-    else if( 2 == rt && 4 == rf && 1 == del && -1 == s)
+      std::cout << "ELLIPTID_PARABOLOID\n";
+    }
+    else if( 2 == rt && 4 == rf && 1 == del && -1 == s){
       t = HYPERBOLIC_PARABOLOID;
-    else if( 2 == rt && 3 == rf && -1 == del && 1 == s)
+      std::cout << "HYPERBOLIC_PARABOLOID\n";
+    }
+    else if( 2 == rt && 3 == rf && -1 == del && 1 == s){
       t = ELLIPTIC_CYL;
-    else if( 2 == rt && 3 == rf && 0 == del && -1 == s)
+      std::cout << "ELLIPTIC_CYL\n";
+    }
+    else if( 2 == rt && 3 == rf && 0 == del && -1 == s){
       t = HYPERBOLIC_CYL;
-    else if( 1 == rt && 3 == rf && 0 == del && 1 == s)
+      std::cout << "HYPERBOLIC_CYL\n";
+    }
+    else if( 1 == rt && 3 == rf && 0 == del && 1 == s){
       t = PARABOLIC_CYL;
-    else
+      std::cout << "PARABOLIC_CYL\n";
+    }
+    else{
       t = UNKNOWN;
+      std::cout << "UNKNOWN\n";
+    }
 
     //special case, replace delta with D
     if( /*2 == rt && 3 == rf && 1 == s && */ d != 0) {
+	std::cout << "Special case: ";
       t = find_type(rt, rf, d, s, 0);
     }
-    std::cout << t << "\n"; //Temporary line, for testing
+    //std::cout << t << "\n"; //Temporary line, for testing
     return t;
   }
