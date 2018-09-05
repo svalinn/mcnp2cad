@@ -5,6 +5,7 @@ int main(){
 	GQ_Characterize* testEllip = new GQ_Characterize(1.0,1.0,1.0, 0.0,0.0,0.0,0.0,0.0,0.0,1.0);
 	delete testEllip;	
 
+/* TODO: Expand to all tests when the first one is debugged 
 	//ONE_SHEET_HYPERBOLOID or 2
 	GQ_Characterize* testOneSheet = new GQ_Characterize(1.0,1.0,-1.0, 0.0,0.0,0.0,0.0,0.0,0.0,1.0);
 	delete testOneSheet;
@@ -36,6 +37,7 @@ int main(){
 	//PARABOLIC_CYL or 9
 	GQ_Characterize* testParaCyl = new GQ_Characterize(1.0, 0.0,0.0,0.0,0.0,0.0,0.0,-1.0,0.0,0.0);
 	delete testParaCyl;
+*/
 
 	return 0;
 }

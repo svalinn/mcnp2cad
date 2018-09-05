@@ -47,13 +47,12 @@
   eigenvects = AaEigs.eigenvectors();
   Eigen::Vector3f signs;
 
-  for(unsigned int i = 0; i < eigenvals.diagonalSize(); i++) {
-    if (fabs(eigenvals[i]) < gq_tol)
-      signs[i] = 1;
-    else if (eigenvals[i] > 0)
-      signs[i] = 1;
-    else if (eigenvals[i] < 0)
-      signs[i] = -1;
+  for(unsigned int i = 0; i < 3; i++) {  //Loop once for each of the 3 eigenvalues
+                                        //TODO: Change 3 to some "size" variable
+    if (eigenvals[i] > -1*gq_tol)
+      signs[i] = 1;  //Sign counted as + if above -tolerance
+    else
+      signs[i] = -1; //Sign counted as - if less than -tolerance
   }
 
   S = (fabs(signs(0)+signs(1)+signs(2)) == 3) ? 1:-1;
@@ -149,6 +148,14 @@
   };
     
   GQ_Characterize::GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
+	//TEST CODE (TODO: Remove this when testing is complete)
+	std::cout << "rt = " << rt << "\n";
+	std::cout << "rf = " << rf << "\n";
+        std::cout << "del = " << del << "\n";
+	std::cout << "s = " << s << "\n";
+	std::cout << "d = " << d << "\n";
+
+
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s){
       t = ELLIPSOID;
@@ -192,7 +199,7 @@
     }
 
     //special case, replace delta with D
-    if( /*2 == rt && 3 == rf && 1 == s && */ d != 0) {
+    if(2 == rt && 3 == rf && 1 == s && d != 0) {
 	std::cout << "Special case: ";
       t = find_type(rt, rf, d, s, 0);
     }
