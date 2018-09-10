@@ -82,7 +82,7 @@
   double dx = c[0], dy = c[1], dz = c[2];
   K_ = K_ + (G_/2)*dx + (H_/2)*dy + (J_/2)*dz;
   if (rnkAa == 2 && rnkAc == 3 && S == 1)
-  delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
+        delta = ((K_ < 0 && signs[0] < 0) || (K_ > 0 && signs[0] > 0)) ? -1:1;
   D = (K_*signs[0]) ? -1:1;
   //based on characteristic values, get the GQ type
   type = find_type(rnkAa,rnkAc,delta,S,D);
@@ -175,7 +175,7 @@
     }
     else if( 2 == rt && 4 == rf && -1 == del && 1 == s){
       t = ELLIPTIC_PARABOLOID;
-      std::cout << "ELLIPTID_PARABOLOID\n";
+      std::cout << "ELLIPTIC_PARABOLOID\n";
     }
     else if( 2 == rt && 4 == rf && 1 == del && -1 == s){
       t = HYPERBOLIC_PARABOLOID;
