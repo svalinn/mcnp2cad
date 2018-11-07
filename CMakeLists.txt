@@ -20,13 +20,9 @@ endif()
 # These directories need to be defined by the user.
 include_directories(${IGEOM_INCLUDE_DIR})
 
-# only require iGeom if this project is being built as a standalone
-if(${PROJECT_SOURCE_DIR} EQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+# only search for iGeom if the library is not already set
+if(NOT DEFINED IGEOM_LIB)
   find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_LIB_DIR})
-else()
-  # if this is part of another project
-  # iGeom sould be set as a native CMake dependency
-  set(IGEOM_LIB iGeom)
 endif()
 
 SET(LIB_SRC
