@@ -20,7 +20,7 @@ At present CGM_BASE_DIR must be specifed as a make paramter, e.g.
    make CGM_BASE_DIR=<path to CGM>
 
 CGM_BASE_DIR must point to a valid installation of the CGM library.  Information and instructions
-for getting and using CGM are available at https://trac.mcs.anl.gov/projects/ITAPS/wiki/CGM
+for getting and using CGM are available at https://press3.mcs.anl.gov/sigma/cgm-library/
 
 In addition, any shared libraries required by CGM must be located either in 
 standard system directories, or in a location pointed to by the 
