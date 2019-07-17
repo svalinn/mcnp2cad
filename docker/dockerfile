@@ -1,0 +1,58 @@
+FROM ubuntu:18.04
+
+# Ubuntu setup
+ENV TZ=America/Chicago
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+# Setup environment variables for Docker image
+
+# setup home dir
+ENV HOME /root
+
+# Install dependencies from Debian package manager
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y software-properties-common build-essential && \
+    apt-get install -y wget git vim && \
+    add-apt-repository ppa:jonathonf/gcc-9.1 && \
+    apt-get install -y gcc-9 && \
+    apt-get install -y gfortran g++ autoconf libtool automake make cmake && \
+    apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libfreetype6-dev && \
+    apt-get install -y  libopenblas-dev liblapack-dev libarpack2-dev libarmadillo-dev
+
+# Install OCE-0.18.3
+RUN cd $HOME && \
+    wget https://github.com/tpaviot/oce/archive/OCE-0.18.3.tar.gz && \
+    tar -zxvf OCE-0.18.3.tar.gz && \
+    cd oce-OCE-0.18.3 && \
+    mkdir build && cd build  && \
+    cmake -DOCE_INSTALL_PREFIX:PATH=$HOME/opt/OCE-0.18.3 .. && \
+    make  -j4 && make install/strip
+RUN cd $HOME && \
+    rm ./OCE-0.18.3.tar.gz  && rm -rf ./oce-OCE-0.18.3
+## OCE evn
+RUN echo 'export OCE_DIR=$HOME/opt/OCE-0.18.3' >> $HOME/.bashrc
+RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OCE_DIR/lib' >> $HOME/.bashrc
+
+# Install CGM master from the repo
+RUN git clone https://bitbucket.org/fathomteam/cgm/src/master/ $HOME/opt/cgm && \
+    cd $HOME/opt/cgm && \
+    autoreconf -fi && \
+    mkdir build && cd build && \
+    ../configure --prefix=$HOME/opt/CGM --with-occ=$HOME/opt/OCE-0.18.3 --enable-shared && \
+    make && make install
+# CGM env
+RUN echo 'export PATH=$PATH:$HOME/opt/CGM/bin' >> $HOME/.bashrc
+RUN echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/opt/CGM/lib' >> $HOME/.bashrc
+RUN echo 'export C_INCLUDE_PATH=$C_INCLUDE_PATH:$HOME/opt/CGM/include' >> $HOME/.bashrc
+RUN echo 'export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:$HOME/opt/CGM/include' >> $HOME/.bashrc
+RUN cd $HOME/opt/CGM/include && cp ./cgm/*.h* .
+
+
+# Install mcnp2cad
+ENV LD_LIBRARY_PATH $HOME/opt/CGM/lib:$HOME/opt/OCE-0.18.3/lib
+ENV CPLUS_INCLUDE_PATH $HOME/opt/CGM/include
+RUN git clone https://github.com/svalinn/mcnp2cad.git $HOME/opt/mcnp2cad
+RUN cd $HOME/opt/mcnp2cad  && mkdir build && cd build && \
+    cmake .. -DIGEOM_LIB=$HOME/opt/CGM/lib/libiGeom.so -DIGEOM_INCLUDE_DIR=$HOME/opt/cgm/include  -DBUILD_CLI=ON && \
+    make
+
