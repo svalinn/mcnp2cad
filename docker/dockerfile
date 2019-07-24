@@ -1,0 +1,57 @@
+FROM ubuntu:18.04
+
+# Ubuntu setup
+ENV TZ=America/Chicago
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+# Setup environment variables for Docker image
+
+# setup home dir
+ENV HOME /root
+
+# Install dependencies from Debian package manager
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y software-properties-common build-essential wget git vim \
+                       gfortran g++ autoconf libtool automake make cmake \
+                       libglu1-mesa-dev freeglut3-dev mesa-common-dev libfreetype6-dev \
+                        libopenblas-dev liblapack-dev libarpack2-dev libarmadillo-dev
+
+# Install OCE-0.18.3
+RUN cd $HOME && \
+    wget https://github.com/tpaviot/oce/archive/OCE-0.18.3.tar.gz && \
+    tar -zxvf OCE-0.18.3.tar.gz && \
+    cd oce-OCE-0.18.3 && \
+    mkdir build && \
+    cd build  && \
+    cmake -DOCE_INSTALL_PREFIX:PATH=$HOME/opt/OCE-0.18.3 .. && \
+    make  -j4 && \
+    make install/strip && \
+    cd $HOME && \
+    rm ./OCE-0.18.3.tar.gz  && rm -rf ./oce-OCE-0.18.3
+## OCE evn
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/opt/OCE-0.18.3/lib
+
+# Install CGM master from the repo
+RUN git clone https://bitbucket.org/fathomteam/cgm/src/master/ $HOME/opt/cgm && \
+    cd $HOME/opt/cgm && \
+    autoreconf -fi && \
+    mkdir build && \
+    cd build && \
+    ../configure --prefix=$HOME/opt/CGM --with-occ=$HOME/opt/OCE-0.18.3 --enable-shared && \
+    make && \
+    make install && \
+# copy CGM header file to include
+    cd $HOME/opt/CGM/include && \
+    cp ./cgm/*.h* .
+# CGM env
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/opt/CGM/lib
+ENV CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:$HOME/opt/CGM/include
+
+# Install mcnp2cad
+RUN git clone https://github.com/svalinn/mcnp2cad.git $HOME/opt/mcnp2cad && \
+    cd $HOME/opt/mcnp2cad  && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DIGEOM_LIB=$HOME/opt/CGM/lib/libiGeom.so -DIGEOM_INCLUDE_DIR=$HOME/opt/cgm/include  -DBUILD_CLI=ON && \
+    make
+
