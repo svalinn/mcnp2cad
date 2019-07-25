@@ -17,7 +17,11 @@ int main(int argc, char* argv[]){
   Gopt.imprint_geom = true;
   Gopt.merge_geom = true;
   Gopt.input_file = "";
-  Gopt.output_file = OPT_DEFAULT_OUTPUT_FILENAME;
+  #ifdef USE_CLI
+    Gopt.output_file = OPT_DEFAULT_OUTPUT_FILENAME_CLI;
+  #else
+    Gopt.output_file = OPT_DEFAULT_OUTPUT_FILENAME;
+  #endif
   Gopt.igeom_init_options = "";
   Gopt.override_tolerance = false;
   Gopt.uwuw_names = false;
