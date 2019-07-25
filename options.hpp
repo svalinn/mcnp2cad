@@ -33,5 +33,6 @@ extern struct program_option_struct Gopt;
 #define OPT_DEBUG   (Gopt.debug)
 
 #define OPT_DEFAULT_OUTPUT_FILENAME "out.sat"
+#define OPT_DEFAULT_OUTPUT_FILENAME_CLI "out.STEP"
 
 #endif /* MCNP2CAD_OPTIONS_H */

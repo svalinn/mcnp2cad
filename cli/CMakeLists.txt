@@ -5,6 +5,7 @@ SET(CLI_SRC
     ProgOptions.cpp
     ProgOptions.hpp)
 
+add_definitions(-DUSE_CLI)
 add_executable(convertMCNP ${CLI_SRC})
 target_link_libraries(convertMCNP mcnp2cad armadillo)
 if(IGEOM_LIB_DIR)
