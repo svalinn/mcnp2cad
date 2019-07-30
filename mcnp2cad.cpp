@@ -1061,10 +1061,28 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
   else{
     // this node has an embedded universe
 
+    const Transform* trans = NULL;
+
+    if( fn->hasTransform() ) {
+      trans = &(fn->getTransform());
+    }
+
+    // check for parent cell transformation
+    if( cell.getTrcl().hasData() ) {
+      Transform trcl = cell.getTrcl().getData();
+      if( trans ) {
+	Vector3d temp = trcl.getTranslation();
+	trans->modify_translation( temp  );
+      }
+      else {
+	trans = &(trcl);
+      }
+    }
+    
     iBase_EntityHandle cell_copy_unmoved;
     iGeom_copyEnt( igm, cell_shell, &cell_copy_unmoved, &igm_result );
     CHECK_IGEOM( igm_result, "Re-copying a lattice cell shell" );
-    node_subcells = defineUniverse(  fn->getFillingUniverse(), cell_copy_unmoved, (fn->hasTransform() ? &(fn->getTransform()) : NULL ) );
+    node_subcells = defineUniverse(  fn->getFillingUniverse(), cell_copy_unmoved, trans );
     for( size_t i = 0; i < node_subcells.size(); ++i ){
       node_subcells[i] = applyTransform( t, igm, node_subcells[i] );
     }
