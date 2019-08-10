@@ -1,4 +1,5 @@
 #include <eigen3/Eigen/Eigen>
+//#include <eigen3/Eien/QR>
 #include <cfloat>
 #include <iostream>
 #include "GQ_Characterize.hpp"
@@ -18,7 +19,16 @@ const std::vector<std::string> _gq_names = {"UNKNOWN",
                                              "PARABOLIC_CYL"};
 
 
-  GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
+// method for calculating the pseudo-Inverse as recommended by Eigen developers
+template<typename _Matrix_Type_>
+_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon = std::numeric_limits<double>::epsilon())
+{
+	Eigen::JacobiSVD< _Matrix_Type_ > svd(a ,Eigen::ComputeFullU | Eigen::ComputeFullV);
+	double tolerance = epsilon * std::max(a.cols(), a.rows()) *svd.singularValues().array().abs()(0);
+	return svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
+}
+
+GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
     A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {
     //determine canonical form of GQ and determine transformation
     make_canonical();
@@ -74,21 +84,8 @@ const std::vector<std::string> _gq_names = {"UNKNOWN",
   b << -G_/2, -H_/2, -J_/2;
   //use Moore-Penrose pseudoinverse to ensure minimal norm least squares solution
   //arma::mat Aai = pinv(Aa); //Original code; Working on the 3x3 Coefficient matrix
-  double pinvToler = 1.e-6; //Tolerance; how close to 0 is "0"?
-  //Remember to change pinvToler to work based on expected input values
 
-  Eigen::JacobiSVD<Eigen::Matrix3f> m_singularValues(Aa, Eigen::ComputeFullU|Eigen::ComputeFullV);
-  //ComputeFullU and ComputeFullV tell it to specifically get U and V ready
-  Eigen::Matrix3f m_matrixV = m_singularValues.matrixV();
-  Eigen::Matrix3f m_matrixU = m_singularValues.matrixU();
-  Eigen::Vector3f sv_list = m_singularValues.singularValues();
-  Eigen::Matrix3f singularValues_inv;
-  for ( long i=0; i<Aa.cols(); ++i) { //Iterate through each column of Aa (3 iterations)
-     if ( sv_list(i) > pinvToler )
-        singularValues_inv(i,i)=1.0/sv_list(i); //Invert nonzero SVs one by one
-     else singularValues_inv(i,i)=0; //SVs close to zero are not inverted
-  }
-  Eigen::Matrix3f Aai=(m_matrixV*singularValues_inv*m_matrixU.transpose());
+  Eigen::Matrix3f Aai = pseudoInverse<Eigen::Matrix3f>(Aa);
 
   Eigen::Vector3f c = Aai*b;
   double dx = c[0], dy = c[1], dz = c[2];
