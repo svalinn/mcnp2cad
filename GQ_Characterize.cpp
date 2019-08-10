@@ -6,6 +6,18 @@
   // tolerance used to determine
   // if matrix determinant should be considered zero
 
+const std::vector<std::string> _gq_names = {"UNKNOWN",
+                                             "ELLIPSOID",
+                                             "ONE_SHEET_HYPERBOLOID",
+                                             "TWO_SHEET_HYPERBOLOID",
+                                             "ELLIPTIC_CONE",
+                                             "ELLIPTIC_PARABOLOID",
+                                             "HYPERBOLIC_PARABOLOID",
+                                             "ELLIPTIC_CYL",
+                                             "HYPERBOLIC_CYL",
+                                             "PARABOLIC_CYL"};
+
+
   GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
     A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {
     //determine canonical form of GQ and determine transformation
@@ -132,77 +144,65 @@
 	A_ = 0;
 	type = ELLIPTIC_CYL;
 	return;
-      }	
+      }
       else if ( fabs(B_) < equivalence_tol ) {
 	B_ = 0;
 	type = ELLIPTIC_CYL;
 	return;
-      }	
+      }
       else if ( fabs(C_) < equivalence_tol ) {
 	C_ = 0;
 	type = ELLIPTIC_CYL;
 	return;
       }
     }
-    
+
   };
-    
-  GQ_Characterize::GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
+
+  GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
 	//TEST CODE (TODO: Remove this when testing is complete)
-	std::cout << "rt = " << rt << "\n";
-	std::cout << "rf = " << rf << "\n";
-        std::cout << "del = " << del << "\n";
-	std::cout << "s = " << s << "\n";
-	std::cout << "d = " << d << "\n";
+	// std::cout << "rt = " << rt << "\n";
+	// std::cout << "rf = " << rf << "\n";
+        // std::cout << "del = " << del << "\n";
+	// std::cout << "s = " << s << "\n";
+	// std::cout << "d = " << d << "\n";
 
 
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s){
       t = ELLIPSOID;
-      std::cout << "ELLIPSOID\n";
     }
     else if( 3 == rt && 4 == rf && 1 == del && -1 == s){
       t = ONE_SHEET_HYPERBOLOID;
-      std::cout << "ONE_SHEET_HYPERBOLOID\n";
     }
     else if( 3 == rt && 4 == rf && -1 == del && -1 == s){
       t = TWO_SHEET_HYPERBOLOID;
-      std::cout << "TWO_SHEET_HYPERBOLOID\n";
     }
     else if( 3 == rt && 3 == rf && 0 == del && -1 == s){
       t = ELLIPTIC_CONE;
-      std::cout << "ELLIPTIC_CONE\n";
     }
     else if( 2 == rt && 4 == rf && -1 == del && 1 == s){
       t = ELLIPTIC_PARABOLOID;
-      std::cout << "ELLIPTIC_PARABOLOID\n";
     }
     else if( 2 == rt && 4 == rf && 1 == del && -1 == s){
       t = HYPERBOLIC_PARABOLOID;
-      std::cout << "HYPERBOLIC_PARABOLOID\n";
     }
     else if( 2 == rt && 3 == rf && -1 == del && 1 == s){
       t = ELLIPTIC_CYL;
-      std::cout << "ELLIPTIC_CYL\n";
     }
     else if( 2 == rt && 3 == rf && 0 == del && -1 == s){
       t = HYPERBOLIC_CYL;
-      std::cout << "HYPERBOLIC_CYL\n";
     }
     else if( 1 == rt && 3 == rf && 0 == del && 1 == s){
       t = PARABOLIC_CYL;
-      std::cout << "PARABOLIC_CYL\n";
     }
     else{
       t = UNKNOWN;
-      std::cout << "UNKNOWN\n";
     }
 
     //special case, replace delta with D
     if(2 == rt && 3 == rf && 1 == s && d != 0) {
-	std::cout << "Special case: ";
       t = find_type(rt, rf, d, s, 0);
     }
-    //std::cout << t << "\n"; //Temporary line, for testing
     return t;
   }

@@ -37,3 +37,14 @@ SET(LIB_SRC
 
 add_library(mcnp2cad SHARED ${LIB_SRC})
 target_link_libraries(mcnp2cad ${IGEOM_LIB})
+
+add_executable(test_GQ test_GQ.cpp GQ_Characterize.cpp)
+target_link_libraries(test_GQ)
+if(IGEOM_LIB_DIR)
+    set_target_properties(test_GQ PROPERTIES INSTALL_RPATH ${IGEOM_LIB_DIR} BUILD_WITH_INSTALL_RPATH TRUE)
+elseif(CMAKE_PREFIX_PATH)
+    set_target_properties(test_GQ PROPERTIES INSTALL_RPATH ${CMAKE_PREFIX_PATH} BUILD_WITH_INSTALL_RPATH TRUE)
+endif()
+
+enable_testing()
+add_test(NAME test_gqs COMMAND test_GQ)
