@@ -82,7 +82,7 @@ int main(){
   delete testRotEllParab;
 
   //ELLIPTIC_CYLINDER
-  GQ_Characterize* testRotEllCyl = new GQ_Characterize(5,2,5,-4,-2,-4,6,-12,18,3);
+  GQ_Characterize* testRotEllCyl = new GQ_Characterize(5,2,5,-4,-4,-2,6,-12,18,-3);
   failed_tests += check_gq_type(13, testRotEllCyl, GQ_TYPE::ELLIPTIC_CYL, err_msg);
   delete testRotEllCyl;
 
