@@ -31,6 +31,11 @@ protected:
   GQ_TYPE type;
   // translation from the canoncial GQ to final GQ
   Vector3d translation;
+  // rotation matrix from canonical GQ to final GQ
+  double rotation_mat[9];
+  // gq transform
+  Transform transform_;
+
   // tolerance used to determine
   // if matrix determinant should be considered zero
   const double gq_tol = 1e-6;

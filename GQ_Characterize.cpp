@@ -1,5 +1,4 @@
 #include <eigen3/Eigen/Eigen>
-//#include <eigen3/Eien/QR>
 #include <cfloat>
 #include <iostream>
 #include "GQ_Characterize.hpp"
@@ -85,7 +84,7 @@ GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double 
   //use Moore-Penrose pseudoinverse to ensure minimal norm least squares solution
   //arma::mat Aai = pinv(Aa); //Original code; Working on the 3x3 Coefficient matrix
 
-  Eigen::Matrix3f Aai = pseudoInverse<Eigen::Matrix3f>(Aa);
+  Eigen::Matrix3f Aai = pseudoInverse(Aa); // Aa.completeOrthogonalDecomposition().pseudoInverse();
 
   Eigen::Vector3f c = Aai*b;
   double dx = c[0], dy = c[1], dz = c[2];
@@ -98,18 +97,23 @@ GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double 
   //set the translation while we're at it
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix. LINE BELOW MAY BE UNNECESSARY but is saved in case it is needed
-  //std::copy(eigenvects.memptr(),eigenvects.memptr()+9,rotation_mat);
+  std::copy(eigenvects.data(),eigenvects.data()+9,rotation_mat);
+
+  std::cout << "Rotation Matrix:" << "\n";
+  std::cout << rotation_mat[0] << " " << rotation_mat[1] << " " << rotation_mat[2] << "\n";
+  std::cout << rotation_mat[3] << " " << rotation_mat[4] << " " << rotation_mat[5] << "\n";
+  std::cout << rotation_mat[6] << " " << rotation_mat[7] << " " << rotation_mat[8] << "\n";
+
   //set the new canonical values
   for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
   A_ = eigenvals[0]; B_ = eigenvals[1]; C_ = eigenvals[2];
   D_ = 0; E_ = 0; F_ = 0;
   G_ = 0; H_ = 0; J_ = 0;
-  //K is set above
+  // K is set above
 
   // simplify the GQ if possible
   reduce_type();
-  //TODO: Not sure what purpose or origin of 'record' is
-  //record << "GQ Type is: " << type << std::endl;
+
   }
 
 
@@ -157,13 +161,6 @@ GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double 
   };
 
   GQ_TYPE GQ_Characterize::find_type(int rt, int rf, int del, int s, int d) {
-	//TEST CODE (TODO: Remove this when testing is complete)
-	// std::cout << "rt = " << rt << "\n";
-	// std::cout << "rf = " << rf << "\n";
-        // std::cout << "del = " << del << "\n";
-	// std::cout << "s = " << s << "\n";
-	// std::cout << "d = " << d << "\n";
-
 
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s){

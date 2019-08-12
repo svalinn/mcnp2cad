@@ -7,7 +7,7 @@ SET(CLI_SRC
 
 add_definitions(-DUSE_CLI)
 add_executable(convertMCNP ${CLI_SRC})
-target_link_libraries(convertMCNP mcnp2cad armadillo)
+target_link_libraries(convertMCNP mcnp2cad)
 if(IGEOM_LIB_DIR)
     set_target_properties(convertMCNP PROPERTIES INSTALL_RPATH ${IGEOM_LIB_DIR} BUILD_WITH_INSTALL_RPATH TRUE)
 elseif(CMAKE_PREFIX_PATH)
