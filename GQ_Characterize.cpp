@@ -18,15 +18,6 @@ const std::vector<std::string> _gq_names = {"UNKNOWN",
                                              "PARABOLIC_CYL"};
 
 
-// method for calculating the pseudo-Inverse as recommended by Eigen developers
-template<typename _Matrix_Type_>
-_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon = std::numeric_limits<double>::epsilon())
-{
-	Eigen::JacobiSVD< _Matrix_Type_ > svd(a ,Eigen::ComputeFullU | Eigen::ComputeFullV);
-	double tolerance = epsilon * std::max(a.cols(), a.rows()) *svd.singularValues().array().abs()(0);
-	return svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
-}
-
 GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double E, double F, double G, double H, double J, double K):
     A_(A),B_(B),C_(C),D_(D),E_(E),F_(F),G_(G),H_(H),J_(J),K_(K) {
     //determine canonical form of GQ and determine transformation
@@ -84,7 +75,7 @@ GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double 
   //use Moore-Penrose pseudoinverse to ensure minimal norm least squares solution
   //arma::mat Aai = pinv(Aa); //Original code; Working on the 3x3 Coefficient matrix
 
-  Eigen::Matrix3f Aai = pseudoInverse(Aa); // Aa.completeOrthogonalDecomposition().pseudoInverse();
+  Eigen::Matrix3f Aai = Aa.completeOrthogonalDecomposition().pseudoInverse();
 
   Eigen::Vector3f c = Aai*b;
   double dx = c[0], dy = c[1], dz = c[2];
@@ -98,11 +89,6 @@ GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double 
   translation = Vector3d(dx,dy,dz);
   //set the rotaion matrix. LINE BELOW MAY BE UNNECESSARY but is saved in case it is needed
   std::copy(eigenvects.data(),eigenvects.data()+9,rotation_mat);
-
-  std::cout << "Rotation Matrix:" << "\n";
-  std::cout << rotation_mat[0] << " " << rotation_mat[1] << " " << rotation_mat[2] << "\n";
-  std::cout << rotation_mat[3] << " " << rotation_mat[4] << " " << rotation_mat[5] << "\n";
-  std::cout << rotation_mat[6] << " " << rotation_mat[7] << " " << rotation_mat[8] << "\n";
 
   //set the new canonical values
   for(unsigned int i = 0; i < 3; i ++ ) if (fabs(eigenvals[i]) < gq_tol) eigenvals[i] = 0;
