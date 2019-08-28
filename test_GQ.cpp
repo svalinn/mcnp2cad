@@ -86,6 +86,11 @@ int main(){
   failed_tests += check_gq_type(13, testRotEllCyl, GQ_TYPE::ELLIPTIC_CYL, err_msg);
   delete testRotEllCyl;
 
+  //PARABOLIC CYLINDER
+  GQ_Characterize* testRotParaCyl = new GQ_Characterize(9, 36, 4, -36, -24, 12, -16, -24, -48, 56);
+  failed_tests += check_gq_type(14, testRotParaCyl, GQ_TYPE::PARABOLIC_CYL, err_msg);
+  delete testRotParaCyl;
+
   if (failed_tests != 0) {
     std::cout << "Tests Failed: " << failed_tests << "\n";
     std::cout << err_msg.str() << std::endl;

@@ -45,7 +45,7 @@ GQ_Characterize::GQ_Characterize(double A, double B, double C, double D, double 
   rnkAa = lu_decomp_Aa.rank();
   rnkAc = lu_decomp_Ac.rank();
 
-  double determinant = lu_decomp_Ac.determinant();
+  double determinant = Ac.determinant();
   if (fabs(determinant) < gq_tol)
     delta = 0;
   else
