@@ -20,7 +20,7 @@ public:
   virtual ~SurfaceVolume(){}
 
   void setTransform( const Transform* transform_p ){ transform = transform_p; }
-
+  
   virtual double getFarthestExtentFromOrigin( ) const = 0;
   virtual iBase_EntityHandle define( bool positive, iGeom_Instance& igm, double world_size );
 
@@ -30,7 +30,7 @@ protected:
 
 class VolumeCache;
 
-/**
+/** 
  * Function to create an SurfaceVolume object from a SurfaceCard.
  * Created volumes are kept in a cache.  If the v parameter is null,
  * a default cache (static within volumes.cpp) will be used.  If multiple
@@ -39,7 +39,7 @@ class VolumeCache;
  * that's not an issue right now, so I haven't coded it.
  */
 
-extern
+extern 
 SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v = NULL, int facet = 0 );
 
 //extern
@@ -60,8 +60,8 @@ SurfaceVolume* hexFacet( const std::vector< double > args, int facet );
 extern
 SurfaceVolume* recFacet( const std::vector< double > args, int facet );
 
-extern
-iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size );
+extern 
+iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ); 
 
 extern
 iBase_EntityHandle applyTransform( const Transform& t, iGeom_Instance& igm, iBase_EntityHandle& e );
@@ -83,6 +83,6 @@ static char m_buf[CHECK_BUF_SIZE];
     std::cerr << "iGeom error (" << err << "): " << msg << std::endl;   \
     iGeom_getDescription( igm, m_buf, CHECK_BUF_SIZE);                  \
     std::cerr << " * " << m_buf << std::endl;                           \
-     } } while(0)
+     } } while(0) 
 
 #endif /* MCNP2CAD_VOLUMES_H */
