@@ -19,6 +19,16 @@ enum GQ_TYPE {UNKNOWN = 0,
               HYPERBOLIC_CYL,
               PARABOLIC_CYL};
 
+const std::vector<std::string> _gq_names = {"UNKNOWN",
+                                            "ELLIPSOID",
+                                            "ONE_SHEET_HYPERBOLOID",
+                                            "TWO_SHEET_HYPERBOLOID",
+                                            "ELLIPTIC_CONE",
+                                            "ELLIPTIC_PARABOLOID",
+                                            "HYPERBOLIC_PARABOLOID",
+                                            "ELLIPTIC_CYL",
+                                            "HYPERBOLIC_CYL",
+                                            "PARABOLIC_CYL"};
 
 extern const std::vector<std::string> _gq_names;
 
@@ -43,18 +53,22 @@ protected:
 
 
 public:
-  //Constructor
+  // Constructor
   GQ_Characterize(double, double, double, double, double, double, double, double, double, double);
 
+  // GQ type accessor
   GQ_TYPE get_type() { return type; }
 
 protected:
+  // reduces GQ coeficients to 2nd order terms, a constant, and a transformation
+  // to the original origntation when needed
   void make_canonical();
 
   // this method reduces a complex GQ to a geometrically equivalent
   // and more CAD-friendly form if appropriate
   void reduce_type();
 
+  // determines GQ type based on characteristic parameters
   GQ_TYPE find_type(int rt, int rf, int del, int s, int d);
 };
 
