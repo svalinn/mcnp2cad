@@ -26,9 +26,9 @@ iBase_EntityHandle makeWorldSphere( iGeom_Instance& igm, double world_size ){
  * A convenience function for SurfaceVolumes to call at the end of getHandle functions.
  * Return the negative or positive sense of the given body, as appropriate.  If
  * bound_within_world is true, a negative-sense body will be intersected with the world sphere
- * (a step necessary for cylinders and other infinite bodies) 
+ * (a step necessary for cylinders and other infinite bodies)
  */
-static iBase_EntityHandle embedWithinWorld( bool positive, iGeom_Instance& igm, double world_size, 
+static iBase_EntityHandle embedWithinWorld( bool positive, iGeom_Instance& igm, double world_size,
                                             iBase_EntityHandle body, bool bound_with_world )
 {
   iBase_EntityHandle final_body;
@@ -38,7 +38,7 @@ static iBase_EntityHandle embedWithinWorld( bool positive, iGeom_Instance& igm, 
     final_body = body;
   }
   else{
-    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );    
+    iBase_EntityHandle world_sphere = makeWorldSphere( igm, world_size );
 
     if( positive ){
       iGeom_subtractEnts( igm, world_sphere, body, &final_body, &igm_result);
@@ -123,7 +123,7 @@ iBase_EntityHandle SurfaceVolume::define( bool positive, iGeom_Instance& igm, do
 
 
 
-class PlaneSurface : public SurfaceVolume { 
+class PlaneSurface : public SurfaceVolume {
 
 protected:
   Vector3d normal;
@@ -133,10 +133,10 @@ public:
   PlaneSurface( const Vector3d& normal_p, const Vector3d& pos, bool end ) :
     SurfaceVolume(), normal(normal_p)
   {
-    //This is used to find D in the planar equation Ax + By + Cz - D = 0 when 
+    //This is used to find D in the planar equation Ax + By + Cz - D = 0 when
     //given two vectors.
     //This comes from the form A(x-a) + B(y-b) + C(z-c) = 0, so D = Aa + Bb + Cc.
-    //normal is the vector to which the plane will be perpendicular, pos is to 
+    //normal is the vector to which the plane will be perpendicular, pos is to
     //help determine the position.  If end is true, the plane the end of normal
     //in relation to the end of pos1 will intersect, otherwise the plane and the
     //end of pos will intersect.
@@ -152,7 +152,7 @@ public:
 
 
   PlaneSurface( const Vector3d& normal_p, double offset_p ) :
-    SurfaceVolume(), normal(normal_p), offset(offset_p) 
+    SurfaceVolume(), normal(normal_p), offset(offset_p)
   {}
 
 
@@ -170,7 +170,7 @@ protected:
     iBase_EntityHandle world_sphere = makeWorldSphere(igm, world_size);
     iBase_EntityHandle hemisphere;
     // note the reversal of sense in this call; mcnp and igeom define it differently.
-    iGeom_sectionEnt( igm, world_sphere, 
+    iGeom_sectionEnt( igm, world_sphere,
                       normal.v[0], normal.v[1], normal.v[2], offset, !positive, &hemisphere, &igm_result);
     CHECK_IGEOM( igm_result, "Sectioning world for a plane" );
     return hemisphere;
@@ -225,14 +225,14 @@ protected:
   arma::mat Aa;
   Aa << A_ << D_/2 << F_/2 << arma::endr
      << D_/2 << B_ <<  E_/2 << arma::endr
-     << F_/2 << E_/2 << C_ << arma::endr;  
+     << F_/2 << E_/2 << C_ << arma::endr;
   //create hessian matrix
   arma::mat Ac;
   Ac << A_ << D_/2 << F_/2 << G_/2 << arma::endr
   << D_/2 << B_ << E_/2 <<H_/2 << arma::endr
   << F_/2 << E_/2 << C_ << J_/2 << arma::endr
   << G_/2 <<  H_/2 << J_/2 << K_ << arma::endr;
-  
+
   //characterization values
   int rnkAa, rnkAc, delta, S, D;
   rnkAa = arma::rank(Aa);
@@ -315,23 +315,23 @@ protected:
 	A_ = 0;
 	type = ELLIPTIC_CYL;
 	return;
-      }	
+      }
       else if ( fabs(B_) < equivalence_tol ) {
 	B_ = 0;
 	type = ELLIPTIC_CYL;
 	return;
-      }	
+      }
       else if ( fabs(C_) < equivalence_tol ) {
 	C_ = 0;
 	type = ELLIPTIC_CYL;
 	return;
       }
     }
-    
+
   };
-		   
+
   GQ_TYPE find_type(int rt, int rf, int del, int s, int d) {
-    
+
     GQ_TYPE t;
     if( 3 == rt && 4 == rf && -1 == del && 1 == s)
       t = ELLIPSOID;
@@ -358,7 +358,7 @@ protected:
     if( /*2 == rt && 3 == rf && 1 == s && */ d != 0) {
       t = find_type(rt, rf, d, s, 0);
     }
-    
+
     return t;
   }
 
@@ -436,7 +436,7 @@ protected:
       rot_angle = -90;
       rot_axis = 1;
     }
-    else if (B_ < 0) { 
+    else if (B_ < 0) {
       minor_radius = 2*world_size*sqrt(-B_/A_);
       major_radius = 2*world_size*sqrt(-B_/C_);
       rot_angle = 90;
@@ -498,9 +498,9 @@ protected:
     }
 
     //re-orient gq into original position
-    Transform rotation_transform(rotation_mat, Vector3d(0,0,0));    
+    Transform rotation_transform(rotation_mat, Vector3d(0,0,0));
     applyReverseTransform( rotation_transform, igm, gq);
-    Transform translation_transform(translation);    
+    Transform translation_transform(translation);
     applyTransform(translation_transform, igm, gq);
 
     iBase_EntityHandle final_gq = embedWithinWorld(-positive, igm, world_size, gq, true);
@@ -593,15 +593,15 @@ protected:
 
   axis_t axis;
   double theta;    /// the cone's opening angle
-  Vector3d center; /// the cone's apex 
+  Vector3d center; /// the cone's apex
   bool onaxis;
-  enum nappe nappe; 
+  enum nappe nappe;
 
 public:
   ConeSurface( axis_t axis_p, double tsquared_p, double point_p, double nappe_p ):
     SurfaceVolume(), axis(axis_p), theta( atan(sqrt(tsquared_p)) ), center(origin), onaxis(true), nappe(make_nappe(nappe_p))
   {
-    center.v[axis] = point_p; 
+    center.v[axis] = point_p;
   }
 
   ConeSurface( axis_t axis_p, double tsquared_p, Vector3d center_p, double nappe_p ):
@@ -617,7 +617,7 @@ protected:
 
     double height = (center.length() + world_size);
 
-    // based on the textual descriptions in the manual, I think the following expression should be 
+    // based on the textual descriptions in the manual, I think the following expression should be
     // height * tan ( theta / 2 ) -- unless "opening angle" refers to only half the apex angle
     // of the cylinder.  But this implementation seems to be more correct in examples I can check against.
     double base_radius = height * tan( theta );
@@ -626,7 +626,7 @@ protected:
 
     iBase_EntityHandle right_nappe = 0;
     iBase_EntityHandle left_nappe = 0;
-    iBase_EntityHandle cone; 
+    iBase_EntityHandle cone;
 
     if( nappe != LEFT){
       iGeom_createCone( igm, height, base_radius, 0, 0, &right_nappe, &igm_result);
@@ -634,7 +634,7 @@ protected:
       iGeom_rotateEnt( igm, right_nappe, 180, 1, 0, 0, &igm_result);
       CHECK_IGEOM( igm_result, "Rotating cone (right nappe)");
       iGeom_moveEnt( igm, right_nappe, 0, 0, height/2.0, &igm_result );
-      CHECK_IGEOM( igm_result, "Moving cone (right nappe)");      
+      CHECK_IGEOM( igm_result, "Moving cone (right nappe)");
       cone = right_nappe;
     }
     if( nappe != RIGHT ){
@@ -761,7 +761,7 @@ protected:
 
     iBase_EntityHandle final_sphere = embedWithinWorld( positive, igm, world_size, sphere, false );
 
-    return final_sphere; 
+    return final_sphere;
   }
 
 };
@@ -802,7 +802,7 @@ protected:
 
     iBase_EntityHandle final_sphere = embedWithinWorld( positive, igm, world_size, sphere, false );
 
-    return final_sphere; 
+    return final_sphere;
   }
 
 };
@@ -816,7 +816,7 @@ static Transform axesImage( const Vector3d& v1, const Vector3d& v2, const Vector
 
   if( OPT_DEBUG ) record << "Axes image: " << a1 << " : " << a2 << " : " << a3 << std::endl;
 
-  double rot_matrix[9] = 
+  double rot_matrix[9] =
     { a1.dot(x), a2.dot(x), a3.dot(x),
       a1.dot(y), a2.dot(y), a3.dot(y),
       a1.dot(z), a2.dot(z), a3.dot(z) };
@@ -891,7 +891,7 @@ protected:
   Vector3d center_offset;
 
 public:
-  RppVolume( const Vector3d& lower, const Vector3d& upper ) 
+  RppVolume( const Vector3d& lower, const Vector3d& upper )
   {
     for( int i = 0; i < 3; ++i ){
       dimensions.v[i]    = upper.v[i] - lower.v[i];
@@ -932,12 +932,12 @@ protected:
 
 public:
   RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, const Vector3d& v2, bool facet_p ) :
-    base_center( center_p ), transform( axesImage( v1, v2, axis, center_p ) ), 
+    base_center( center_p ), transform( axesImage( v1, v2, axis, center_p ) ),
     length( axis.length() ), radius1( v1.length() ), radius2( v2.length() ), facet( facet_p)
   {}
 
   RecVolume( const Vector3d& center_p, const Vector3d& axis, const Vector3d& v1, double length2, bool facet_p ) :
-    base_center( center_p ), transform( axesImage( v1, v1.cross(axis), axis, center_p ) ), 
+    base_center( center_p ), transform( axesImage( v1, v1.cross(axis), axis, center_p ) ),
     length( axis.length() ), radius1( v1.length() ), radius2( length2 ), facet( facet_p )
   {}
 
@@ -980,7 +980,7 @@ protected:
 
 public:
   RccVolume( const Vector3d& center_p, const Vector3d& axis, double radius_p, bool facet_p ) :
-    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), radius(radius_p), facet( facet_p ) 
+    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), radius(radius_p), facet( facet_p )
   {}
 
   virtual double getFarthestExtentFromOrigin ( ) const {
@@ -1022,8 +1022,8 @@ protected:
 
 public:
   TrcVolume( const Vector3d& center_p, const Vector3d& axis, double radius1_p, double radius2_p ) :
-    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ), 
-    radius1(radius1_p), radius2(radius2_p) 
+    base_center( center_p ), transform( imageZAxisTo( axis, center_p ) ), length( axis.length() ),
+    radius1(radius1_p), radius2(radius2_p)
   {}
 
   virtual double getFarthestExtentFromOrigin ( ) const {
@@ -1054,11 +1054,11 @@ class HexVolume : public SurfaceVolume {
 
 protected:
   Vector3d base_center;
-  Vector3d heightV, RV, SV, TV; 
+  Vector3d heightV, RV, SV, TV;
   //Transform transform;
 
 public:
-  HexVolume( const Vector3d& center_p, const Vector3d& h_p, const Vector3d& r_p, 
+  HexVolume( const Vector3d& center_p, const Vector3d& h_p, const Vector3d& r_p,
              const Vector3d& s_p, const Vector3d& t_p ) :
     base_center(center_p), heightV(h_p), RV(r_p), SV(s_p), TV(t_p)
   {}
@@ -1066,14 +1066,14 @@ public:
   HexVolume( const Vector3d& center_p, const Vector3d& h_p, const Vector3d& r_p ) :
     base_center(center_p), heightV(h_p), RV(r_p), SV( r_p.rotate_about(h_p,60.0) ), TV( r_p.rotate_about(h_p,120.0) )
   {
-    if( OPT_DEBUG ){ 
+    if( OPT_DEBUG ){
       record << "Inferred vectors for 9-args HEX/RHP:" << RV << SV << TV << std::endl;
     }
   }
 
-  virtual double getFarthestExtentFromOrigin ( ) const { 
+  virtual double getFarthestExtentFromOrigin ( ) const {
     double hex_max = std::max( RV.length(), std::max( SV.length(), TV.length() ) );
-    return base_center.length() + heightV.length() + hex_max; 
+    return base_center.length() + heightV.length() + hex_max;
   }
 
 protected:
@@ -1096,7 +1096,7 @@ protected:
     const Vector3d* vec[3] = {&RV, &SV, &TV};
     for( int i = 0; i < 3; ++i ){
       Vector3d v = *(vec[i]);
-      double length = v.length(); 
+      double length = v.length();
       v = v.normalize();
 
       iGeom_sectionEnt( igm, hex, v.v[0], v.v[1], v.v[2], length, true, &hex, &igm_result );
@@ -1178,18 +1178,18 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
   if( cache.contains( card ) ){
     return *cache.get( card );
   }
-  else if(facet != 0 ){ 
-    // SurfaceCard variables:  mnemonic, args, coord_xform  
+  else if(facet != 0 ){
+    // SurfaceCard variables:  mnemonic, args, coord_xform
     const std::string& mnemonic = card->getMnemonic();
-    const std::vector< double >& args = card->getArgs(); 
+    const std::vector< double >& args = card->getArgs();
     // special function for macrobody facets
     surface = FacetSurface( mnemonic, args, facet );
   }
 
   else{
-    // SurfaceCard variables:  mnemonic, args, coord_xform  
+    // SurfaceCard variables:  mnemonic, args, coord_xform
     const std::string& mnemonic = card->getMnemonic();
-    const std::vector< double >& args = card->getArgs(); 
+    const std::vector< double >& args = card->getArgs();
 
     if( mnemonic == "so"){
       surface = new SphereSurface( origin, args.at(0) );
@@ -1227,7 +1227,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
           std::swap( v1, v3 );
         }
 
-        // the normal (up to reversal) of the plane 
+        // the normal (up to reversal) of the plane
         // The normal may need to be reversed to ensure that the origin
         // has negative sense, as required by MCNP
         Vector3d normal = v1.add(-v2).cross( v1.add(-v3) ).normalize();
@@ -1236,7 +1236,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
         // p is the point where it intersects the plane
         Vector3d p = normal.scale( v1.dot(normal) );
 
-        // cos of the angle between v1 and normal 
+        // cos of the angle between v1 and normal
         double angle = normal.dot( v1.normalize() );
 
         // invert the normal if the angle is > 90 degrees, which indicates
@@ -1250,7 +1250,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 
 
       }
-      else{ 
+      else{
         throw std::runtime_error( "P surface with unsupported number of params" );
       }
 
@@ -1286,7 +1286,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     else if( mnemonic == "kx"){
       double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
       surface = new ConeSurface( X, args.at(1), args.at(0), arg3 );
-    } 
+    }
     else if( mnemonic == "ky"){
       double arg3 = ( args.size() == 3 ? args.at(2) : 0.0 );
       surface = new ConeSurface( Y, args.at(1), args.at(0), arg3 );
@@ -1313,10 +1313,10 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
 #endif /*HAVE_IGEOM_CONE */
     else if( mnemonic == "tx" ){
       surface = new TorusSurface( X, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-    } 
+    }
     else if( mnemonic == "ty" ){
       surface = new TorusSurface( Y, Vector3d(args), args.at(3), args.at(4), args.at(5) );
-    } 
+    }
     else if( mnemonic == "tz" ){
       surface = new TorusSurface( Z, Vector3d(args), args.at(3), args.at(4), args.at(5) );
     }
@@ -1417,7 +1417,7 @@ SurfaceVolume& makeSurface( const SurfaceCard* card, VolumeCache* v, int facet){
     else{
       throw std::runtime_error( mnemonic + " is not a supported surface" );
     }
-  } 
+  }
   if( card->getTransform().hasData() ){
     const Transform& transform = card->getTransform().getData();
     surface->setTransform( &transform );
@@ -1446,7 +1446,7 @@ SurfaceVolume* FacetSurface( const std::string mnemonic, const std::vector< doub
     return recFacet( args, facet );
   }
   throw std::runtime_error( mnemonic + " does not have macrobody facet support at this time." );
-}    
+}
 
 
 
@@ -1534,7 +1534,7 @@ SurfaceVolume* recFacet( const std::vector< double > args, int facet ){
     else{
       return new RecVolume( Vector3d( args ), Vector3d(args,3), Vector3d(args,6), Vector3d(args,9).length(), true );
     }
-  }    
+  }
   else if( facet == 2 || facet == 3 ){
     Vector3d v1( args, 3 );
     Vector3d v2( args, 0 );
@@ -1544,4 +1544,3 @@ SurfaceVolume* recFacet( const std::vector< double > args, int facet ){
     throw std::runtime_error( "rec only has 3 facets." );
   }
 }
-
