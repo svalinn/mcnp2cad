@@ -31,7 +31,7 @@ Build Instructions:
 
 Using cmake:
 
-Install Armadillo.
+Install Eigen3.
 
 When installing mcnp2cad, be sure to include the following flags:
 

@@ -17,6 +17,8 @@ if(${BUILD_CLI})
     add_subdirectory(${CMAKE_SOURCE_DIR}/cli)
 endif()
 
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
 # These directories need to be defined by the user.
 include_directories(${IGEOM_INCLUDE_DIR})
 find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_LIB_DIR})
@@ -47,4 +49,4 @@ elseif(CMAKE_PREFIX_PATH)
 endif()
 
 enable_testing()
-add_test(NAME test_gqs COMMAND test_GQ)
+add_test(NAME test_gq_characterization COMMAND test_GQ)
