@@ -5,11 +5,6 @@ MCNP2CAD README
 MCNP to iGeom/CAD converter: a program to extract the geomtery from MCNP
 input files and write it out using any ITAPS iGeom backend.
 
-**This project is currently in transition based on changes to the underlying
-CGM library.  The end state of this code will be a library that relies upon an
-iGeom-like implementation to perform the solid model manipulations.  That
-iGeom-like implementation will be supported by other groups.**
-
 The following groups intend to support such implementations:
 
 * CNERG_ will develop an iGeom-like interface as part of a Trelis_ & Cubit_
@@ -19,6 +14,8 @@ The following groups intend to support such implementations:
   implementation of CGM_ that is based on the OpenCascade_ solid modeling
   engine.  This version may support a command line tool.
 
+Bug reports are appreciated - please post an issue in our `Github repository
+<https://github.com/svalinn/mcnp2cad/issues>`_.
 
 This project creates a shared object file which is called by the Trelis plugin
 or the command line interface created with the -DBUILD_CLI=true flag.
