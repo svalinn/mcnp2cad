@@ -66,7 +66,7 @@ public:
   GQ_TYPE get_type() { return type; }
 
 protected:
-  // reduces GQ coeficients to 2nd order terms, a constant, and a transformation
+  // reduces GQ coefficients to 2nd order terms, a constant, and a transformation
   // to the original origntation when needed
   void make_canonical();
 
