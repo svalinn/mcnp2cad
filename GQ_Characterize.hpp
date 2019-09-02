@@ -54,7 +54,13 @@ protected:
 
 public:
   // Constructor
-  GQ_Characterize(double, double, double, double, double, double, double, double, double, double);
+  // Characterizes a general quadratic (GQ) equation of the form:
+  // A x^2 + B y^2 + C z^2 + D xy + E yz + F xz + G x + H y + J z + K = 0
+  // into a special quadratic (SQ) with a transformation
+  GQ_Characterize(double A, double B, double C,
+                  double D, double E, double F,
+                  double G, double H, double J,
+                  double K);
 
   // GQ type accessor
   GQ_TYPE get_type() { return type; }
