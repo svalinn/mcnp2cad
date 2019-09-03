@@ -1,13 +1,67 @@
 #include "geometry.hpp"
 #include <cfloat>
 #include <iostream>
+#include <math.h>
 
 #include "mcnp2cad.hpp"
 #include "options.hpp"
+#include <eigen3/Eigen/Eigen>
 
 std::ostream& operator<<(std::ostream& str, const Vector3d& v ){
   str << "(" << v.v[0] << ", " << v.v[1] << ", " << v.v[2] << ")";
   return str;
+}
+
+std::vector<double> get_matrix(const Transform& t) {
+
+  // space for a 4x4 matrix
+  double mat[4][4];
+
+  // initialize as identity
+  mat[0][0] = 1.0;
+  mat[1][1] = 1.0;
+  mat[2][2] = 1.0;
+  mat[3][3] = 1.0;
+
+  // set translation
+  Vector3d trans = t.getTranslation();
+  mat[0][3] = trans.v[0];
+  mat[1][3] = trans.v[0];
+  mat[2][3] = trans.v[0];
+
+  // set rotation
+  if( t.hasRot() ){
+    Vector3d axis = t.getAxis();
+    double angle = t.getTheta();
+
+    double l = axis.v[0], m = axis.v[1], n = axis.v[2];
+
+    double ca = cos(angle);
+    double sa = sin(angle);
+
+    // row 1
+    mat[0][0] = l*l*(1-ca) + ca;
+    mat[0][1] = m*l*(1-ca) - n*sa;
+    mat[0][2] = n*l*(1-ca) + m*sa;
+    // row 2
+    mat[1][0] = l*m*(1-ca) + n*sa;
+    mat[1][1] = m*m*(1-ca) + ca;
+    mat[1][2] = n*m*(1-ca) - l*sa;
+    // row 3
+    mat[2][0] = l*n*(1-ca) - m*sa;
+    mat[2][1] = m*n*(1-ca) + l*sa;
+    mat[2][2] = n*n*(1-ca) + ca;
+  }
+  
+  std::vector<double> mat_out(16);
+
+  for(size_t i = 0; i < 4; i++) {
+    for(size_t j = 0; j < 4; j++) {
+      mat_out[4*i+j] = mat[i][j];
+    }
+  }
+  
+  return mat_out;
 }
 
 double matrix_det( double mat[9] ){
@@ -202,6 +256,7 @@ Transform::Transform( const std::vector< double >& inputs,  bool degree_format_p
   
 }  
 
+
 Transform Transform::reverse() const {
   Transform t;
   t.translation = -this->translation;
@@ -223,7 +278,47 @@ void Transform::print( std::ostream& str ) const{
   str << "]";
 }
 
+Eigen::Matrix4d vec_to_eigen_mat4(std::vector<double> mat_vals) {
 
+  assert(mat_vals.size() == 16);
+  
+  //  Eigen::Matrix4d mat_out;
+
+  Eigen::Matrix4d mat_out;
+
+  mat_out.row(0) << mat_vals[4*0+0] , mat_vals[4*0+1] , mat_vals[4*0+2] , mat_vals[4*0+3];
+  mat_out.row(1) << mat_vals[4*1+0] , mat_vals[4*1+1] , mat_vals[4*1+2] , mat_vals[4*1+3];
+  mat_out.row(2) << mat_vals[4*2+0] , mat_vals[4*2+1] , mat_vals[4*2+2] , mat_vals[4*2+3];
+  mat_out.row(3) << mat_vals[4*3+0] , mat_vals[4*3+1] , mat_vals[4*3+2] , mat_vals[4*3+3];
+
+  return mat_out;
+}
+
+Transform combine(const Transform& a, const Transform& b) {
+
+  // get translation matrices
+  std::vector<double> mat_a = get_matrix(a);
+  std::vector<double> mat_b = get_matrix(b);
+
+  // combine the translation via multiplication
+  Eigen::Matrix4d mat_a_eigen = vec_to_eigen_mat4(mat_a);
+  Eigen::Matrix4d mat_b_eigen = vec_to_eigen_mat4(mat_b);
+
+  Eigen::Matrix4d new_transform = mat_a_eigen*mat_b_eigen;
+
+  // extract rotation matrix
+  Eigen::Matrix3d rot_mat = new_transform.block<3,3>(0,0);
+  double rot_mat_out[9];
+
+  Eigen::Map<Eigen::Matrix3d>(&(rot_mat_out[0]), rot_mat.rows(), rot_mat.cols()) = rot_mat;
+  
+  // extract translation
+  Eigen::Vector3d translation = new_transform.block<3,1>(0,3);
+
+  Vector3d translation_out(translation[0],translation[1], translation[2]);
+  
+  return Transform( rot_mat_out, translation_out );
+}
 
 std::ostream& operator<<( std::ostream& str, const Transform& t ){
   t.print(str);

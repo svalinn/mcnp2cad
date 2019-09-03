@@ -157,6 +157,11 @@ public:
 
 };
 
+// generate a full transformation matrix
+std::vector<double> get_matrix(const Transform& t);
+
+Transform combine(const Transform& a, const Transform& b);
+
 std::ostream& operator<<(std::ostream& str, const Transform& t );
 
 /** A universe and a transformation */

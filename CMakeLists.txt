@@ -17,6 +17,8 @@ if(${BUILD_CLI})
     add_subdirectory(${CMAKE_SOURCE_DIR}/cli)
 endif()
 
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
 # These directories need to be defined by the user.
 include_directories(${IGEOM_INCLUDE_DIR})
 find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_LIB_DIR})
@@ -29,7 +31,22 @@ SET(LIB_SRC
     geometry.cpp
     geometry.hpp
     volumes.cpp
-    volumes.hpp)
+    volumes.hpp
+    GQ_Characterize.cpp
+    GQ_Characterize.hpp
+    test_GQ.cpp
+)
 
 add_library(mcnp2cad SHARED ${LIB_SRC})
-target_link_libraries(mcnp2cad ${IGEOM_LIB} armadillo)
+target_link_libraries(mcnp2cad ${IGEOM_LIB})
+
+add_executable(test_GQ test_GQ.cpp GQ_Characterize.cpp)
+target_link_libraries(test_GQ)
+if(IGEOM_LIB_DIR)
+    set_target_properties(test_GQ PROPERTIES INSTALL_RPATH ${IGEOM_LIB_DIR} BUILD_WITH_INSTALL_RPATH TRUE)
+elseif(CMAKE_PREFIX_PATH)
+    set_target_properties(test_GQ PROPERTIES INSTALL_RPATH ${CMAKE_PREFIX_PATH} BUILD_WITH_INSTALL_RPATH TRUE)
+endif()
+
+enable_testing()
+add_test(NAME test_gq_characterization COMMAND test_GQ)
