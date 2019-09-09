@@ -14,7 +14,7 @@ RUN apt-get update -y && \
     apt-get install -y software-properties-common build-essential wget git vim \
                        gfortran g++ autoconf libtool automake make cmake \
                        libglu1-mesa-dev freeglut3-dev mesa-common-dev libfreetype6-dev \
-                        libopenblas-dev liblapack-dev libarpack2-dev libarmadillo-dev
+                        libopenblas-dev liblapack-dev libarpack2-dev libeigen3-dev
 
 # Install OCE-0.18.3
 RUN cd $HOME && \
