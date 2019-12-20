@@ -2,51 +2,87 @@ project(libMCNP2CAD)
 
 cmake_minimum_required(VERSION 2.8)
 
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -DHAVE_IGEOM_CONE" )
+# Build options
+option(BUILD_MCNP2CAD_TESTS "Build mcnp2cad tests" ON)
 
-# adjust compiler setting for Linux using gcc version 5.0 and higher
-if(CMAKE_SYSTEM_NAME MATCHES Linux AND CMAKE_COMPILER_IS_GNUCXX)
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "5.0")
-    if(NOT CMAKE_CXX_FLAGS MATCHES _GLIBCXX_USE_CXX11_ABI)
+# Default to a release build
+if (NOT CMAKE_BUILD_TYPE)
+  message(STATUS "CMAKE_BUILD_TYPE not specified, defaulting to Release")
+  set(CMAKE_BUILD_TYPE Release)
+endif ()
+  
+# Use C++11
+set(CMAKE_CXX_STANDARD 11)
+
+add_definitions(-DHAVE_IGEOM_CONE=ON)
+
+# Adjust compiler setting for Linux using gcc version 5.0 and higher
+if (CMAKE_SYSTEM_NAME MATCHES Linux AND CMAKE_COMPILER_IS_GNUCXX)
+  if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "5.0")
+    if (NOT CMAKE_CXX_FLAGS MATCHES _GLIBCXX_USE_CXX11_ABI)
       set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0 ${CMAKE_CXX_FLAGS}")
-    endif()
-  endif()
-endif()
+    endif ()
+  endif ()
+endif ()
 
-if(${BUILD_CLI})
-    add_subdirectory(${CMAKE_SOURCE_DIR}/cli)
-endif()
+if (BUILD_CLI)
+  add_subdirectory(cli)
+endif ()
 
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+# IGEOM_DIR must be specified if mcnp2cad is being built as a standalone
+# library. If it is not specified, then CMake will assume that mcnp2cad is being
+# built as a part of a larger project which already knows the location of iGeom.
+if (IGEOM_DIR)
+  message(STATUS "Building standalone mcnp2cad")
+  set(STANDALONE ON)
+  include_directories(${IGEOM_DIR}/include)
+  find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_DIR}/lib)
+  get_filename_component(IGEOM_LIB_DIR ${IGEOM_LIB} DIRECTORY)
+  link_directories(${IGEOM_LIB_DIR})
+  message(STATUS "IGEOM_LIB_DIR: ${IGEOM_LIB_DIR}")
+else ()
+  set(STANDALONE OFF)
+endif ()
 
-# These directories need to be defined by the user.
-include_directories(${IGEOM_INCLUDE_DIR})
-find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_LIB_DIR})
+# RPATH handling. If CMAKE_INSTALL_RPATH_USE_LINK_PATH is set to ON, then all
+# directories that have been linked via the link_directories() command will be
+# added to the RPATH.
+if (STANDALONE)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+endif ()
 
-SET(LIB_SRC
-    mcnp2cad.cpp
-    mcnp2cad.hpp
-    MCNPInput.cpp
-    MCNPInput.hpp
-    geometry.cpp
-    geometry.hpp
-    volumes.cpp
-    volumes.hpp
-    GQ_Characterize.cpp
-    GQ_Characterize.hpp
-    test_GQ.cpp
-)
+SET(MCNP2CAD_SRC_FILES geometry.cpp
+                       GQ_Characterize.cpp
+                       mcnp2cad.cpp
+                       MCNPInput.cpp
+                       volumes.cpp)
 
-add_library(mcnp2cad SHARED ${LIB_SRC})
-target_link_libraries(mcnp2cad ${IGEOM_LIB})
+set(MCNP2CAD_PUB_HEADERS dataref.hpp
+                         geometry.hpp
+                         GQ_Characterize.hpp
+                         mcnp2cad.hpp
+                         MCNPInput.hpp
+                         options.hpp
+                         version.hpp
+                         volumes.hpp)
 
-add_executable(test_GQ test_GQ.cpp GQ_Characterize.cpp)
-target_link_libraries(test_GQ)
-if(IGEOM_LIB_DIR)
-    set_target_properties(test_GQ PROPERTIES INSTALL_RPATH ${IGEOM_LIB_DIR} BUILD_WITH_INSTALL_RPATH TRUE)
-elseif(CMAKE_PREFIX_PATH)
-    set_target_properties(test_GQ PROPERTIES INSTALL_RPATH ${CMAKE_PREFIX_PATH} BUILD_WITH_INSTALL_RPATH TRUE)
-endif()
+# mcnp2cad library
+add_library(mcnp2cad SHARED ${MCNP2CAD_SRC_FILES})
+set_target_properties(mcnp2cad PROPERTIES PUBLIC_HEADER
+                      "${MCNP2CAD_PUB_HEADERS}")
+target_link_libraries(mcnp2cad iGeom)
+if (STANDALONE)
+  set(INSTALL_INCLUDE_DIR include)
+else ()
+  set(INSTALL_INCLUDE_DIR include/mcnp2cad)
+endif ()
+install(TARGETS mcnp2cad LIBRARY DESTINATION lib
+        PUBLIC_HEADER DESTINATION ${INSTALL_INCLUDE_DIR})
 
-enable_testing()
-add_test(NAME test_gq_characterization COMMAND test_GQ)
+# GQ tests
+if (BUILD_MCNP2CAD_TESTS)
+  add_executable(test_GQ test_GQ.cpp GQ_Characterize.cpp)
+  target_link_libraries(test_GQ)
+  add_test(NAME test_gq_characterization COMMAND test_GQ)
+  enable_testing()
+endif ()
