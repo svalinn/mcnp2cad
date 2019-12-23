@@ -27,12 +27,6 @@ if (CMAKE_SYSTEM_NAME MATCHES Linux AND CMAKE_COMPILER_IS_GNUCXX)
   endif ()
 endif ()
 
-# Build CLI if building standalone
-if (STANDALONE_MCNP2CAD)
-  message(STATUS "Building mcnp2cad CLI")
-  add_subdirectory(cli)
-endif ()
-
 # Find iGeom. If mcnp2cad is being built as a standalone library, then
 # -DIGEOM_DIR must be specified. If it is not being built as a standalone
 # library, then it is assumed that the location of the iGeom library is known
@@ -98,4 +92,10 @@ if (BUILD_MCNP2CAD_TESTS)
   target_link_libraries(test_GQ)
   add_test(NAME test_gq_characterization COMMAND test_GQ)
   enable_testing()
+endif ()
+
+# Build CLI if building standalone
+if (STANDALONE_MCNP2CAD)
+  message(STATUS "Building mcnp2cad CLI")
+  add_subdirectory(cli)
 endif ()
