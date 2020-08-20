@@ -20,7 +20,7 @@ endif()
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 # These directories need to be defined by the user.
-if(NOT TAGRGET IGEOM_LIB)
+if(NOT TARGET IGEOM_LIB)
   include_directories(${IGEOM_INCLUDE_DIR})
   find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_LIB_DIR})
 endif()
