@@ -50,7 +50,8 @@ if (STANDALONE_MCNP2CAD)
   link_directories(${IGEOM_LIB_DIR})
   message(STATUS "IGEOM_LIB_DIR: ${IGEOM_LIB_DIR}")
 else ()
-  message(STATUS "Building mcnp2cad as a component of another package")
+  message(STATUS "Building mcnp2cad as a component of another package."
+                 " IGEOM_LIB should already be set.")
 endif ()
 
 # RPATH handling. If CMAKE_INSTALL_RPATH_USE_LINK_PATH is set to ON, then all
@@ -77,7 +78,7 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
 
 # mcnp2cad library
 add_library(mcnp2cad SHARED ${MCNP2CAD_SRC_FILES})
-target_link_libraries(mcnp2cad iGeom)
+target_link_libraries(mcnp2cad ${IGEOM_LIB})
 if (STANDALONE_MCNP2CAD)
   # Only install public headers if building standalone
   set_target_properties(mcnp2cad PROPERTIES PUBLIC_HEADER
