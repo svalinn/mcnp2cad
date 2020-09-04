@@ -41,7 +41,7 @@ if (STANDALONE_MCNP2CAD)
 
   # Find location of iGeom headers
   find_path(IGEOM_INCLUDE_DIR NAMES iGeom.h HINTS ${IGEOM_DIR}/include)
-  include_directories(${IGEOM_DIR}/include)
+  include_directories(${IGEOM_INCLUDE_DIR})
   message(STATUS "IGEOM_INCLUDE_DIR: ${IGEOM_INCLUDE_DIR}")
 
   # Find location of iGeom library
