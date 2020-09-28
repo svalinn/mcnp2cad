@@ -44,21 +44,31 @@ if (STANDALONE_MCNP2CAD)
   include_directories(${IGEOM_INCLUDE_DIR})
   message(STATUS "IGEOM_INCLUDE_DIR: ${IGEOM_INCLUDE_DIR}")
 
-  # Find location of iGeom library
+  # Find location of iGeom library and create an imported target for it
   find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_DIR}/lib)
   get_filename_component(IGEOM_LIB_DIR ${IGEOM_LIB} DIRECTORY)
   link_directories(${IGEOM_LIB_DIR})
+  add_library(iGeom SHARED IMPORTED)
+  set_target_properties(iGeom PROPERTIES IMPORTED_LOCATION "${IGEOM_LIB}")
   message(STATUS "IGEOM_LIB_DIR: ${IGEOM_LIB_DIR}")
+  message(STATUS "IGEOM_LIB: ${IGEOM_LIB}")
 else ()
   message(STATUS "Building mcnp2cad as a component of another package."
-                 " iGeom target should already exist.")
+                 " The iGeom target should already exist.")
 endif ()
 
-# RPATH handling. If CMAKE_INSTALL_RPATH_USE_LINK_PATH is set to ON, then all
-# directories that have been linked via the link_directories() command will be
-# added to the RPATH.
+# RPATH handling
 if (STANDALONE_MCNP2CAD)
+  # Add all directories that have been linked via the link_directories() command
+  # to the RPATH
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+  # Add the location of libraries installed by this project to the
+  # INSTALL_RPATH_DIRS variable
+  if (CMAKE_INSTALL_RPATH)
+    set(INSTALL_RPATH_DIRS "${CMAKE_INSTALL_RPATH}:${CMAKE_INSTALL_PREFIX}/lib")
+  else ()
+    set(INSTALL_RPATH_DIRS "${CMAKE_INSTALL_PREFIX}/lib")
+  endif ()
 endif ()
 
 SET(MCNP2CAD_SRC_FILES geometry.cpp
