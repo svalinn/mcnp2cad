@@ -39,21 +39,21 @@ if (STANDALONE_MCNP2CAD)
     message(STATUS "Building standalone mcnp2cad")
   endif ()
 
-  # Create an imported target for iGeom
-  add_library(iGeom SHARED IMPORTED)
-
-  # Find location of iGeom headers and add info to imported target
+  # Find location of iGeom headers
   find_path(IGEOM_INCLUDE_DIR NAMES iGeom.h HINTS ${IGEOM_DIR}/include)
-  target_include_directories(iGeom INTERFACE "${IGEOM_INCLUDE_DIR}")
   message(STATUS "IGEOM_INCLUDE_DIR: ${IGEOM_INCLUDE_DIR}")
 
-  # Find location of iGeom library and add info to imported target
+  # Find location of iGeom library
   find_library(IGEOM_LIB NAMES iGeom HINTS ${IGEOM_DIR}/lib)
   get_filename_component(IGEOM_LIB_DIR ${IGEOM_LIB} DIRECTORY)
-  set_target_properties(iGeom PROPERTIES IMPORTED_LOCATION "${IGEOM_LIB}")
-  target_link_directories(iGeom INTERFACE "${IGEOM_LIB_DIR}")
   message(STATUS "IGEOM_LIB_DIR: ${IGEOM_LIB_DIR}")
   message(STATUS "IGEOM_LIB: ${IGEOM_LIB}")
+
+  # Create an imported target for iGeom
+  add_library(iGeom SHARED IMPORTED)
+  set_target_properties(iGeom PROPERTIES IMPORTED_LOCATION "${IGEOM_LIB}"
+                        INTERFACE_INCLUDE_DIRECTORIES "${IGEOM_INCLUDE_DIR}"
+                        INTERFACE_LINK_DIRECTORIES "${IGEOM_LIB_DIR}")
 else ()
   message(STATUS "Building mcnp2cad as a component of another package."
                  " The iGeom target should already exist.")
