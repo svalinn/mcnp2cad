@@ -102,7 +102,6 @@ install(TARGETS mcnp2cad LIBRARY DESTINATION lib
 # GQ tests
 if (BUILD_MCNP2CAD_TESTS)
   add_executable(test_GQ test_GQ.cpp GQ_Characterize.cpp)
-  target_link_libraries(test_GQ)
   add_test(NAME test_gq_characterization COMMAND test_GQ)
   enable_testing()
 endif ()
