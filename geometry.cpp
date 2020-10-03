@@ -5,7 +5,7 @@
 
 #include "mcnp2cad.hpp"
 #include "options.hpp"
-#include <eigen3/Eigen/Eigen>
+#include <Eigen/Eigen>
 
 std::ostream& operator<<(std::ostream& str, const Vector3d& v ){
   str << "(" << v.v[0] << ", " << v.v[1] << ", " << v.v[2] << ")";

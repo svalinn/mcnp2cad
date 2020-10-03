@@ -1,4 +1,4 @@
-#include <eigen3/Eigen/Eigen>
+#include <Eigen/Eigen>
 #include <cfloat>
 #include <iostream>
 #include "GQ_Characterize.hpp"

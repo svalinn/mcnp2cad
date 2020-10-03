@@ -1,7 +1,7 @@
 #ifndef GQ_CHARACTERIZE_H
 #define GQ_CHARACTERIZE_H
 
-#include <eigen3/Eigen/Eigen>
+#include <Eigen/Eigen>
 #include <cfloat>
 #include <iostream>
 #include <string>
