@@ -1,6 +1,6 @@
 project(libMCNP2CAD)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 
 # Build options
 option(STANDALONE_MCNP2CAD  "Build mcnp2cad as a standalone program" ON)
@@ -26,6 +26,11 @@ if (CMAKE_SYSTEM_NAME MATCHES Linux AND CMAKE_COMPILER_IS_GNUCXX)
     endif ()
   endif ()
 endif ()
+
+# Find Eigen3
+find_package(Eigen3 3.3 REQUIRED)
+message(STATUS "EIGEN3_INCLUDE_DIR: ${EIGEN3_INCLUDE_DIR}")
+include_directories(${EIGEN3_INCLUDE_DIR})
 
 # Find iGeom. If mcnp2cad is being built as a standalone library, then
 # -DIGEOM_DIR must be specified. If it is not being built as a standalone
