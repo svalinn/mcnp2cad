@@ -2,9 +2,17 @@ project(libMCNP2CAD)
 
 cmake_minimum_required(VERSION 3.0)
 
+set(MCNP2CAD_MAJOR_VERSION 1)
+set(MCNP2CAD_MINOR_VERSION 0)
+set(MCNP2CAD_PATCH_VERSION 5)
+
 # Build options
 option(STANDALONE_MCNP2CAD  "Build mcnp2cad as a standalone program" ON)
 option(BUILD_MCNP2CAD_TESTS "Build mcnp2cad tests"                   ON)
+
+
+configure_file(version.hpp.in version.hpp)
+
 
 # Default to a release build
 if (NOT CMAKE_BUILD_TYPE)
