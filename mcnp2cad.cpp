@@ -16,7 +16,8 @@
 #include "version.hpp"
 
 #if STANDALONE_MCNP2CAD == ON
-#pragma message(STANDALONE_MCNP2CAD)
+#pragmamessage ("time:" STANDALONE_MCNP2CAD)
+
   struct program_option_struct Gopt;
 #endif
 
