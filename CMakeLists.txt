@@ -10,10 +10,6 @@ set(MCNP2CAD_PATCH_VERSION 5)
 option(STANDALONE_MCNP2CAD  "Build mcnp2cad as a standalone program" ON)
 option(BUILD_MCNP2CAD_TESTS "Build mcnp2cad tests"                   ON)
 
-
-configure_file(version.hpp.in version.hpp)
-
-
 # Default to a release build
 if (NOT CMAKE_BUILD_TYPE)
   message(STATUS "CMAKE_BUILD_TYPE not specified, defaulting to Release")
@@ -86,6 +82,7 @@ if (STANDALONE_MCNP2CAD)
   endif ()
 endif ()
 
+
 SET(MCNP2CAD_SRC_FILES geometry.cpp
                        GQ_Characterize.cpp
                        mcnp2cad.cpp
@@ -98,8 +95,10 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          mcnp2cad.hpp
                          MCNPInput.hpp
                          options.hpp
-                         version.hpp
                          volumes.hpp)
+                         
+configure_file(version.hpp.in version.hpp)
+list(APPEND MCNP2CAD_PUB_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
 
 # mcnp2cad library
 add_library(mcnp2cad SHARED ${MCNP2CAD_SRC_FILES})
