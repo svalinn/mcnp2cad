@@ -15,6 +15,10 @@
 #include "volumes.hpp"
 #include "version.hpp"
 
+#if STANDALONE_MCNP2CAD=="ON"
+  struct program_option_struct Gopt;
+#endif
+
 //Writes the output to mcnp_import.log.
 std::ofstream record;
 
