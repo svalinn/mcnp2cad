@@ -96,6 +96,9 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          MCNPInput.hpp
                          options.hpp)
                          
+MESSAGE("MCNP2CAD_VERSION_MAJOR:" ${MCNP2CAD_MAJOR_VERSION})
+MESSAGE("DAGMC_VERSION_STRING:" ${MCNP2CAD_MINOR_VERSION})
+MESSAGE("MCNP2CAD_VERSION_REV:" ${MCNP2CAD_PATCH_VERSION})
 configure_file(version.hpp.in version.hpp)
 list(APPEND MCNP2CAD_PUB_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
 
