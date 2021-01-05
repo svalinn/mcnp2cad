@@ -15,9 +15,9 @@
 #include "volumes.hpp"
 #include "version.hpp"
 
-//#ifdef STANDALONE_MCNP2CAD
+#ifdef STANDALONE_MCNP2CAD
   struct program_option_struct Gopt;
-//#endif
+#endif
 
 //Writes the output to mcnp_import.log.
 std::ofstream record;
