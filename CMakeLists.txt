@@ -96,7 +96,7 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          MCNPInput.hpp
                          options.hpp)
                          
-configure_file(version.hpp.in version.hpp @MONLY)
+configure_file(version.hpp.in version.hpp)
 list(APPEND MCNP2CAD_PUB_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
 
 # mcnp2cad library
