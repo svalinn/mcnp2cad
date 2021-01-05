@@ -97,7 +97,7 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          options.hpp
                          volumes.hpp)
                          
-configure_file(version.hpp.in version.hpp)
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/version.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
 list(APPEND MCNP2CAD_PUB_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
 
 # mcnp2cad library
