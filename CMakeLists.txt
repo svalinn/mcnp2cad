@@ -94,7 +94,8 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          GQ_Characterize.hpp
                          mcnp2cad.hpp
                          MCNPInput.hpp
-                         options.hpp)
+                         options.hpp
+                         volumes.hpp)
                          
 MESSAGE("MCNP2CAD_VERSION_MAJOR:" ${MCNP2CAD_MAJOR_VERSION})
 MESSAGE("DAGMC_VERSION_STRING:" ${MCNP2CAD_MINOR_VERSION})
