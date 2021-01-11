@@ -15,7 +15,8 @@
 #include "volumes.hpp"
 #include "version.hpp"
 
-#ifdef STANDALONE_MCNP2CAD
+#define DEF_OFF_VAL 'OFF'
+#if STANDALONE_MCNP2CAD == DEF_OFF_VAL
   struct program_option_struct Gopt;
 #endif
 
