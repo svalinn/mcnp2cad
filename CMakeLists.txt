@@ -2,9 +2,9 @@ project(libMCNP2CAD)
 
 cmake_minimum_required(VERSION 3.0)
 
-set(MCNP2CAD_VERSION_MAJOR 1)
-set(MCNP2CAD_VERSION_MINOR 0)
-set(MCNP2CAD_VERSION_PATCH 5)
+set(MCNP2CAD_MAJOR_VERSION 1)
+set(MCNP2CAD_MINOR_VERSION 0)
+set(MCNP2CAD_PATCH_VERSION 5)
 
 # Build options
 option(STANDALONE_MCNP2CAD  "Build mcnp2cad as a standalone program" ON)
