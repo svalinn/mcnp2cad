@@ -32,7 +32,7 @@ add_definitions(-DHAVE_IGEOM_CONE=ON)
 # endif ()
 
 # Find Eigen3
-if(MSVC and NOT STANDALONE_MCNP2CAD)
+if(MSVC AND NOT STANDALONE_MCNP2CAD)
   set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/mcnp2cad/cmake ${CMAKE_MODULE_PATH})
   message("CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 endif()
