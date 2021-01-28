@@ -32,6 +32,11 @@ add_definitions(-DHAVE_IGEOM_CONE=ON)
 # endif ()
 
 # Find Eigen3
+if(MSVC)
+  set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+endif()
+
+
 find_package(Eigen3 3.3 REQUIRED)
 message(STATUS "EIGEN3_INCLUDE_DIR: ${EIGEN3_INCLUDE_DIR}")
 include_directories(${EIGEN3_INCLUDE_DIR})
