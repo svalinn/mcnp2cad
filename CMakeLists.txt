@@ -34,7 +34,9 @@ add_definitions(-DHAVE_IGEOM_CONE=ON)
 # Find Eigen3
 if(MSVC)
   set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+  message("CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 endif()
+  message("CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 
 find_package(Eigen3 3.3 REQUIRED)
