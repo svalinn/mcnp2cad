@@ -78,7 +78,6 @@ if (STANDALONE_MCNP2CAD)
   endif ()
 endif ()
 
-
 SET(MCNP2CAD_SRC_FILES geometry.cpp
                        GQ_Characterize.cpp
                        mcnp2cad.cpp
