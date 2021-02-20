@@ -22,23 +22,12 @@ set(CMAKE_CXX_STANDARD 11)
 # iGeom assumed to have cone functionality
 add_definitions(-DHAVE_IGEOM_CONE=ON)
 
-# Adjust compiler setting for Linux using gcc version 5.0 and higher
-# if (CMAKE_SYSTEM_NAME MATCHES Linux AND CMAKE_COMPILER_IS_GNUCXX)
-#   if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "5.0")
-#     if (NOT CMAKE_CXX_FLAGS MATCHES _GLIBCXX_USE_CXX11_ABI)
-#       set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0 ${CMAKE_CXX_FLAGS}")
-#     endif ()
-#   endif ()
-# endif ()
-
-# Find Eigen3
+# Required to find Eigen3 on Windows...
 if(MSVC AND NOT STANDALONE_MCNP2CAD)
   set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/mcnp2cad/cmake ${CMAKE_MODULE_PATH})
-  message("CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 endif()
-  message("CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
-
+# Find Eigen3
 find_package(Eigen3 3.3 REQUIRED)
 message(STATUS "EIGEN3_INCLUDE_DIR: ${EIGEN3_INCLUDE_DIR}")
 include_directories(${EIGEN3_INCLUDE_DIR})
@@ -104,10 +93,6 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          options.hpp
                          volumes.hpp)
                          
-MESSAGE("MCNP2CAD_VERSION_MAJOR:" ${MCNP2CAD_VERSION_MAJOR})
-MESSAGE("MCNP2CAD_VERSION_MINOR:" ${MCNP2CAD_VERSION_MINOR})
-MESSAGE("MCNP2CAD_VERSION_PATCH:" ${MCNP2CAD_VERSION_PATCH})
-MESSAGE("STANDALONE_MCNP2CAD:" ${STANDALONE_MCNP2CAD})
 configure_file(version.hpp.in version.hpp)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
