@@ -72,6 +72,7 @@ if (STANDALONE_MCNP2CAD)
     set(INSTALL_RPATH_DIRS "${CMAKE_INSTALL_PREFIX}/lib")
   endif ()
 endif ()
+configure_file(version.hpp.in version.hpp)
 
 SET(MCNP2CAD_SRC_FILES geometry.cpp
                        GQ_Characterize.cpp
@@ -85,9 +86,9 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          mcnp2cad.hpp
                          MCNPInput.hpp
                          options.hpp
-                         volumes.hpp)
+                         volumes.hpp
+                         ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
                          
-configure_file(version.hpp.in version.hpp)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # mcnp2cad library
