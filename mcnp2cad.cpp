@@ -15,6 +15,11 @@
 #include "volumes.hpp"
 #include "version.hpp"
 
+#define DEF_OFF_VAL 'OFF'
+#if STANDALONE_MCNP2CAD == DEF_OFF_VAL
+  struct program_option_struct Gopt;
+#endif
+
 //Writes the output to mcnp_import.log.
 std::ofstream record;
 

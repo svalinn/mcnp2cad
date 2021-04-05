@@ -2,6 +2,10 @@ project(libMCNP2CAD)
 
 cmake_minimum_required(VERSION 3.0)
 
+set(MCNP2CAD_VERSION_MAJOR 1)
+set(MCNP2CAD_VERSION_MINOR 0)
+set(MCNP2CAD_VERSION_PATCH 5)
+
 # Build options
 option(STANDALONE_MCNP2CAD  "Build mcnp2cad as a standalone program" ON)
 option(BUILD_MCNP2CAD_TESTS "Build mcnp2cad tests"                   ON)
@@ -17,15 +21,6 @@ set(CMAKE_CXX_STANDARD 11)
 
 # iGeom assumed to have cone functionality
 add_definitions(-DHAVE_IGEOM_CONE=ON)
-
-# Adjust compiler setting for Linux using gcc version 5.0 and higher
-if (CMAKE_SYSTEM_NAME MATCHES Linux AND CMAKE_COMPILER_IS_GNUCXX)
-  if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "5.0")
-    if (NOT CMAKE_CXX_FLAGS MATCHES _GLIBCXX_USE_CXX11_ABI)
-      set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0 ${CMAKE_CXX_FLAGS}")
-    endif ()
-  endif ()
-endif ()
 
 # Find Eigen3
 find_package(Eigen3 3.3 REQUIRED)
@@ -77,6 +72,7 @@ if (STANDALONE_MCNP2CAD)
     set(INSTALL_RPATH_DIRS "${CMAKE_INSTALL_PREFIX}/lib")
   endif ()
 endif ()
+configure_file(version.hpp.in version.hpp)
 
 SET(MCNP2CAD_SRC_FILES geometry.cpp
                        GQ_Characterize.cpp
@@ -90,8 +86,10 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          mcnp2cad.hpp
                          MCNPInput.hpp
                          options.hpp
-                         version.hpp
-                         volumes.hpp)
+                         volumes.hpp
+                         ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
+                         
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # mcnp2cad library
 add_library(mcnp2cad SHARED ${MCNP2CAD_SRC_FILES})
