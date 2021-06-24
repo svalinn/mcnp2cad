@@ -79,9 +79,7 @@ if (STANDALONE_MCNP2CAD)
   endif ()
 endif ()
 
-configure_file(version.hpp.in version.hpp)
-
-
+\
 SET(MCNP2CAD_SRC_FILES geometry.cpp
                        GQ_Characterize.cpp
                        mcnp2cad.cpp
@@ -96,7 +94,8 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          options.hpp
                          volumes.hpp
                          ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
-                         
+        
+configure_file(version.hpp.in version.hpp)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # mcnp2cad library
