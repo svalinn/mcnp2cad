@@ -22,6 +22,12 @@ set(CMAKE_CXX_STANDARD 11)
 # iGeom assumed to have cone functionality
 add_definitions(-DHAVE_IGEOM_CONE=ON)
 
+# Required to find Eigen3 on Windows...
+if(MSVC AND NOT STANDALONE_MCNP2CAD)
+  set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/mcnp2cad/cmake ${CMAKE_MODULE_PATH})
+endif()
+
+
 # Find Eigen3
 find_package(Eigen3 3.3 REQUIRED)
 message(STATUS "EIGEN3_INCLUDE_DIR: ${EIGEN3_INCLUDE_DIR}")
@@ -72,7 +78,7 @@ if (STANDALONE_MCNP2CAD)
     set(INSTALL_RPATH_DIRS "${CMAKE_INSTALL_PREFIX}/lib")
   endif ()
 endif ()
-configure_file(version.hpp.in version.hpp)
+
 
 SET(MCNP2CAD_SRC_FILES geometry.cpp
                        GQ_Characterize.cpp
@@ -88,7 +94,8 @@ set(MCNP2CAD_PUB_HEADERS dataref.hpp
                          options.hpp
                          volumes.hpp
                          ${CMAKE_CURRENT_BINARY_DIR}/version.hpp)
-                         
+        
+configure_file(version.hpp.in version.hpp)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # mcnp2cad library
