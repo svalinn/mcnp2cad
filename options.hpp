@@ -2,37 +2,40 @@
 #define MCNP2CAD_OPTIONS_H
 
 #include <string>
+#include "options.hpp"
 
 struct program_option_struct{
-  bool verbose;
-  bool debug;
+  bool verbose {false};
+  bool debug {false};
 
-  bool infinite_lattice_extra_effort;
-  bool tag_materials;
-  bool tag_importances;
-  bool tag_cell_IDs;
-  bool make_graveyard;
-  bool imprint_geom;
-  bool merge_geom;
-  bool uwuw_names;
-  bool din;
-  bool dout;
-  
-  std::string output_file;
-  std::string input_file;
-  
-  std::string igeom_init_options;
+  bool infinite_lattice_extra_effort {false};
+  bool tag_materials {true};
+  bool tag_importances {true};
+  bool tag_cell_IDs {true};
+  bool make_graveyard {true};
+  bool imprint_geom {true};
+  bool merge_geom {true};
+  bool uwuw_names {true};
+  bool din {false};
+  bool dout {false};
 
-  bool override_tolerance;
-  double specific_tolerance;
+#ifdef USE_CLI
+  std::string output_file {OPT_DEFAULT_OUTPUT_FILENAME_CLI};
+#else
+  std::string output_file {OPT_DEFAULT_OUTPUT_FILENAME};
+#endif
+
+  std::string input_file {""};
+
+  std::string igeom_init_options {""};
+
+  bool override_tolerance {false};
+  double specific_tolerance {0.0};
 };
 
 extern struct program_option_struct Gopt;
 
 #define OPT_VERBOSE (Gopt.verbose || Gopt.debug)
 #define OPT_DEBUG   (Gopt.debug)
-
-#define OPT_DEFAULT_OUTPUT_FILENAME "out.sat"
-#define OPT_DEFAULT_OUTPUT_FILENAME_CLI "out.STEP"
 
 #endif /* MCNP2CAD_OPTIONS_H */
