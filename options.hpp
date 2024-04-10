@@ -2,7 +2,6 @@
 #define MCNP2CAD_OPTIONS_H
 
 #include <string>
-#include "options.hpp"
 
 struct program_option_struct{
   bool verbose {false};
@@ -20,9 +19,9 @@ struct program_option_struct{
   bool dout {false};
 
 #ifdef USE_CLI
-  std::string output_file {OPT_DEFAULT_OUTPUT_FILENAME_CLI};
+  std::string output_file {"out.STEP"};
 #else
-  std::string output_file {OPT_DEFAULT_OUTPUT_FILENAME};
+  std::string output_file {"out.sat"};
 #endif
 
   std::string input_file {""};
