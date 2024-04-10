@@ -6,32 +6,10 @@
 struct program_option_struct Gopt;
 
 int main(int argc, char* argv[]){
-
-  // set default options
-  Gopt.verbose = Gopt.debug = false;
-  Gopt.infinite_lattice_extra_effort = false;
-  Gopt.tag_materials = true;
-  Gopt.tag_importances = true;
-  Gopt.tag_cell_IDs = true;
-  Gopt.make_graveyard = true;
-  Gopt.imprint_geom = true;
-  Gopt.merge_geom = true;
-  Gopt.input_file = "";
-  #ifdef USE_CLI
-    Gopt.output_file = OPT_DEFAULT_OUTPUT_FILENAME_CLI;
-  #else
-    Gopt.output_file = OPT_DEFAULT_OUTPUT_FILENAME;
-  #endif
-  Gopt.igeom_init_options = "";
-  Gopt.override_tolerance = false;
-  Gopt.uwuw_names = false;
-  Gopt.din = false;
-  Gopt.dout = false;
-
   ProgOptions po("mcnp2cad " + mcnp2cad_version(false) +  ": An MCNP geometry to CAD file converter");
   po.setVersion( mcnp2cad_version(true) );
 
-  po.addOpt<void>("extra-effort,e","Use extra effort to get infinite lattices right (may be slow)", 
+  po.addOpt<void>("extra-effort,e","Use extra effort to get infinite lattices right (may be slow)",
                   &Gopt.infinite_lattice_extra_effort );
   po.addOpt<void>("verbose,v", "Verbose output", &Gopt.verbose );
   po.addOpt<void>("debug,D", "Debugging (very verbose) output", &Gopt.debug );
@@ -41,7 +19,7 @@ int main(int argc, char* argv[]){
   po.addOptionHelpHeading( "Options controlling CAD output:" );
   po.addOpt<std::string>(",o", "Give name of output file. Default: " + Gopt.output_file, &Gopt.output_file );
   po.addOpt<double>("tol,t", "Specify a tolerance for merging surfaces", &Gopt.specific_tolerance );
-  po.addOpt<void>("skip-mats,M", "Do not tag materials using group names", 
+  po.addOpt<void>("skip-mats,M", "Do not tag materials using group names",
                   &Gopt.tag_materials, po.store_false );
   po.addOpt<void>("skip-imps,P", "Do not tag cell importances using group names",
                   &Gopt.tag_importances, po.store_false );
@@ -64,7 +42,7 @@ int main(int argc, char* argv[]){
   if( po.numOptSet( "tol,t" ) ){
     Gopt.override_tolerance = true;
     if( Gopt.specific_tolerance <= 0.0 || Gopt.specific_tolerance > .1 ){
-      std::cerr << "Warning: you seem to have specified an unusual tolerance (" 
+      std::cerr << "Warning: you seem to have specified an unusual tolerance ("
                 << Gopt.specific_tolerance << ")." << std::endl;
     }
   }

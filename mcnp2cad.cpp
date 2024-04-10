@@ -29,7 +29,7 @@ static bool boundBoxesIntersect( iGeom_Instance& igm, iBase_EntityHandle h1, iBa
 
   Vector3d h1_min, h1_max, h2_min, h2_max;
   int igm_result;
-  
+
   iGeom_getEntBoundBox( igm, h1, h1_min.v, h1_min.v+1, h1_min.v+2, h1_max.v, h1_max.v+1, h1_max.v+2, &igm_result );
   CHECK_IGEOM( igm_result, "Getting bounding box h1" );
   iGeom_getEntBoundBox( igm, h2, h2_min.v, h2_min.v+1, h2_min.v+2, h2_max.v, h2_max.v+1, h2_max.v+2, &igm_result );
@@ -46,14 +46,14 @@ static bool boundBoxesIntersect( iGeom_Instance& igm, iBase_EntityHandle h1, iBa
 
 }
 
-static bool intersectIfPossible( iGeom_Instance& igm, iBase_EntityHandle h1, 
-                                 iBase_EntityHandle h2, iBase_EntityHandle* result, 
+static bool intersectIfPossible( iGeom_Instance& igm, iBase_EntityHandle h1,
+                                 iBase_EntityHandle h2, iBase_EntityHandle* result,
                                  bool delete_on_failure = true)
 {
   int igm_result;
 
   iGeom_intersectEnts( igm, h1, h2, result, &igm_result);
-  
+
   if( igm_result == iBase_SUCCESS ){
     return true;
   }
@@ -71,12 +71,12 @@ static bool intersectIfPossible( iGeom_Instance& igm, iBase_EntityHandle h1,
 
 class GeometryContext {
 
-  /** 
-   * Metadata and naming: 
+  /**
+   * Metadata and naming:
    * The NamedGroup and NamedEntity mappings are used to keep track of metadata
-   * on particular entity handles that map to MCNP cells.  
+   * on particular entity handles that map to MCNP cells.
    * EntityHandles change frequently as CSG operations are performed on volumes,
-   * so these mappings must be updated, by calling updateMaps(), whenever an 
+   * so these mappings must be updated, by calling updateMaps(), whenever an
    * EntityHandle changes.
    */
 
@@ -88,8 +88,7 @@ protected:
   std::string materialName( int mat, double rho ){
     std::string ret;
     std::stringstream formatter;
-    if(Gopt.uwuw_names){
-      bool mass_density = false;
+       bool mass_density = false;
       if (rho <= 0){
         mass_density = true;
         rho = -rho;
@@ -109,7 +108,7 @@ protected:
   }
 
   std::string importanceName( char impchar, double imp ){
-    std::string ret; 
+    std::string ret;
     std::stringstream formatter;
     formatter << "imp." << impchar << "_" << imp;
     formatter >> ret;
@@ -146,12 +145,12 @@ protected:
     }
 
     bool contains( iBase_EntityHandle handle ) const {
-      return std::find( entities.begin(), entities.end(), handle ) != entities.end(); 
+      return std::find( entities.begin(), entities.end(), handle ) != entities.end();
     }
 
   };
 
-  class NamedEntity { 
+  class NamedEntity {
   protected:
     iBase_EntityHandle handle;
     std::string name;
@@ -205,14 +204,14 @@ public:
 
   bool defineLatticeNode( CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell,
                           int x, int y, int z, entity_collection_t& accum );
-  
+
 
   entity_collection_t defineCell( CellCard& cell, bool defineEmbedded, iBase_EntityHandle lattice_shell );
   entity_collection_t populateCell( CellCard& cell, iBase_EntityHandle cell_shell, iBase_EntityHandle lattice_shell );
- 
+
   //TODO Change this; don't have initial values in declaration.
   entity_collection_t defineUniverse( int universe, iBase_EntityHandle container, const Transform* transform = NULL );
-  
+
 
   void addToVolumeGroup( iBase_EntityHandle cell, const std::string& groupname );
   void setVolumeCellID( iBase_EntityHandle cell, int ident);
@@ -291,7 +290,7 @@ public:
 
     iBase_EntityHandle graveyard = NULL, graveyard_boundary = NULL;
     if( Gopt.make_graveyard ){
-      graveyard = createGraveyard ( graveyard_boundary ); 
+      graveyard = createGraveyard ( graveyard_boundary );
     }
 
     entity_collection_t defined_cells = defineUniverse( 0, graveyard_boundary );
@@ -345,7 +344,7 @@ public:
   void tagGroups( );
   void tagCellIDsAsEntNames();
 
-  std::string uprefix() { 
+  std::string uprefix() {
     return std::string( universe_depth, ' ' );
   }
 
@@ -353,7 +352,7 @@ public:
 
 };
 
-bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){ 
+bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
   bool good = true;
   int igm_result;
 
@@ -374,13 +373,13 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
 
   record << "Map sanity check: root set size = " << size << " (" << num_regions << ")" << std::endl;
   record << "Cell count: " << count << std::endl;
-  
+
   // sanity conditions: all the entityhandles in the naming lists are part of the cells list
   std::set< iBase_EntityHandle > allRegions;
   for( size_t i = 0; i < count; ++i ){
     allRegions.insert( cells[i] );
   }
-  
+
   int named_group_volume_count = 0;
   for( std::map<std::string, NamedGroup*>::iterator i = named_groups.begin(); i!=named_groups.end(); ++i){
     NamedGroup* group = (*i).second;
@@ -391,7 +390,7 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
       continue;
 
     entity_collection_t group_cells = group->getEntities();
-    
+
     for( entity_collection_t::iterator j = group_cells.begin(); j != group_cells.end(); ++j ){
       bool check = allRegions.find( *j ) != allRegions.end();
       if( ! check ){
@@ -409,7 +408,7 @@ bool GeometryContext::mapSanityCheck( iBase_EntityHandle* cells, size_t count){
   return good;
 }
 
-entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityHandle container = NULL, 
+entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityHandle container = NULL,
                                                      const Transform* transform /*= NULL*/ )
 {
 
@@ -437,19 +436,19 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
       subcells.push_back( tmp[i] );
     }
   }
-  
+
   if( transform ){
     for( size_t i = 0; i < subcells.size(); ++i){
-      subcells[i] = applyTransform( *transform, igm, subcells[i] );      
+      subcells[i] = applyTransform( *transform, igm, subcells[i] );
     }
   }
 
   if( container && !lattice_shell ){
-    
+
     int igm_result;
-    
+
     for( size_t i = 0; i < subcells.size(); ++i ){
-      
+
       if( OPT_DEBUG ){
         record << uprefix() << "Bounding a universe cell...";
       }
@@ -460,7 +459,7 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
         iBase_EntityHandle container_copy;
         iGeom_copyEnt( igm, container, &container_copy, &igm_result);
         CHECK_IGEOM( igm_result, "Copying a universe-bounding cell" );
-        
+
         iBase_EntityHandle subcell_bounded;
         bool valid_result = intersectIfPossible( igm, container_copy, subcells[i], &subcell_bounded );
         if( valid_result ){
@@ -480,16 +479,16 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
         CHECK_IGEOM( igm_result, "Deleting a subcell that didn't intersect a parent's bounding box (strange!)" );
         subcell_removed = true;
       }
-      
+
       if( subcell_removed ){
         updateMaps( subcells[i], NULL );
         subcells.erase( subcells.begin()+i );
         i--;
         if( OPT_DEBUG ) record << " removed." << std::endl;
       }
-      
+
     }
-        
+
     iGeom_deleteEnt( igm, container, &igm_result );
     CHECK_IGEOM( igm_result, "Deleting a bounding cell" );
   }
@@ -500,7 +499,7 @@ entity_collection_t GeometryContext::defineUniverse( int universe, iBase_EntityH
   }
 
   return subcells;
- 
+
 }
 
 iBase_EntityHandle GeometryContext::createGraveyard( iBase_EntityHandle& inner_copy ) {
@@ -510,25 +509,25 @@ iBase_EntityHandle GeometryContext::createGraveyard( iBase_EntityHandle& inner_c
   double inner_size = 2.0 * world_size;
   iGeom_createBrick( igm, inner_size, inner_size, inner_size, &inner, &igm_result );
   CHECK_IGEOM( igm_result, "Making graveyard" );
-  
+
   iGeom_copyEnt( igm, inner, &inner_copy, &igm_result );
   CHECK_IGEOM( igm_result, "Copying graveyard" );
-  
+
   double outer_size = 2.0 * ( world_size + (world_size / 50.0) );
   iGeom_createBrick( igm, outer_size, outer_size, outer_size, &outer, &igm_result );
   CHECK_IGEOM( igm_result, "Making outer graveyard" );
 
   iGeom_subtractEnts( igm, outer, inner, &graveyard, &igm_result );
   CHECK_IGEOM( igm_result, "subtracting graveyard" );
-  
+
   addToVolumeGroup( graveyard, "graveyard" );
-  
+
   // reset world size to a sphere that bounds the inner shell of this graveyard
   world_size *= sqrt(3.0);
   if( OPT_DEBUG ){
     record << "Spherical world size for graveyard: " << world_size << std::endl;
   }
-  
+
   return graveyard;
 
 }
@@ -540,16 +539,16 @@ void GeometryContext::addToVolumeGroup( iBase_EntityHandle cell, const std::stri
   group->add( cell );
 
   if( OPT_DEBUG ){
-    record << uprefix() << "Added cell to volgroup " << group->getName() << std::endl; 
+    record << uprefix() << "Added cell to volgroup " << group->getName() << std::endl;
   }
 }
 
-entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEmbedded = true, 
+entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEmbedded = true,
                                                   iBase_EntityHandle lattice_shell = NULL )
 {
   int ident = cell.getIdent();
   const CellCard::geom_list_t& geom = cell.getGeom();
- 
+
   if( OPT_VERBOSE ){
     record << uprefix() << "Defining cell " << ident << std::endl;
   }
@@ -560,7 +559,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
 
   std::vector<iBase_EntityHandle> stack;
   for(CellCard::geom_list_t::const_iterator i = geom.begin(); i!=geom.end(); ++i){
-    
+
     const CellCard::geom_list_entry_t& token = (*i);
     switch(token.first){
     case CellCard::CELLNUM:
@@ -574,11 +573,11 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
         }
         throw std::runtime_error("Problem with cell complement.");
       }
-          
+
       stack.push_back( tmp.at(0) );
       break;
     case CellCard::SURFNUM:
-      {      
+      {
         int surface = token.second;
         bool positive = true;
         if( surface < 0){
@@ -642,7 +641,7 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
       }
       break;
     case CellCard::UNION:
-      { 
+      {
         if( stack.size() < 2 ){
           if( OPT_DEBUG ){
             record << "Error in GeometryContext::defineCell(  CellCard& cell,  bool defineEmbedded, iBase_EntityHandle lattice_shell ) in mcnp2cad.cpp" << std::endl;
@@ -703,19 +702,19 @@ entity_collection_t GeometryContext::defineCell(  CellCard& cell,  bool defineEm
   else{
     return entity_collection_t( 1, cellHandle );
   }
-  
+
 }
 
 typedef struct{ int v[3]; } int_triple;
 
 static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
-  if( r == 0 ){ 
+  if( r == 0 ){
     int_triple v; v.v[0] = v.v[1] = v.v[2] = 0;
     return std::vector<int_triple>(1,v);
   }
   else{
     std::vector<int_triple> ret;
-    
+
     int jmin = dimensions > 1 ? -r : 0;
     int jmax = dimensions > 1 ?  r : 0;
     int kmin = dimensions > 2 ? -r : 0;
@@ -727,7 +726,7 @@ static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
               j == -r || j == r ||
               k == -r || k == r ){
             int_triple v;
-            v.v[0] = i; 
+            v.v[0] = i;
             v.v[1] = j;
             v.v[2] = k;
             ret.push_back(v);
@@ -739,10 +738,10 @@ static std::vector<int_triple> makeGridShellOfRadius( int r, int dimensions ){
   }
 }
 
-entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_EntityHandle cell_shell, 
+entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_EntityHandle cell_shell,
                                                    iBase_EntityHandle lattice_shell = NULL )
 {
-  
+
   if( OPT_DEBUG ){
     record << uprefix() << "Populating cell " << cell.getIdent() << std::endl;
   }
@@ -757,15 +756,15 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
   }
   else if(cell.hasFill() && !cell.isLattice()){
     // define a simple (non-lattice) fill
-    
+
     const FillNode& n = cell.getFill().getOriginNode();
     int filling_universe = n.getFillingUniverse();
-    
+
     if( OPT_DEBUG ){
-      record << uprefix() << "Creating cell " << cell.getIdent() 
+      record << uprefix() << "Creating cell " << cell.getIdent()
              << ", which is filled with universe " << filling_universe << std::endl;
     }
-    
+
     // the contained universe is transformed by the FillNode's transform, if any, or
     // else by the cell's TRCL value, if any.
     const Transform* t;
@@ -773,8 +772,8 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
       t = &(n.getTransform());
     } else if( cell.getTrcl().hasData() ){
       t = &(cell.getTrcl().getData() );
-    } else { 
-      t = NULL; 
+    } else {
+      t = NULL;
     }
 
     if( OPT_DEBUG && t ) {
@@ -782,9 +781,9 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
     }
 
     entity_collection_t subcells = defineUniverse(  filling_universe, cell_shell, t );
- 
+
     return subcells;
-     
+
   }
   else {
     // cell is a lattice, bounded by lattice_shell.  cell_shell is the origin element of the lattice and
@@ -797,16 +796,16 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
       }
       throw std::runtime_error("Problem creating lattice");
     }
-    
+
     if( OPT_VERBOSE ) {
       record << uprefix() << "Creating cell " << cell.getIdent() << "'s lattice" << std::endl;
     }
 
     entity_collection_t subcells;
-        
+
     const Lattice& lattice = cell.getLattice();
     int num_dims = lattice.numFiniteDirections();
-    
+
     if( OPT_DEBUG ) {
       record << uprefix() << "  lattice num dims: " << num_dims << std::endl;
     }
@@ -840,17 +839,17 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
       if( OPT_DEBUG ){
         record << uprefix() << "Defining infinite lattice" << std::endl;
       }
-      if( OPT_VERBOSE && Gopt.infinite_lattice_extra_effort ) 
+      if( OPT_VERBOSE && Gopt.infinite_lattice_extra_effort )
         record << uprefix() << "Infinite lattice extra effort enabled." << std::endl;
 
       // when extra effort is enabled, initialize done_one to false;
-      // the code will keep trying to create lattice elements until at least one 
+      // the code will keep trying to create lattice elements until at least one
       // element has been successfully created.
       bool done = false, done_one = !Gopt.infinite_lattice_extra_effort;
       int radius = 0;
 
       while( !done ){
-        
+
         done = done_one;
         std::vector<int_triple> shell = makeGridShellOfRadius(radius++, num_dims);
 
@@ -858,7 +857,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
           int x = (*i).v[0];
           int y = (*i).v[1];
           int z = (*i).v[2];
-          
+
           if( OPT_DEBUG ){
             record << uprefix() << "Defining lattice node " << x << ", " << y << ", " << z << std::endl;
           }
@@ -869,7 +868,7 @@ entity_collection_t GeometryContext::populateCell( CellCard& cell,  iBase_Entity
             done_one = true;
           }
 
-        }       
+        }
       }
     }
 
@@ -901,7 +900,7 @@ void GeometryContext::updateMaps( iBase_EntityHandle old_cell, iBase_EntityHandl
 
   /* update named entities.*/
   if( new_cell != NULL ){
-    for( std::vector< NamedEntity* >::iterator i = named_cells.begin(); 
+    for( std::vector< NamedEntity* >::iterator i = named_cells.begin();
          i != named_cells.end(); ++i )
       {
         NamedEntity* ne = *i;
@@ -934,14 +933,14 @@ void GeometryContext::tagGroups( ){
   // but it has since been expanded for importance groups.  Some of the old messages that
   // talk about material groups could be confusing.
   int igm_result;
-  
+
   std::string name_tag_id = "NAME";
   int name_tag_maxlength = 64;
   iBase_TagHandle name_tag;
 
   iGeom_getTagHandle( igm, name_tag_id.c_str(), &name_tag, &igm_result, name_tag_id.length() );
   CHECK_IGEOM( igm_result, "Looking up NAME tag" );
-  
+
   iGeom_getTagSizeBytes( igm, name_tag, &name_tag_maxlength, &igm_result );
   CHECK_IGEOM( igm_result, "Querying NAME tag length" );
   if( OPT_DEBUG ) record << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
@@ -949,14 +948,14 @@ void GeometryContext::tagGroups( ){
   for( std::map<std::string,NamedGroup*>::iterator i = named_groups.begin(); i != named_groups.end(); ++i ){
 
     NamedGroup* group = (*i).second;
-    if(OPT_VERBOSE){ 
+    if(OPT_VERBOSE){
       record << "Creating volume group " << group->getName() << " of size " << group->getEntities().size() << std::endl;
     }
 
     iBase_EntitySetHandle set;
     iGeom_createEntSet( igm, 0, &set, &igm_result );
     CHECK_IGEOM( igm_result, "Creating a new entity set " );
-    
+
     const entity_collection_t& group_list = group->getEntities();
     for( entity_collection_t::const_iterator j = group_list.begin(); j != group_list.end(); ++j ){
       iGeom_addEntToSet( igm, *j, set, &igm_result );
@@ -969,19 +968,19 @@ void GeometryContext::tagGroups( ){
       name.resize( name_tag_maxlength - 1);
       std::cerr << "Warning: trimmed material name " << group->getName()
                 << " to length " << name_tag_maxlength << std::endl;
-      record << "Warning: trimmed material name " << group->getName() 
+      record << "Warning: trimmed material name " << group->getName()
              << " to length " << name_tag_maxlength << std::endl;
     }
 
     iGeom_setEntSetData( igm, set, name_tag, name.c_str(), name.length(), &igm_result );
     CHECK_IGEOM( igm_result, "Naming a material group's EntitySet" );
-    
+
   }
 
 }
 
 void GeometryContext::tagCellIDsAsEntNames(){
-  
+
   int igm_result;
 
   std::string name_tag_id = "NAME";
@@ -990,13 +989,13 @@ void GeometryContext::tagCellIDsAsEntNames(){
 
   iGeom_getTagHandle( igm, name_tag_id.c_str(), &name_tag, &igm_result, name_tag_id.length() );
   CHECK_IGEOM( igm_result, "Looking up NAME tag" );
-  
+
   iGeom_getTagSizeBytes( igm, name_tag, &name_tag_maxlength, &igm_result );
   CHECK_IGEOM( igm_result, "Querying NAME tag length" );
   if( OPT_DEBUG ) record << "Name tag length: " << name_tag_maxlength << " actual id " << name_tag << std::endl;
 
 
-  if( OPT_VERBOSE ){ 
+  if( OPT_VERBOSE ){
     record << "Naming " << named_cells.size() << " volumes." <<  std::endl;
   }
 
@@ -1006,18 +1005,18 @@ void GeometryContext::tagCellIDsAsEntNames(){
 
     if( name.length() > (unsigned)name_tag_maxlength ){
       name.resize( name_tag_maxlength - 1);
-      std::cerr << "Warning: trimmed entity name " << (*i)->getName() 
+      std::cerr << "Warning: trimmed entity name " << (*i)->getName()
                 << " to length " << name_tag_maxlength << std::endl;
-      record << "Warning: trimmed entity name " << (*i)->getName() 
+      record << "Warning: trimmed entity name " << (*i)->getName()
              << " to length " << name_tag_maxlength << std::endl;
     }
 
-    if( entity == NULL ){ 
+    if( entity == NULL ){
       record << "Error: NULL in named_cells" << std::endl;
-      std::cerr << "Error: NULL in named_cells" << std::endl;  
+      std::cerr << "Error: NULL in named_cells" << std::endl;
       continue;
     }
-    
+
     iGeom_setData( igm, entity, name_tag, name.c_str(), name.length(), &igm_result );
     CHECK_IGEOM( igm_result, "Naming an NamedEntity" );
   }
@@ -1030,15 +1029,15 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
   const Lattice& lattice = cell.getLattice();
   int lattice_universe =   cell.getUniverse();
 
-  const FillNode* fn = &(lattice.getFillForNode( x, y, z ));                            
-  Transform t = lattice.getTxForNode( x, y, z );        
+  const FillNode* fn = &(lattice.getFillForNode( x, y, z ));
+  Transform t = lattice.getTxForNode( x, y, z );
   int igm_result;
-  
+
   iBase_EntityHandle cell_copy;
   iGeom_copyEnt( igm, cell_shell, &cell_copy, &igm_result );
   CHECK_IGEOM( igm_result, "Copying a lattice cell shell" );
   cell_copy = applyTransform( t, igm, cell_copy );
-  
+
   if( !boundBoxesIntersect( igm, cell_copy, lattice_shell ) ){
     iGeom_deleteEnt( igm, cell_copy, &igm_result);
     CHECK_IGEOM( igm_result, "Deleting a lattice cell shell" );
@@ -1083,7 +1082,7 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
 	trans = &(trcl);
       }
     }
-    
+
     iBase_EntityHandle cell_copy_unmoved;
     iGeom_copyEnt( igm, cell_shell, &cell_copy_unmoved, &igm_result );
     CHECK_IGEOM( igm_result, "Re-copying a lattice cell shell" );
@@ -1110,7 +1109,7 @@ bool GeometryContext::defineLatticeNode(  CellCard& cell, iBase_EntityHandle cel
       accum.push_back( result );
       success = true;
     }
-    else{ 
+    else{
       // lattice_shell_copy and node_subcells[i] were deleted by intersectIfPossible(),
       // so there's no need to delete them explicitly
       updateMaps( node_subcells[i], NULL );
@@ -1148,7 +1147,7 @@ void debugSurfaceDistances( InputDeck& deck, std::ostream& out = record ){
       throw;
     }
   }
-  
+
 }
 
 
@@ -1163,22 +1162,22 @@ bool convert_mcnp(std::string filename, bool plugin_build)
     std::ifstream input( filename.c_str(), std::ios::in );
     InputDeck& deck = InputDeck::build(input);
     record << "filename is " << filename << std::endl;
-  
+
     // turn off debug if it was set by debug_input only
     if( Gopt.din ){ Gopt.debug = false; }
-    
+
     if( Gopt.dout && !OPT_DEBUG ){ Gopt.debug = true; }
-  
-    if( OPT_DEBUG ){ 
+
+    if( OPT_DEBUG ){
       debugSurfaceDistances( deck );
     }
-  
+
     iGeom_Instance igm;
     int igm_result;
-  
+
     iGeom_newGeom( Gopt.igeom_init_options.c_str(), &igm, &igm_result, Gopt.igeom_init_options.length() );
     CHECK_IGEOM( igm_result, "Initializing iGeom" );
-  
+
     GeometryContext context( igm, deck );
     context.createGeometry( plugin_build );
   }
@@ -1194,7 +1193,7 @@ bool convert_mcnp(std::string filename, bool plugin_build)
     std::cerr << e.what() << std::endl;
     return false;
   }
-  
+
   record.close();
   return true;
 }
@@ -1202,8 +1201,8 @@ bool convert_mcnp(std::string filename, bool plugin_build)
 std::string mcnp2cad_version( bool full ){
   std::stringstream str;
   str << (full ? "mcnp2cad version " : "")
-      << MCNP2CAD_VERSION_MAJOR << "." 
-      << MCNP2CAD_VERSION_MINOR << "." 
+      << MCNP2CAD_VERSION_MAJOR << "."
+      << MCNP2CAD_VERSION_MINOR << "."
       << MCNP2CAD_VERSION_REV;
   if(full)
       str << "\nCompiled on " << __DATE__ << " at " << __TIME__ ;
