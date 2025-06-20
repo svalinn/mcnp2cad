@@ -7,8 +7,8 @@ in any project and none of this historical implementations continue to
 be valid due to licensing and other restrictions.
 
 Since 2024, support for importing MCNP geometries into Cubit
-has been incorporated natively into [Coreform Cubit](https://coreform.com/coreform-cubit/).
-Users are directed to explore [Coreform Cubit](https://coreform.com/coreform-cubit/)
+has been incorporated natively into `Coreform Cubit <https://coreform.com/coreform-cubit>`_.
+Users are directed to explore `Coreform Cubit <https://coreform.com/coreform-cubit>`_
 as a solution.  The verison of Cubit distributed by Sandia National Laboratories
 does not yet include this support. Users of Sandia Cubit are encouraged to request
 this capability through their Sandia points of contact.
