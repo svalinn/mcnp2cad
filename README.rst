@@ -6,6 +6,13 @@ underlying CAD engine.  That interface is no longer actively supported
 in any project and none of this historical implementations continue to
 be valid due to licensing and other restrictions.
 
+Since 2024, support for importing MCNP geometries into Cubit
+has been incorporated natively into [Coreform Cubit](https://coreform.com/coreform-cubit/).
+Users are directed to explore [Coreform Cubit](https://coreform.com/coreform-cubit/)
+as a solution.  The verison of Cubit distributed by Sandia National Laboratories
+does not yet include this support. Users of Sandia Cubit are encouraged to request
+this capability through their Sandia points of contact.
+
 In theory, it should be possible to revive this by providing access to
 an open source CAD engine, such as OpenCascade (OCC), either by implementing
 a lightweight version of iGeom for OCC or modifying this code to directly
